@@ -189,7 +189,7 @@ export default function TournamentDetail() {
   }
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen pb-20">
       <Header />
 
       <section className="bg-hero border-b border-border">
