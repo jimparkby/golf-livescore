@@ -14,16 +14,247 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      holes: {
+        Row: {
+          created_at: string
+          handicap_index: number | null
+          hole_number: number
+          id: string
+          par: number
+          tournament_id: string
+          yards: number | null
+        }
+        Insert: {
+          created_at?: string
+          handicap_index?: number | null
+          hole_number: number
+          id?: string
+          par: number
+          tournament_id: string
+          yards?: number | null
+        }
+        Update: {
+          created_at?: string
+          handicap_index?: number | null
+          hole_number?: number
+          id?: string
+          par?: number
+          tournament_id?: string
+          yards?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "holes_tournament_id_fkey"
+            columns: ["tournament_id"]
+            isOneToOne: false
+            referencedRelation: "tournaments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          country: string | null
+          created_at: string
+          display_name: string
+          handicap: number | null
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          country?: string | null
+          created_at?: string
+          display_name: string
+          handicap?: number | null
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          country?: string | null
+          created_at?: string
+          display_name?: string
+          handicap?: number | null
+          id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      scores: {
+        Row: {
+          created_at: string
+          hole_id: string
+          hole_number: number
+          id: string
+          putts: number | null
+          stableford_points: number | null
+          strokes: number | null
+          tournament_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          hole_id: string
+          hole_number: number
+          id?: string
+          putts?: number | null
+          stableford_points?: number | null
+          strokes?: number | null
+          tournament_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          hole_id?: string
+          hole_number?: number
+          id?: string
+          putts?: number | null
+          stableford_points?: number | null
+          strokes?: number | null
+          tournament_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scores_hole_id_fkey"
+            columns: ["hole_id"]
+            isOneToOne: false
+            referencedRelation: "holes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "scores_tournament_id_fkey"
+            columns: ["tournament_id"]
+            isOneToOne: false
+            referencedRelation: "tournaments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tournament_players: {
+        Row: {
+          created_at: string
+          id: string
+          starting_hole: number | null
+          team_name: string | null
+          tournament_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          starting_hole?: number | null
+          team_name?: string | null
+          tournament_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          starting_hole?: number | null
+          team_name?: string | null
+          tournament_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tournament_players_tournament_id_fkey"
+            columns: ["tournament_id"]
+            isOneToOne: false
+            referencedRelation: "tournaments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tournaments: {
+        Row: {
+          course_name: string
+          created_at: string
+          created_by: string | null
+          format: Database["public"]["Enums"]["game_format"]
+          id: string
+          name: string
+          start_date: string
+          status: Database["public"]["Enums"]["tournament_status"]
+          total_holes: number
+          total_par: number
+          updated_at: string
+        }
+        Insert: {
+          course_name?: string
+          created_at?: string
+          created_by?: string | null
+          format?: Database["public"]["Enums"]["game_format"]
+          id?: string
+          name: string
+          start_date?: string
+          status?: Database["public"]["Enums"]["tournament_status"]
+          total_holes?: number
+          total_par?: number
+          updated_at?: string
+        }
+        Update: {
+          course_name?: string
+          created_at?: string
+          created_by?: string | null
+          format?: Database["public"]["Enums"]["game_format"]
+          id?: string
+          name?: string
+          start_date?: string
+          status?: Database["public"]["Enums"]["tournament_status"]
+          total_holes?: number
+          total_par?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "player"
+      game_format:
+        | "stroke_play"
+        | "stableford"
+        | "team_scramble"
+        | "team_best_ball"
+      tournament_status: "upcoming" | "live" | "finished"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +381,15 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "player"],
+      game_format: [
+        "stroke_play",
+        "stableford",
+        "team_scramble",
+        "team_best_ball",
+      ],
+      tournament_status: ["upcoming", "live", "finished"],
+    },
   },
 } as const
