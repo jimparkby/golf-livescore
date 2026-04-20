@@ -115,5 +115,29 @@ All colors MUST be HSL.
 
   body {
     @apply bg-background text-foreground;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
   }
+
+  html {
+    color-scheme: dark;
+  }
+}
+
+@layer utilities {
+  .font-display {
+    font-family: 'Oswald', 'Bebas Neue', system-ui, sans-serif;
+    letter-spacing: 0.02em;
+  }
+  .font-mono-tab {
+    font-family: 'JetBrains Mono', 'SF Mono', ui-monospace, monospace;
+    font-variant-numeric: tabular-nums;
+  }
+  .text-under-par { color: hsl(var(--under-par)); }
+  .text-over-par  { color: hsl(var(--over-par)); }
+  .text-even-par  { color: hsl(var(--even-par)); }
+  .bg-hero        { background: var(--gradient-hero); }
+  .bg-leaderboard { background: var(--gradient-leaderboard); }
+  .shadow-elegant { box-shadow: var(--shadow-elegant); }
+  .row-divider    { box-shadow: var(--shadow-row); }
 }
