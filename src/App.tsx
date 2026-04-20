@@ -10,6 +10,10 @@ import Auth from "./pages/Auth.tsx";
 import TournamentDetail from "./pages/TournamentDetail.tsx";
 import Scorecard from "./pages/Scorecard.tsx";
 import Admin from "./pages/Admin.tsx";
+import Play from "./pages/Play.tsx";
+import Stats from "./pages/Stats.tsx";
+import Profile from "./pages/Profile.tsx";
+import { BottomNav } from "./components/layout/BottomNav";
 
 const queryClient = new QueryClient();
 
@@ -26,9 +30,13 @@ const App = () => (
             <Route path="/t/:id" element={<TournamentDetail />} />
             <Route path="/t/:id/score" element={<Scorecard />} />
             <Route path="/admin" element={<Admin />} />
+            <Route path="/play" element={<Play />} />
+            <Route path="/stats" element={<Stats />} />
+            <Route path="/profile" element={<Profile />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
+          <BottomNav />
         </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>
