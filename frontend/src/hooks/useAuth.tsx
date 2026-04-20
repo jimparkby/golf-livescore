@@ -1,67 +1,64 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from "react";
-import { supabase } from "@/integrations/supabase/client";
-import type { Session, User } from "@supabase/supabase-js";
+import { createContext, useContext, useEffect, useState, ReactNode } from 'react'
+import { api } from '@/lib/api'
+
+export type AuthUser = {
+  id: string
+  telegram_id: string
+  telegram_username: string | null
+  telegram_first_name: string | null
+  telegram_last_name: string | null
+  display_name: string
+  country: string | null
+  handicap: number
+  is_admin: boolean
+}
 
 type AuthCtx = {
-  session: Session | null;
-  user: User | null;
-  loading: boolean;
-  isAdmin: boolean;
-  signOut: () => Promise<void>;
-};
+  user: AuthUser | null
+  loading: boolean
+  isAdmin: boolean
+  signOut: () => void
+  refreshUser: () => Promise<void>
+}
 
 const Ctx = createContext<AuthCtx>({
-  session: null,
   user: null,
   loading: true,
   isAdmin: false,
-  signOut: async () => {},
-});
+  signOut: () => {},
+  refreshUser: async () => {},
+})
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [session, setSession] = useState<Session | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [isAdmin, setIsAdmin] = useState(false);
+  const [user, setUser] = useState<AuthUser | null>(null)
+  const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    // Listener FIRST
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, s) => {
-      setSession(s);
-      if (s?.user) {
-        // Defer role fetch
-        setTimeout(async () => {
-          const { data } = await supabase
-            .from("user_roles")
-            .select("role")
-            .eq("user_id", s.user.id)
-            .eq("role", "admin")
-            .maybeSingle();
-          setIsAdmin(!!data);
-        }, 0);
-      } else {
-        setIsAdmin(false);
-      }
-    });
+  const loadUser = async () => {
+    const token = localStorage.getItem('golf_jwt')
+    if (!token) { setLoading(false); return }
+    try {
+      const data = await api.get('/api/profile')
+      setUser(data)
+    } catch {
+      localStorage.removeItem('golf_jwt')
+      setUser(null)
+    } finally {
+      setLoading(false)
+    }
+  }
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setLoading(false);
-    });
+  useEffect(() => { loadUser() }, [])
 
-    return () => sub.subscription.unsubscribe();
-  }, []);
-
-  const signOut = async () => {
-    await supabase.auth.signOut();
-  };
+  const signOut = () => {
+    localStorage.removeItem('golf_jwt')
+    setUser(null)
+  }
 
   return (
-    <Ctx.Provider
-      value={{ session, user: session?.user ?? null, loading, isAdmin, signOut }}
-    >
+    <Ctx.Provider value={{ user, loading, isAdmin: user?.is_admin ?? false, signOut, refreshUser: loadUser }}>
       {children}
     </Ctx.Provider>
-  );
+  )
 }
 
-export const useAuth = () => useContext(Ctx);
+export const useAuth = () => useContext(Ctx)

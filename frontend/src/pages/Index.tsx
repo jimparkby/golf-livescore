@@ -1,71 +1,67 @@
-import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
-import { Header } from "@/components/scoring/Header";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Calendar, MapPin, Trophy, Users } from "lucide-react";
-import { useAuth } from "@/hooks/useAuth";
+import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
+import { api } from '@/lib/api'
+import { useAuth } from '@/hooks/useAuth'
+import { Header } from '@/components/scoring/Header'
+import { Card, CardContent } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Calendar, MapPin, Trophy, Users } from 'lucide-react'
 
 type Tournament = {
-  id: string;
-  name: string;
-  course_name: string;
-  format: string;
-  status: "upcoming" | "live" | "finished";
-  start_date: string;
-  total_holes: number;
-  total_par: number;
-};
+  id: string
+  name: string
+  course_name: string
+  format: string
+  status: 'upcoming' | 'live' | 'finished'
+  start_date: string
+  total_holes: number
+  total_par: number
+}
 
 const FORMAT_LABEL: Record<string, string> = {
-  stroke_play: "Stroke Play",
-  stableford: "Stableford",
-  team_scramble: "Scramble",
-  team_best_ball: "Best Ball",
-};
+  stroke_play: 'Stroke Play',
+  stableford: 'Stableford',
+  team_scramble: 'Scramble',
+  team_best_ball: 'Best Ball',
+}
 
 const STATUS_STYLE: Record<string, string> = {
-  live: "bg-destructive text-destructive-foreground animate-pulse",
-  upcoming: "bg-secondary text-secondary-foreground",
-  finished: "bg-muted text-muted-foreground",
-};
+  live: 'bg-destructive text-destructive-foreground animate-pulse',
+  upcoming: 'bg-secondary text-secondary-foreground',
+  finished: 'bg-muted text-muted-foreground',
+}
 
 const STATUS_LABEL: Record<string, string> = {
-  live: "● LIVE",
-  upcoming: "Скоро",
-  finished: "Завершён",
-};
+  live: '● LIVE',
+  upcoming: 'Скоро',
+  finished: 'Завершён',
+}
 
 export default function Index() {
-  const { session } = useAuth();
-  const [tournaments, setTournaments] = useState<Tournament[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { user } = useAuth()
+  const [tournaments, setTournaments] = useState<Tournament[]>([])
+  const [loading, setLoading] = useState(true)
+
+  const load = async () => {
+    try {
+      const data = await api.get('/api/tournaments')
+      setTournaments(data)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   useEffect(() => {
-    const load = async () => {
-      const { data } = await supabase
-        .from("tournaments")
-        .select("*")
-        .order("start_date", { ascending: false });
-      setTournaments(data ?? []);
-      setLoading(false);
-    };
-    load();
-
-    const ch = supabase
-      .channel("tournaments-list")
-      .on("postgres_changes", { event: "*", schema: "public", table: "tournaments" }, load)
-      .subscribe();
-    return () => { supabase.removeChannel(ch); };
-  }, []);
+    load()
+    const interval = setInterval(load, 10000)
+    return () => clearInterval(interval)
+  }, [])
 
   return (
     <div className="min-h-screen pb-20">
       <Header />
 
-      {/* Hero */}
       <section className="bg-hero border-b border-border">
         <div className="container py-16 md:py-24">
           <Badge className="mb-4 bg-primary/15 text-primary hover:bg-primary/20">
@@ -78,8 +74,7 @@ export default function Index() {
             Следите за турнирами в реальном времени. Лидерборд обновляется
             мгновенно, как только игроки вписывают счёт.
           </p>
-
-          {!session && (
+          {!user && (
             <div className="mt-6 flex gap-3">
               <Button asChild size="lg">
                 <Link to="/auth">Войти и записать счёт</Link>
@@ -89,7 +84,6 @@ export default function Index() {
         </div>
       </section>
 
-      {/* Tournaments */}
       <section className="container py-10">
         <div className="mb-6 flex items-end justify-between">
           <h2 className="font-display text-2xl uppercase tracking-wider">Турниры</h2>
@@ -101,9 +95,7 @@ export default function Index() {
           <Card className="border-dashed">
             <CardContent className="py-16 text-center">
               <Trophy className="mx-auto mb-3 h-10 w-10 text-muted-foreground" />
-              <p className="text-muted-foreground">
-                Пока нет турниров. Админ может создать первый турнир.
-              </p>
+              <p className="text-muted-foreground">Пока нет турниров.</p>
             </CardContent>
           </Card>
         ) : (
@@ -123,7 +115,7 @@ export default function Index() {
                     </h3>
                     <div className="mt-3 space-y-1.5 text-sm text-muted-foreground">
                       <div className="flex items-center gap-2"><MapPin className="h-4 w-4" />{t.course_name}</div>
-                      <div className="flex items-center gap-2"><Calendar className="h-4 w-4" />{new Date(t.start_date).toLocaleDateString("ru-RU")}</div>
+                      <div className="flex items-center gap-2"><Calendar className="h-4 w-4" />{new Date(t.start_date).toLocaleDateString('ru-RU')}</div>
                       <div className="flex items-center gap-2"><Users className="h-4 w-4" />{t.total_holes} лунок · Par {t.total_par}</div>
                     </div>
                   </CardContent>
@@ -134,5 +126,5 @@ export default function Index() {
         )}
       </section>
     </div>
-  );
+  )
 }
