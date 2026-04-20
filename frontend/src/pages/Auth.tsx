@@ -1,67 +1,61 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '@/hooks/useAuth'
-import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { toast } from 'sonner'
-import { Trophy, Send } from 'lucide-react'
+import { Trophy } from 'lucide-react'
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001'
+const BOT_USERNAME = import.meta.env.VITE_TG_BOT_USERNAME || ''
+
+declare global {
+  interface Window {
+    onTelegramAuth: (user: Record<string, string>) => void
+  }
+}
 
 export default function Auth() {
   const { user, loading, refreshUser } = useAuth()
   const navigate = useNavigate()
-  const [busy, setBusy] = useState(false)
-  const [tgPending, setTgPending] = useState(false)
-  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     if (!loading && user) navigate('/', { replace: true })
   }, [user, loading, navigate])
 
   useEffect(() => {
-    return () => { if (pollRef.current) clearInterval(pollRef.current) }
-  }, [])
+    if (!containerRef.current) return
 
-  const onTelegramLogin = async () => {
-    setBusy(true)
-    try {
-      const res = await fetch(`${BACKEND_URL}/api/auth/tg-link`)
-      if (!res.ok) throw new Error('Ошибка сервера')
-      const { url, token } = await res.json()
-
-      window.open(url, '_blank')
-      setTgPending(true)
-      setBusy(false)
-
-      pollRef.current = setInterval(async () => {
-        try {
-          const statusRes = await fetch(`${BACKEND_URL}/api/auth/tg-status?token=${token}`)
-          const status = await statusRes.json()
-
-          if (status.expired) {
-            clearInterval(pollRef.current!)
-            setTgPending(false)
-            toast.error('Ссылка истекла. Попробуйте снова.')
-            return
-          }
-
-          if (status.verified) {
-            clearInterval(pollRef.current!)
-            localStorage.setItem('golf_jwt', status.jwt)
-            await refreshUser()
-            toast.success('Вы вошли через Telegram!')
-            navigate('/')
-          }
-        } catch {
-          // ignore network errors during polling
-        }
-      }, 2000)
-    } catch (err: any) {
-      setBusy(false)
-      toast.error(err.message ?? 'Не удалось подключиться к серверу')
+    window.onTelegramAuth = async (tgUser) => {
+      try {
+        const res = await fetch(`${BACKEND_URL}/api/auth/telegram`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(tgUser),
+        })
+        if (!res.ok) throw new Error('Ошибка авторизации')
+        const data = await res.json()
+        localStorage.setItem('golf_jwt', data.jwt)
+        await refreshUser()
+        toast.success('Добро пожаловать!')
+        navigate('/')
+      } catch (err: any) {
+        toast.error(err.message ?? 'Ошибка входа')
+      }
     }
-  }
+
+    const script = document.createElement('script')
+    script.src = 'https://telegram.org/js/telegram-widget.js?22'
+    script.setAttribute('data-telegram-login', BOT_USERNAME)
+    script.setAttribute('data-size', 'large')
+    script.setAttribute('data-onauth', 'onTelegramAuth(user)')
+    script.setAttribute('data-request-access', 'write')
+    script.setAttribute('data-lang', 'ru')
+    script.async = true
+
+    containerRef.current.innerHTML = ''
+    containerRef.current.appendChild(script)
+  }, [loading])
 
   return (
     <div className="min-h-screen bg-hero">
@@ -74,21 +68,11 @@ export default function Auth() {
             <CardTitle className="font-display text-2xl uppercase tracking-wider">Minsk Golf</CardTitle>
             <CardDescription>Лайвскоринг турниров</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <Button
-              className="w-full bg-[#229ED9] hover:bg-[#1a8dbf] text-white"
-              onClick={onTelegramLogin}
-              disabled={busy || tgPending}
-            >
-              <Send className="mr-2 h-4 w-4" />
-              {tgPending ? 'Ожидаем подтверждения в Telegram…' : 'Войти через Telegram'}
-            </Button>
-
-            {tgPending && (
-              <p className="text-center text-sm text-muted-foreground">
-                Откройте бота и нажмите <strong>Start</strong>
-              </p>
-            )}
+          <CardContent>
+            <div className="flex flex-col items-center gap-3 py-4">
+              <p className="text-sm text-muted-foreground">Войдите через Telegram</p>
+              <div ref={containerRef} />
+            </div>
           </CardContent>
         </Card>
       </div>

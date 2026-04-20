@@ -14,16 +14,6 @@ CREATE TABLE users (
   updated_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE TABLE tg_auth_tokens (
-  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  token       UUID NOT NULL UNIQUE,
-  verified    BOOLEAN NOT NULL DEFAULT FALSE,
-  user_id     UUID REFERENCES users(id) ON DELETE CASCADE,
-  jwt         TEXT,
-  expires_at  TIMESTAMPTZ NOT NULL,
-  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
 CREATE TABLE tournaments (
   id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name        TEXT NOT NULL,
@@ -72,4 +62,3 @@ CREATE INDEX idx_scores_user         ON scores(user_id);
 CREATE INDEX idx_tp_tournament       ON tournament_players(tournament_id);
 CREATE INDEX idx_tp_user             ON tournament_players(user_id);
 CREATE INDEX idx_holes_tournament    ON holes(tournament_id);
-CREATE INDEX idx_tg_tokens_token     ON tg_auth_tokens(token);
