@@ -31,6 +31,12 @@ app.get('*', (req, res) => {
 const PORT = process.env.PORT || 3001
 app.listen(PORT, () => console.log(`Backend running on http://localhost:${PORT}`))
 
-bot.launch()
+bot.launch().catch((err) => {
+  if (err?.response?.error_code === 409) {
+    console.warn('Bot already running, skipping launch')
+  } else {
+    console.error('Bot launch error:', err.message)
+  }
+})
 process.once('SIGINT', () => bot.stop('SIGINT'))
 process.once('SIGTERM', () => bot.stop('SIGTERM'))
