@@ -1,4 +1,4 @@
-const BASE = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001'
+const BASE = import.meta.env.VITE_BACKEND_URL ?? ''
 
 const getToken = () => localStorage.getItem('golf_jwt')
 
