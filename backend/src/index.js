@@ -22,7 +22,7 @@ app.use('/api/tournaments', tournamentsRouter)
 app.use('/api/scores', scoresRouter)
 app.use('/api/stats', statsRouter)
 
-const distPath = path.join(__dirname, '../../frontend/dist')
+const distPath = path.join(__dirname, '../../dist')
 app.use(express.static(distPath))
 app.get('*', (req, res) => {
   res.sendFile(path.join(distPath, 'index.html'))
