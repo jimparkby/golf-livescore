@@ -1,5 +1,5 @@
 {
-  "name": "golf-livescore-backend",
+  "name": "golfminsk-backend",
   "version": "1.0.0",
   "type": "module",
   "scripts": {
@@ -11,7 +11,6 @@
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
     "jsonwebtoken": "^9.0.2",
-    "pg": "^8.13.3",
-    "telegraf": "^4.16.3"
+    "pg": "^8.13.3"
   }
 }

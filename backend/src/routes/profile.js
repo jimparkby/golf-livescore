@@ -6,37 +6,33 @@ const router = Router()
 
 router.get('/', requireAuth, async (req, res) => {
   const { rows: [user] } = await db.query(
-    `SELECT id, telegram_id, telegram_username, telegram_first_name, telegram_last_name,
-            display_name, country, handicap, is_admin, created_at
+    `SELECT id, email, first_name, last_name, hcp, home_club, city, is_admin, created_at
      FROM users WHERE id = $1`,
     [req.user.userId]
   )
-  if (!user) return res.status(404).json({ error: 'User not found' })
+  if (!user) return res.status(404).json({ error: 'Пользователь не найден' })
   res.json(user)
 })
 
 router.put('/', requireAuth, async (req, res) => {
-  const { display_name, country, handicap, telegram_username, telegram_first_name, telegram_last_name } = req.body
+  const { first_name, last_name, hcp, home_club, city } = req.body
 
   const { rows: [user] } = await db.query(
     `UPDATE users SET
-       display_name        = COALESCE(NULLIF($1, ''), display_name),
-       country             = NULLIF($2, ''),
-       handicap            = COALESCE($3, handicap),
-       telegram_username   = COALESCE(NULLIF($4, ''), telegram_username),
-       telegram_first_name = COALESCE(NULLIF($5, ''), telegram_first_name),
-       telegram_last_name  = NULLIF($6, ''),
-       updated_at          = NOW()
-     WHERE id = $7
-     RETURNING id, telegram_id, telegram_username, telegram_first_name, telegram_last_name,
-               display_name, country, handicap, is_admin, created_at`,
+       first_name = COALESCE(NULLIF($1, ''), first_name),
+       last_name  = COALESCE(NULLIF($2, ''), last_name),
+       hcp        = COALESCE($3, hcp),
+       home_club  = COALESCE(NULLIF($4, ''), home_club),
+       city       = COALESCE(NULLIF($5, ''), city),
+       updated_at = NOW()
+     WHERE id = $6
+     RETURNING id, email, first_name, last_name, hcp, home_club, city, is_admin, created_at`,
     [
-      display_name?.trim() ?? '',
-      country?.trim() ?? '',
-      handicap !== undefined ? Number(handicap) : null,
-      telegram_username?.trim() ?? '',
-      telegram_first_name?.trim() ?? '',
-      telegram_last_name?.trim() ?? '',
+      first_name?.trim() ?? '',
+      last_name?.trim() ?? '',
+      hcp !== undefined ? Number(hcp) : null,
+      home_club?.trim() ?? '',
+      city?.trim() ?? '',
       req.user.userId,
     ]
   )

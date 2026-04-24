@@ -1,59 +1,58 @@
 import { Router } from 'express'
-import crypto from 'crypto'
 import jwt from 'jsonwebtoken'
 import { db } from '../db.js'
 
 const router = Router()
 
-function verifyTelegramAuth(data) {
-  const { hash, ...rest } = data
-  const checkString = Object.keys(rest)
-    .sort()
-    .map((k) => `${k}=${rest[k]}`)
-    .join('\n')
+router.post('/register', async (req, res) => {
+  const { email, first_name, last_name } = req.body
 
-  const secretKey = crypto.createHash('sha256')
-    .update(process.env.TELEGRAM_BOT_TOKEN)
-    .digest()
-
-  const hmac = crypto.createHmac('sha256', secretKey)
-    .update(checkString)
-    .digest('hex')
-
-  return hmac === hash
-}
-
-router.post('/telegram', async (req, res) => {
-  const data = req.body
-
-  if (!verifyTelegramAuth(data)) {
-    return res.status(401).json({ error: 'Invalid Telegram auth data' })
+  if (!email?.trim() || !first_name?.trim() || !last_name?.trim()) {
+    return res.status(400).json({ error: 'Email, имя и фамилия обязательны' })
   }
 
-  if (Date.now() / 1000 - Number(data.auth_date) > 86400) {
-    return res.status(401).json({ error: 'Auth data expired' })
-  }
+  try {
+    const { rows: [user] } = await db.query(
+      `INSERT INTO users (email, first_name, last_name)
+       VALUES ($1, $2, $3) RETURNING *`,
+      [email.trim().toLowerCase(), first_name.trim(), last_name.trim()]
+    )
 
-  const displayName = [data.first_name, data.last_name].filter(Boolean).join(' ')
+    const token = jwt.sign(
+      { userId: user.id, isAdmin: user.is_admin },
+      process.env.JWT_SECRET,
+      { expiresIn: '365d' }
+    )
+    res.json({ jwt: token })
+  } catch (err) {
+    if (err.code === '23505') {
+      return res.status(409).json({ error: 'Email уже зарегистрирован' })
+    }
+    throw err
+  }
+})
+
+router.post('/login', async (req, res) => {
+  const { email } = req.body
+
+  if (!email?.trim()) {
+    return res.status(400).json({ error: 'Email обязателен' })
+  }
 
   const { rows: [user] } = await db.query(
-    `INSERT INTO users (telegram_id, telegram_username, telegram_first_name, telegram_last_name, display_name)
-     VALUES ($1, $2, $3, $4, $5)
-     ON CONFLICT (telegram_id) DO UPDATE SET
-       telegram_username   = EXCLUDED.telegram_username,
-       telegram_first_name = EXCLUDED.telegram_first_name,
-       telegram_last_name  = EXCLUDED.telegram_last_name,
-       updated_at          = NOW()
-     RETURNING *`,
-    [String(data.id), data.username ?? null, data.first_name, data.last_name ?? null, displayName]
+    `SELECT * FROM users WHERE email = $1`,
+    [email.trim().toLowerCase()]
   )
+
+  if (!user) {
+    return res.status(404).json({ error: 'Пользователь не найден. Зарегистрируйтесь.' })
+  }
 
   const token = jwt.sign(
     { userId: user.id, isAdmin: user.is_admin },
     process.env.JWT_SECRET,
-    { expiresIn: '30d' }
+    { expiresIn: '365d' }
   )
-
   res.json({ jwt: token })
 })
 
