@@ -1,0 +1,65 @@
+import { NavLink, Outlet } from "react-router-dom";
+import { Trophy, CircleUserRound, LineChart, Tent } from "lucide-react";
+import { cn } from "@/lib/utils";
+
+const tabs = [
+  { to: "/", label: "Играть", icon: Tent, end: true },
+  { to: "/tournaments", label: "Турниры", icon: Trophy },
+  { to: "/stats", label: "Статистика", icon: LineChart },
+  { to: "/profile", label: "Профиль", icon: CircleUserRound },
+];
+
+const AppLayout = () => {
+  return (
+    <div className="min-h-screen bg-background flex flex-col">
+      <header className="gradient-hero text-primary-foreground">
+        <div className="mx-auto max-w-3xl px-5 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="h-9 w-9 rounded-full bg-primary-foreground/15 backdrop-blur grid place-items-center border border-primary-foreground/30">
+              <span className="text-base">⛳</span>
+            </div>
+            <div className="leading-tight">
+              <div className="font-bold tracking-wide text-base">GOLFMINSK</div>
+              <div className="text-[10px] uppercase tracking-[0.2em] opacity-70">Live Scoring</div>
+            </div>
+          </div>
+          <div className="text-xs opacity-80 font-medium">Сезон 2026</div>
+        </div>
+      </header>
+
+      <main className="flex-1 mx-auto w-full max-w-3xl px-4 pt-4 pb-28">
+        <Outlet />
+      </main>
+
+      <nav className="fixed bottom-0 inset-x-0 z-30 border-t border-border bg-card/95 backdrop-blur-md shadow-elevated">
+        <div className="mx-auto max-w-3xl grid grid-cols-4">
+          {tabs.map(({ to, label, icon: Icon, end }) => (
+            <NavLink
+              key={to}
+              to={to}
+              end={end}
+              className={({ isActive }) =>
+                cn(
+                  "flex flex-col items-center gap-1 py-3 text-[11px] font-medium transition-base",
+                  isActive ? "text-action" : "text-muted-foreground hover:text-foreground",
+                )
+              }
+            >
+              {({ isActive }) => (
+                <>
+                  <Icon
+                    className={cn("h-5 w-5", isActive && "drop-shadow-[0_0_6px_hsl(var(--action)/0.6)]")}
+                    strokeWidth={isActive ? 2.5 : 2}
+                  />
+                  <span>{label}</span>
+                </>
+              )}
+            </NavLink>
+          ))}
+        </div>
+      </nav>
+    </div>
+  );
+};
+
+export default AppLayout;
