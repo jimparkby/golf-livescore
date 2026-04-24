@@ -12,6 +12,6 @@ WORKDIR /app
 COPY backend/package*.json ./backend/
 RUN cd backend && npm ci --production
 COPY backend/ ./backend/
-COPY --from=frontend-build /app/frontend/dist ./dist
+COPY --from=frontend-build /app/dist ./dist
 EXPOSE 3001
 CMD ["node", "backend/src/index.js"]
