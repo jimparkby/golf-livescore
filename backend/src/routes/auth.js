@@ -4,7 +4,7 @@ import { db } from '../db.js'
 
 const router = Router()
 
-router.post('/register', async (req, res) => {
+router.post('/register', async (req, res, next) => {
   const { email, first_name, last_name } = req.body
 
   if (!email?.trim() || !first_name?.trim() || !last_name?.trim()) {
@@ -28,32 +28,36 @@ router.post('/register', async (req, res) => {
     if (err.code === '23505') {
       return res.status(409).json({ error: 'Email уже зарегистрирован' })
     }
-    throw err
+    next(err)
   }
 })
 
-router.post('/login', async (req, res) => {
+router.post('/login', async (req, res, next) => {
   const { email } = req.body
 
   if (!email?.trim()) {
     return res.status(400).json({ error: 'Email обязателен' })
   }
 
-  const { rows: [user] } = await db.query(
-    `SELECT * FROM users WHERE email = $1`,
-    [email.trim().toLowerCase()]
-  )
+  try {
+    const { rows: [user] } = await db.query(
+      `SELECT * FROM users WHERE email = $1`,
+      [email.trim().toLowerCase()]
+    )
 
-  if (!user) {
-    return res.status(404).json({ error: 'Пользователь не найден. Зарегистрируйтесь.' })
+    if (!user) {
+      return res.status(404).json({ error: 'Пользователь не найден. Зарегистрируйтесь.' })
+    }
+
+    const token = jwt.sign(
+      { userId: user.id, isAdmin: user.is_admin },
+      process.env.JWT_SECRET,
+      { expiresIn: '365d' }
+    )
+    res.json({ jwt: token })
+  } catch (err) {
+    next(err)
   }
-
-  const token = jwt.sign(
-    { userId: user.id, isAdmin: user.is_admin },
-    process.env.JWT_SECRET,
-    { expiresIn: '365d' }
-  )
-  res.json({ jwt: token })
 })
 
 export default router

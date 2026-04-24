@@ -18,18 +18,24 @@ export default function AuthPage() {
   const [regEmail, setRegEmail] = useState('')
   const [regLoading, setRegLoading] = useState(false)
 
+  const authFetch = async (url: string, body: object) => {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    })
+    let data: Record<string, string> = {}
+    try { data = await res.json() } catch { /* non-JSON response */ }
+    if (!res.ok) throw new Error(data.error ?? `Ошибка сервера (${res.status})`)
+    return data
+  }
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!loginEmail.trim()) return toast.error('Введите email')
     setLoginLoading(true)
     try {
-      const res = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: loginEmail.trim() }),
-      })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error ?? 'Ошибка входа')
+      const data = await authFetch('/api/auth/login', { email: loginEmail.trim() })
       await signIn(data.jwt)
       toast.success('Добро пожаловать!')
     } catch (err: unknown) {
@@ -46,13 +52,11 @@ export default function AuthPage() {
     }
     setRegLoading(true)
     try {
-      const res = await fetch('/api/auth/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: regEmail.trim(), first_name: regFirst.trim(), last_name: regLast.trim() }),
+      const data = await authFetch('/api/auth/register', {
+        email: regEmail.trim(),
+        first_name: regFirst.trim(),
+        last_name: regLast.trim(),
       })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error ?? 'Ошибка регистрации')
       await signIn(data.jwt)
       toast.success('Аккаунт создан!')
     } catch (err: unknown) {
