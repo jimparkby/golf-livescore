@@ -7,6 +7,7 @@ import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import AppLayout from "@/components/AppLayout";
 import PlayPage from "./pages/Play";
 import TournamentsPage from "./pages/Tournaments";
+import TournamentPlayPage from "./pages/TournamentPlay";
 import StatsPage from "./pages/Stats";
 import ProfilePage from "./pages/Profile";
 import NotFound from "./pages/NotFound";
@@ -32,6 +33,7 @@ function AppRoutes() {
       <Route element={<AppLayout />}>
         <Route path="/" element={<PlayPage />} />
         <Route path="/tournaments" element={<TournamentsPage />} />
+        <Route path="/tournament/:id" element={<TournamentPlayPage />} />
         <Route path="/stats" element={<StatsPage />} />
         <Route path="/profile" element={<ProfilePage />} />
       </Route>

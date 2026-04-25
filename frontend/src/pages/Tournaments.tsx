@@ -2,6 +2,8 @@ import { TOURNAMENTS, TIER_LABELS, type Tier } from "@/lib/tournaments";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { useMemo } from "react";
+import { useNavigate } from "react-router-dom";
+import { ChevronRight } from "lucide-react";
 
 const tierColor: Record<Tier, string> = {
   gold: "bg-tier-gold",
@@ -11,6 +13,7 @@ const tierColor: Record<Tier, string> = {
 };
 
 const TournamentsPage = () => {
+  const navigate = useNavigate();
   const grouped = useMemo(() => {
     const map = new Map<string, typeof TOURNAMENTS>();
     TOURNAMENTS.forEach((t) => {
@@ -35,8 +38,12 @@ const TournamentsPage = () => {
             <div className="text-xs uppercase tracking-[0.2em] font-bold text-primary">{month}</div>
           </div>
           <div className="divide-y divide-border">
-            {items.map((t, i) => (
-              <div key={i} className="px-4 py-3 flex items-start gap-3 hover:bg-muted/30 transition-base">
+            {items.map((t) => (
+              <button
+                key={t.id}
+                onClick={() => navigate(`/tournament/${t.id}`)}
+                className="w-full px-4 py-3 flex items-start gap-3 hover:bg-muted/30 transition-base text-left"
+              >
                 <div className="w-20 shrink-0">
                   <div className="font-bold tabular-nums text-primary">{t.date}</div>
                   <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{t.day}</div>
@@ -55,8 +62,9 @@ const TournamentsPage = () => {
                     {t.tier === "closed" && "C"}
                   </div>
                   {t.fee && <div className="text-xs font-semibold tabular-nums w-7 text-right">{t.fee}</div>}
+                  <ChevronRight className="h-4 w-4 text-muted-foreground/50" />
                 </div>
-              </div>
+              </button>
             ))}
           </div>
         </Card>
