@@ -4,7 +4,7 @@ import { Card } from "@/components/ui/card";
 import { Avatar } from "@/components/PlayerAvatar";
 import { COURSES } from "@/lib/courses";
 import { useGolf, type Player } from "@/store/golfStore";
-import { ChevronLeft, ChevronRight, Plus, Cog, Sprout, X, CheckCircle2, Waves, ShieldAlert, Crosshair, Mountain, PlayCircle, Timer } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, Cog, X, Waves, ShieldAlert, Mountain, PlayCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import heroImg from "@/assets/golfminsk/hero.jpg";
@@ -257,20 +257,29 @@ const SetupScreen = ({
 };
 
 /* ────────── PLAYING ────────── */
+const scoreLabel = (score: number, par: number) => {
+  const d = score - par;
+  if (d <= -2) return "Орёл";
+  if (d === -1) return "Бёрди";
+  if (d === 0) return "Пар";
+  if (d === 1) return "Богги";
+  return `+${d}`;
+};
+
+const scoreLabelColor = (score: number, par: number) => {
+  const d = score - par;
+  if (d <= -2) return "text-yellow-400";
+  if (d === -1) return "text-action";
+  if (d === 0) return "text-primary-foreground";
+  if (d === 1) return "text-orange-400";
+  return "text-red-400";
+};
+
 const RoundPlayer = ({ onExit }: { onExit: () => void }) => {
   const { activeRound, enterScore, finishRound } = useGolf();
   const [holeIdx, setHoleIdx] = useState(0);
   const [sheetPlayer, setSheetPlayer] = useState<Player | null>(null);
   const [hole, setHole] = useState({ score: 4, putts: 2, fairwayBunker: false, greenSideBunker: false, hazard: false, outOfBounds: false });
-  const [startTime] = useState(Date.now());
-  const [tick, setTick] = useState(0);
-
-  // ticking timer
-  useState(() => {
-    const t = setInterval(() => setTick((x) => x + 1), 1000);
-    return () => clearInterval(t);
-  });
-  void tick;
 
   if (!activeRound) {
     return (
@@ -283,13 +292,7 @@ const RoundPlayer = ({ onExit }: { onExit: () => void }) => {
 
   const course = COURSES.find((c) => c.id === activeRound.courseId)!;
   const currentHole = course.holes[holeIdx];
-
-  const elapsed = (Date.now() - startTime) / 1000;
-  const fmt = (s: number) => {
-    const m = Math.floor(s / 60);
-    const sec = Math.floor(s % 60);
-    return `${String(m).padStart(2, "0")}m ${String(sec).padStart(2, "0")}s`;
-  };
+  const totalHoles = course.holes.length;
 
   const openSheet = (p: Player) => {
     const existing = activeRound.scores[p.id]?.find((x) => x.hole === currentHole.number);
@@ -302,6 +305,13 @@ const RoundPlayer = ({ onExit }: { onExit: () => void }) => {
       outOfBounds: existing?.outOfBounds ?? false,
     });
     setSheetPlayer(p);
+  };
+
+  const openNextPlayer = () => {
+    const next = activeRound.players.find(
+      (p) => !activeRound.scores[p.id]?.find((x) => x.hole === currentHole.number)
+    ) ?? activeRound.players[0];
+    openSheet(next);
   };
 
   const submit = () => {
@@ -319,7 +329,7 @@ const RoundPlayer = ({ onExit }: { onExit: () => void }) => {
 
   const total = (p: Player) =>
     activeRound.scores[p.id]?.reduce((a, s) => a + (s.score || 0), 0) ?? 0;
-  const totalPar = (p: Player) => {
+  const totalVsPar = (p: Player) => {
     const played = activeRound.scores[p.id] ?? [];
     return played.reduce((a, s) => {
       const h = course.holes.find((h) => h.number === s.hole);
@@ -328,171 +338,255 @@ const RoundPlayer = ({ onExit }: { onExit: () => void }) => {
   };
 
   return (
-    <div className="space-y-4 animate-in fade-in duration-200">
-      {/* Hole header */}
-      <Card className="p-4 shadow-soft">
-        <div className="flex items-center justify-between">
+    <div className="fixed inset-0 z-50 flex flex-col bg-primary">
+      {/* ── Top bar ── */}
+      <div className="flex items-center justify-between px-4 pt-safe" style={{ paddingTop: `max(env(safe-area-inset-top), 12px)`, paddingBottom: 12 }}>
+        <button
+          onClick={onExit}
+          className="h-10 w-10 rounded-full bg-primary-foreground/10 grid place-items-center"
+        >
+          <X className="h-5 w-5 text-primary-foreground" strokeWidth={2.5} />
+        </button>
+
+        <div className="flex items-center gap-4">
           <button
             onClick={() => setHoleIdx(Math.max(0, holeIdx - 1))}
             disabled={holeIdx === 0}
-            className="h-10 w-10 rounded-full bg-muted grid place-items-center disabled:opacity-30"
+            className="h-9 w-9 grid place-items-center text-primary-foreground disabled:opacity-25"
           >
-            <ChevronLeft className="h-5 w-5" />
+            <ChevronLeft className="h-6 w-6" strokeWidth={2.5} />
           </button>
-          <div className="text-center">
-            <div className="flex items-baseline gap-2 justify-center">
-              <Sprout className="h-5 w-5 text-accent" strokeWidth={2.5} />
-              <div className="text-3xl font-bold tabular-nums">
-                {currentHole.number}
-                <sup className="text-xs ml-0.5">{["ST", "ND", "RD"][currentHole.number - 1] || "TH"}</sup>
-              </div>
-            </div>
-            <div className="flex gap-3 justify-center text-xs text-muted-foreground mt-1 items-center">
-              <span>Par {currentHole.par}</span>
-              <span className="inline-flex items-center gap-1 text-warning"><Mountain className="h-3 w-3" /> {currentHole.yards} yds</span>
-              <span className="inline-flex items-center gap-1"><Crosshair className="h-3 w-3" /> HCP {currentHole.hcp}</span>
+          <div className="text-center min-w-[110px]">
+            <div className="text-primary-foreground font-bold text-lg tracking-wide">
+              ЛУНКА {currentHole.number}
             </div>
           </div>
           <button
-            onClick={() => setHoleIdx(Math.min(17, holeIdx + 1))}
-            disabled={holeIdx === 17}
-            className="h-10 w-10 rounded-full bg-muted grid place-items-center disabled:opacity-30"
+            onClick={() => setHoleIdx(Math.min(totalHoles - 1, holeIdx + 1))}
+            disabled={holeIdx === totalHoles - 1}
+            className="h-9 w-9 grid place-items-center text-primary-foreground disabled:opacity-25"
           >
-            <ChevronRight className="h-5 w-5" />
+            <ChevronRight className="h-6 w-6" strokeWidth={2.5} />
           </button>
         </div>
-        <div className="mt-3 pt-3 border-t border-border flex items-center justify-between text-xs text-muted-foreground">
-          <div className="inline-flex items-center gap-1.5"><Timer className="h-3.5 w-3.5" /> Hole {fmt(elapsed % 600)} · Round {fmt(elapsed)}</div>
-          <button onClick={handleFinish} className="text-action font-semibold">Завершить</button>
+
+        <button
+          onClick={handleFinish}
+          className="h-10 px-3 rounded-full bg-primary-foreground/10 grid place-items-center"
+        >
+          <span className="text-action font-bold text-sm">ФИНИШ</span>
+        </button>
+      </div>
+
+      {/* ── Main scrollable area ── */}
+      <div className="flex-1 overflow-y-auto px-4 pb-4 space-y-3">
+
+        {/* Hole stats */}
+        <div className="flex items-center justify-center gap-6 py-3">
+          <div className="text-center">
+            <div className="text-primary-foreground/60 text-[10px] uppercase tracking-widest">Пар</div>
+            <div className="text-primary-foreground font-bold text-2xl">{currentHole.par}</div>
+          </div>
+          <div className="w-px h-8 bg-primary-foreground/20" />
+          <div className="text-center">
+            <div className="text-primary-foreground/60 text-[10px] uppercase tracking-widest">Ярды</div>
+            <div className="text-primary-foreground font-bold text-2xl">{currentHole.yards}</div>
+          </div>
+          <div className="w-px h-8 bg-primary-foreground/20" />
+          <div className="text-center">
+            <div className="text-primary-foreground/60 text-[10px] uppercase tracking-widest">ГКП</div>
+            <div className="text-primary-foreground font-bold text-2xl">{currentHole.hcp}</div>
+          </div>
         </div>
-      </Card>
 
-      {/* Players */}
-      {activeRound.players.map((p) => {
-        const t = total(p);
-        const tp = totalPar(p);
-        const sign = tp === 0 ? "E" : tp > 0 ? `+${tp}` : `${tp}`;
-        const has = activeRound.scores[p.id]?.find((x) => x.hole === currentHole.number);
-        return (
-          <Card key={p.id} className="p-4 shadow-soft flex items-center justify-between gap-3">
-            <div className="flex items-center gap-3 min-w-0">
-              <Avatar name={p.name} tone={p.isMe ? "orange" : "muted"} />
-              <div className="min-w-0">
-                <div className="font-semibold truncate">{p.name} <span className="text-muted-foreground">[{p.hcp}]</span></div>
-                <div className="text-sm text-muted-foreground">{sign} ({t})</div>
-              </div>
-            </div>
+        {/* Hole progress dots */}
+        <div className="flex items-center justify-center gap-1.5 py-1">
+          {course.holes.map((_, i) => (
             <button
-              onClick={() => openSheet(p)}
+              key={i}
+              onClick={() => setHoleIdx(i)}
               className={cn(
-                "min-w-[88px] px-3 py-3 rounded-xl border-2 text-center transition-spring hover:scale-105",
-                has ? "border-accent bg-accent-soft text-accent-foreground" : "border-border bg-card text-action",
+                "rounded-full transition-all duration-200",
+                i === holeIdx
+                  ? "w-5 h-2 bg-action"
+                  : activeRound.players.some((p) =>
+                      activeRound.scores[p.id]?.find((s) => s.hole === course.holes[i].number)
+                    )
+                  ? "w-2 h-2 bg-primary-foreground/50"
+                  : "w-2 h-2 bg-primary-foreground/20",
               )}
+            />
+          ))}
+        </div>
+
+        {/* Player cards */}
+        {activeRound.players.map((p) => {
+          const t = total(p);
+          const tp = totalVsPar(p);
+          const sign = tp === 0 ? "E" : tp > 0 ? `+${tp}` : `${tp}`;
+          const has = activeRound.scores[p.id]?.find((x) => x.hole === currentHole.number);
+          return (
+            <button
+              key={p.id}
+              onClick={() => openSheet(p)}
+              className="w-full bg-primary-foreground/10 rounded-2xl p-4 flex items-center justify-between gap-3 active:scale-[0.98] transition-transform"
             >
-              {has ? (
-                <>
-                  <div className="text-2xl font-bold tabular-nums">{has.score}</div>
-                  <div className="text-[10px] text-muted-foreground">{has.putts} putts</div>
-                </>
-              ) : (
-                <>
-                  <div className="text-[11px]">●</div>
-                  <div className="font-semibold text-sm">Add Score</div>
-                </>
-              )}
+              <div className="flex items-center gap-3 min-w-0">
+                <Avatar name={p.name} tone={p.isMe ? "orange" : "muted"} />
+                <div className="text-left min-w-0">
+                  <div className="text-primary-foreground font-semibold truncate">
+                    {p.name.split(" ")[0]} <span className="text-primary-foreground/50 text-sm font-normal">[{p.hcp}]</span>
+                  </div>
+                  <div className="text-primary-foreground/60 text-sm">{sign} · {t} ударов</div>
+                </div>
+              </div>
+
+              {/* Score badge */}
+              <div className={cn(
+                "min-w-[64px] h-16 rounded-xl flex flex-col items-center justify-center",
+                has ? "bg-action/20 border-2 border-action" : "bg-primary-foreground/10 border-2 border-primary-foreground/20",
+              )}>
+                {has ? (
+                  <>
+                    <div className="text-primary-foreground font-bold text-2xl tabular-nums leading-none">{has.score}</div>
+                    <div className={cn("text-[11px] font-medium mt-0.5", scoreLabelColor(has.score, currentHole.par))}>
+                      {scoreLabel(has.score, currentHole.par)}
+                    </div>
+                  </>
+                ) : (
+                  <div className="text-primary-foreground/40 text-2xl font-light">—</div>
+                )}
+              </div>
             </button>
-          </Card>
-        );
-      })}
+          );
+        })}
+      </div>
 
-      {/* Score Sheet */}
+      {/* ── Bottom action bar ── */}
+      <div
+        className="bg-card border-t border-border flex items-center gap-3 px-4"
+        style={{ paddingBottom: `max(env(safe-area-inset-bottom), 16px)`, paddingTop: 16 }}
+      >
+        <div className="flex-1 min-w-0">
+          <div className="text-xs text-muted-foreground font-medium uppercase tracking-wider truncate">
+            {course.club}
+          </div>
+          <div className="text-sm font-bold text-foreground">
+            Пар {currentHole.par} · {currentHole.yards} ярд · ГКП {currentHole.hcp}
+          </div>
+        </div>
+        <button
+          onClick={openNextPlayer}
+          className="bg-action text-action-foreground font-bold text-sm uppercase tracking-wider px-6 h-12 rounded-xl shadow-glow active:scale-95 transition-transform shrink-0"
+        >
+          ВВЕСТИ СЧЁТ
+        </button>
+      </div>
+
+      {/* ── Score Sheet ── */}
       {sheetPlayer && (
-        <div className="fixed inset-0 z-50 flex items-end animate-in fade-in duration-200">
-          <button className="absolute inset-0 bg-primary/40" onClick={() => setSheetPlayer(null)} />
-          <div className="relative w-full max-w-3xl mx-auto bg-card rounded-t-3xl shadow-elevated animate-in slide-in-from-bottom duration-300">
-            <div className="mx-auto w-12 h-1.5 bg-border rounded-full mt-3" />
-            <div className="p-5">
-              <div className="flex items-center justify-between mb-5">
-                <div className="flex items-center gap-3">
-                  <Avatar name={sheetPlayer.name} tone={sheetPlayer.isMe ? "orange" : "muted"} />
-                  <div>
-                    <div className="font-semibold">{sheetPlayer.name.split(" ")[0]} <span className="text-muted-foreground text-sm">[{sheetPlayer.hcp}]</span></div>
-                    <div className="text-xs text-muted-foreground">Лунка {currentHole.number} · Par {currentHole.par}</div>
-                  </div>
-                </div>
-                <Button onClick={submit} className="h-12 px-7 bg-action hover:bg-action/90 text-action-foreground rounded-xl font-semibold">
-                  Enter
-                </Button>
-              </div>
+        <div className="fixed inset-0 z-50 flex items-end animate-in fade-in duration-150">
+          <button className="absolute inset-0 bg-black/50" onClick={() => setSheetPlayer(null)} />
+          <div
+            className="relative w-full bg-card rounded-t-3xl shadow-elevated animate-in slide-in-from-bottom duration-250"
+            style={{ paddingBottom: `max(env(safe-area-inset-bottom), 24px)` }}
+          >
+            <div className="mx-auto w-10 h-1 bg-border rounded-full mt-3 mb-1" />
 
-              <div className="grid grid-cols-2 gap-6 mb-5">
-                <Counter label="Score" value={hole.score} onChange={(v) => setHole({ ...hole, score: v })} />
-                <Counter label="Putts" value={hole.putts} onChange={(v) => setHole({ ...hole, putts: v })} />
-              </div>
-
-              <div className="border-t border-border pt-4">
-                <div className="grid grid-cols-2 gap-6">
-                  <div>
-                    <div className="text-center text-sm font-semibold mb-2">Bunkers</div>
-                    <div className="flex justify-center gap-3">
-                      <Toggle icon={<Mountain className="h-4 w-4" />} label="Fairway" active={hole.fairwayBunker} onClick={() => setHole({ ...hole, fairwayBunker: !hole.fairwayBunker })} />
-                      <Toggle icon={<Mountain className="h-4 w-4" />} label="Green Side" active={hole.greenSideBunker} onClick={() => setHole({ ...hole, greenSideBunker: !hole.greenSideBunker })} />
-                    </div>
-                  </div>
-                  <div>
-                    <div className="text-center text-sm font-semibold mb-2">Penalties</div>
-                    <div className="flex justify-center gap-3">
-                      <Toggle icon={<Waves className="h-4 w-4" />} label="Hazard" active={hole.hazard} onClick={() => setHole({ ...hole, hazard: !hole.hazard })} />
-                      <Toggle icon={<ShieldAlert className="h-4 w-4" />} label="OB" active={hole.outOfBounds} onClick={() => setHole({ ...hole, outOfBounds: !hole.outOfBounds })} />
-                    </div>
-                  </div>
+            {/* Sheet header */}
+            <div className="flex items-center justify-between px-5 py-3 border-b border-border">
+              <div className="flex items-center gap-3">
+                <Avatar name={sheetPlayer.name} tone={sheetPlayer.isMe ? "orange" : "muted"} />
+                <div>
+                  <div className="font-bold">{sheetPlayer.name.split(" ")[0]}</div>
+                  <div className="text-xs text-muted-foreground">Лунка {currentHole.number} · Пар {currentHole.par}</div>
                 </div>
               </div>
+              <button onClick={() => setSheetPlayer(null)} className="h-9 w-9 rounded-full bg-muted grid place-items-center">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
 
-              <button onClick={() => setSheetPlayer(null)} className="block mx-auto mt-5 text-sm text-muted-foreground">
-                Закрыть
+            <div className="px-5 pt-4 pb-2">
+              {/* Score + Putts counters */}
+              <div className="grid grid-cols-2 gap-4 mb-5">
+                <ScoreCounter
+                  label="СЧЁТ"
+                  value={hole.score}
+                  onChange={(v) => setHole({ ...hole, score: v })}
+                  sublabel={scoreLabel(hole.score, currentHole.par)}
+                  sublabelColor={scoreLabelColor(hole.score, currentHole.par)}
+                />
+                <ScoreCounter
+                  label="ПАТТЫ"
+                  value={hole.putts}
+                  onChange={(v) => setHole({ ...hole, putts: v })}
+                />
+              </div>
+
+              {/* Penalty toggles */}
+              <div className="grid grid-cols-4 gap-2 mb-5">
+                <PenaltyToggle icon={<Mountain className="h-4 w-4" />} label="Бункер Ф" active={hole.fairwayBunker} onClick={() => setHole({ ...hole, fairwayBunker: !hole.fairwayBunker })} />
+                <PenaltyToggle icon={<Mountain className="h-4 w-4" />} label="Бункер Г" active={hole.greenSideBunker} onClick={() => setHole({ ...hole, greenSideBunker: !hole.greenSideBunker })} />
+                <PenaltyToggle icon={<Waves className="h-4 w-4" />} label="Вода" active={hole.hazard} onClick={() => setHole({ ...hole, hazard: !hole.hazard })} />
+                <PenaltyToggle icon={<ShieldAlert className="h-4 w-4" />} label="OB" active={hole.outOfBounds} onClick={() => setHole({ ...hole, outOfBounds: !hole.outOfBounds })} />
+              </div>
+
+              {/* Save button */}
+              <button
+                onClick={submit}
+                className="w-full h-14 rounded-2xl bg-action text-action-foreground font-bold text-base uppercase tracking-wider shadow-glow active:scale-[0.98] transition-transform"
+              >
+                СОХРАНИТЬ
               </button>
             </div>
           </div>
         </div>
       )}
-
-      {holeIdx === 17 && (
-        <Button onClick={handleFinish} size="lg" className="w-full h-14 rounded-xl bg-accent text-accent-foreground hover:bg-accent/90 font-semibold shadow-glow">
-          <CheckCircle2 className="h-5 w-5 mr-2" /> Завершить раунд
-        </Button>
-      )}
     </div>
   );
 };
 
-const Counter = ({ label, value, onChange }: { label: string; value: number; onChange: (v: number) => void }) => (
-  <div className="text-center">
-    <div className="text-sm font-semibold mb-2">{label}</div>
-    <div className="inline-flex flex-col bg-action/10 rounded-2xl">
-      <button onClick={() => onChange(value + 1)} className="h-11 w-20 grid place-items-center text-action font-bold hover:bg-action/15 rounded-t-2xl transition-base">
-        <Plus className="h-5 w-5" strokeWidth={2.5} />
-      </button>
-      <div className="text-3xl font-bold tabular-nums py-1 text-primary">{value}</div>
-      <button onClick={() => onChange(Math.max(1, value - 1))} className="h-11 w-20 grid place-items-center text-action font-bold hover:bg-action/15 rounded-b-2xl transition-base">
-        <span className="text-2xl leading-none">−</span>
-      </button>
-    </div>
+const ScoreCounter = ({
+  label, value, onChange, sublabel, sublabelColor,
+}: {
+  label: string;
+  value: number;
+  onChange: (v: number) => void;
+  sublabel?: string;
+  sublabelColor?: string;
+}) => (
+  <div className="bg-muted rounded-2xl p-1 flex flex-col items-center">
+    <div className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground pt-2 pb-1">{label}</div>
+    <button
+      onClick={() => onChange(value + 1)}
+      className="w-full h-14 grid place-items-center text-action active:bg-action/10 rounded-xl transition-colors"
+    >
+      <Plus className="h-7 w-7" strokeWidth={2.5} />
+    </button>
+    <div className="text-4xl font-bold tabular-nums text-foreground py-1">{value}</div>
+    {sublabel && <div className={cn("text-[11px] font-semibold -mt-1 mb-1", sublabelColor)}>{sublabel}</div>}
+    <button
+      onClick={() => onChange(Math.max(1, value - 1))}
+      className="w-full h-14 grid place-items-center text-action active:bg-action/10 rounded-xl transition-colors"
+    >
+      <span className="text-3xl leading-none font-bold">−</span>
+    </button>
   </div>
 );
 
-const Toggle = ({ label, icon, active, onClick }: { label: string; icon: React.ReactNode; active: boolean; onClick: () => void }) => (
+const PenaltyToggle = ({ label, icon, active, onClick }: { label: string; icon: React.ReactNode; active: boolean; onClick: () => void }) => (
   <button
     onClick={onClick}
     className={cn(
-      "flex flex-col items-center gap-1 px-3 py-2 rounded-xl border-2 transition-base min-w-[72px]",
-      active ? "border-action bg-action/10 text-action" : "border-border text-muted-foreground hover:border-muted-foreground/40",
+      "flex flex-col items-center gap-1 py-3 rounded-xl border-2 transition-colors",
+      active ? "border-action bg-action/10 text-action" : "border-border text-muted-foreground",
     )}
   >
-    <div className={cn("h-9 w-9 rounded-full grid place-items-center", active ? "bg-action/20" : "bg-muted")}>
+    <div className={cn("h-8 w-8 rounded-full grid place-items-center", active ? "bg-action/20" : "bg-muted")}>
       {icon}
     </div>
-    <div className="text-[10px] font-medium">{label}</div>
+    <div className="text-[9px] font-semibold leading-tight text-center px-1">{label}</div>
   </button>
 );
 
