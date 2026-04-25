@@ -8,81 +8,72 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    --background: 90 30% 98%;
-    --foreground: 140 30% 12%;
+    /* ── Dark theme (основной) ── */
+    --background: 0 0% 4%;        /* #0a0a0a */
+    --foreground: 0 0% 96%;       /* почти белый */
 
-    --card: 0 0% 100%;
-    --card-foreground: 140 30% 12%;
+    --card: 0 0% 10%;             /* #1a1a1a */
+    --card-foreground: 0 0% 96%;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 140 30% 12%;
+    --popover: 0 0% 10%;
+    --popover-foreground: 0 0% 96%;
 
-    /* Deep forest — primary brand */
-    --primary: 140 45% 18%;
-    --primary-foreground: 90 40% 96%;
-    --primary-glow: 110 55% 35%;
+    --primary: 0 0% 10%;
+    --primary-foreground: 0 0% 96%;
 
-    --secondary: 95 35% 92%;
-    --secondary-foreground: 140 45% 18%;
+    --secondary: 0 0% 15%;
+    --secondary-foreground: 0 0% 80%;
 
-    --muted: 95 25% 94%;
-    --muted-foreground: 140 12% 38%;
+    --muted: 0 0% 15%;
+    --muted-foreground: 0 0% 50%;
 
-    /* Bright fairway green — accent */
-    --accent: 100 65% 45%;
-    --accent-foreground: 140 50% 12%;
-    --accent-soft: 100 60% 92%;
+    /* Зелёный акцент — #22c55e */
+    --accent: 142 70% 45%;
+    --accent-foreground: 0 0% 0%;
+    --accent-soft: 142 60% 12%;
 
-    /* Light golf green — primary action (was blue) */
-    --action: 100 65% 42%;
-    --action-foreground: 0 0% 100%;
-    --action-glow: 100 70% 55%;
+    --action: 142 70% 45%;
+    --action-foreground: 0 0% 0%;
+    --action-glow: 142 75% 55%;
 
     /* Tournament tier colors */
     --tier-gold: 42 75% 55%;
-    --tier-platinum: 220 10% 45%;
+    --tier-platinum: 220 10% 55%;
     --tier-diamond: 200 30% 70%;
-    --tier-closed: 175 60% 30%;
+    --tier-closed: 175 60% 40%;
 
     --destructive: 0 75% 55%;
     --destructive-foreground: 0 0% 100%;
 
-    --success: 120 60% 38%;
+    --success: 142 70% 45%;
     --warning: 38 90% 55%;
 
-    --border: 95 20% 88%;
-    --input: 95 20% 90%;
-    --ring: 100 65% 42%;
+    --border: 0 0% 18%;
+    --input: 0 0% 15%;
+    --ring: 142 70% 45%;
 
     --radius: 0.875rem;
 
-    --gradient-hero: linear-gradient(135deg, hsl(140 50% 20%) 0%, hsl(110 55% 35%) 60%, hsl(95 65% 50%) 100%);
-    --gradient-fairway: linear-gradient(135deg, hsl(100 65% 45%) 0%, hsl(120 60% 38%) 100%);
-    --gradient-card: linear-gradient(180deg, hsl(0 0% 100%) 0%, hsl(90 30% 98%) 100%);
+    --gradient-hero: linear-gradient(180deg, #0a0a0a 0%, #141414 100%);
+    --gradient-fairway: linear-gradient(135deg, hsl(142 70% 45%) 0%, hsl(142 60% 35%) 100%);
+    --gradient-card: linear-gradient(180deg, #1a1a1a 0%, #111111 100%);
 
-    --shadow-sm: 0 1px 2px 0 hsl(140 30% 15% / 0.05);
-    --shadow-md: 0 4px 12px -2px hsl(140 30% 15% / 0.08);
-    --shadow-lg: 0 12px 32px -8px hsl(140 30% 15% / 0.18);
-    --shadow-glow: 0 8px 32px -8px hsl(100 65% 42% / 0.45);
+    --shadow-sm: 0 1px 2px 0 rgba(0,0,0,0.4);
+    --shadow-md: 0 4px 12px -2px rgba(0,0,0,0.5);
+    --shadow-lg: 0 12px 32px -8px rgba(0,0,0,0.7);
+    --shadow-glow: 0 8px 32px -8px rgba(34,197,94,0.4);
 
     --transition-base: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
     --transition-spring: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
 
-    --sidebar-background: 0 0% 98%;
-
-    --sidebar-foreground: 240 5.3% 26.1%;
-
-    --sidebar-primary: 240 5.9% 10%;
-
-    --sidebar-primary-foreground: 0 0% 98%;
-
-    --sidebar-accent: 240 4.8% 95.9%;
-
-    --sidebar-accent-foreground: 240 5.9% 10%;
-
-    --sidebar-border: 220 13% 91%;
-
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --sidebar-background: 0 0% 8%;
+    --sidebar-foreground: 0 0% 90%;
+    --sidebar-primary: 142 70% 45%;
+    --sidebar-primary-foreground: 0 0% 0%;
+    --sidebar-accent: 0 0% 15%;
+    --sidebar-accent-foreground: 0 0% 90%;
+    --sidebar-border: 0 0% 18%;
+    --sidebar-ring: 142 70% 45%;
   }
 
   .dark {

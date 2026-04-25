@@ -319,6 +319,15 @@ const RoundPlayer = ({ onExit }: { onExit: () => void }) => {
     enterScore(sheetPlayer.id, { hole: currentHole.number, ...hole });
     setSheetPlayer(null);
     toast.success(`Лунка ${currentHole.number}: ${hole.score}`);
+
+    // Все остальные игроки уже ввели счёт — переходим на следующую лунку
+    const allOthersScored = activeRound.players
+      .filter((p) => p.id !== sheetPlayer.id)
+      .every((p) => !!activeRound.scores[p.id]?.find((x) => x.hole === currentHole.number));
+
+    if (allOthersScored && holeIdx < totalHoles - 1) {
+      setTimeout(() => setHoleIdx((h) => Math.min(totalHoles - 1, h + 1)), 600);
+    }
   };
 
   const handleFinish = () => {
