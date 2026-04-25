@@ -5,8 +5,9 @@ import { Card } from "@/components/ui/card";
 import { Avatar } from "@/components/PlayerAvatar";
 import { COURSES } from "@/lib/courses";
 import { TOURNAMENTS, TIER_LABELS, type Tier } from "@/lib/tournaments";
+import { FORMATS, getFormat, stablefordPoints, type FormatId } from "@/lib/formats";
 import { useGolf, type Player } from "@/store/golfStore";
-import { ChevronLeft, ChevronRight, Plus, X, Waves, ShieldAlert, Mountain, Flag } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, X, Waves, ShieldAlert, Mountain, Flag, Trophy } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -17,14 +18,32 @@ const tierColor: Record<Tier, string> = {
   closed: "bg-tier-closed",
 };
 
+type AnyTournament = {
+  id: string;
+  name: string;
+  date: string;
+  day: string;
+  month: string;
+  format: FormatId;
+  tier?: Tier;
+  fee?: string;
+  notes?: string;
+};
+
 type Step = "info" | "setup" | "playing";
 
 const TournamentPlayPage = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { profile, frequent, activeRound, startRound, cancelActiveRound } = useGolf();
+  const { profile, frequent, activeRound, startRound, cancelActiveRound, customTournaments } = useGolf();
 
-  const tournament = TOURNAMENTS.find((t) => t.id === id);
+  const staticT = TOURNAMENTS.find((t) => t.id === id);
+  const customT = customTournaments.find((t) => t.id === id);
+  const tournament: AnyTournament | undefined = staticT
+    ? { ...staticT, format: "stroke_play" }
+    : customT
+    ? customT
+    : undefined;
 
   const [step, setStep] = useState<Step>(activeRound ? "playing" : "info");
   const [courseId, setCourseId] = useState<string>(COURSES[0].id);
@@ -49,6 +68,7 @@ const TournamentPlayPage = () => {
     return (
       <TournamentRoundPlayer
         tournamentName={tournament.name}
+        format={tournament.format}
         onExit={() => { cancelActiveRound(); setStep("info"); }}
       />
     );
@@ -66,7 +86,7 @@ const TournamentPlayPage = () => {
         frequent={frequent}
         onBack={() => setStep("info")}
         onStart={() => {
-          startRound(course, players);
+          startRound(course, players, tournament.id, tournament.format);
           setStep("playing");
           toast.success(`${tournament.name} — раунд начат!`);
         }}
@@ -75,11 +95,7 @@ const TournamentPlayPage = () => {
   }
 
   return (
-    <TournamentInfo
-      tournament={tournament}
-      onBack={() => navigate("/tournaments")}
-      onPlay={() => setStep("setup")}
-    />
+    <TournamentInfo tournament={tournament} onBack={() => navigate("/tournaments")} onPlay={() => setStep("setup")} />
   );
 };
 
@@ -89,11 +105,11 @@ const TournamentInfo = ({
   onBack,
   onPlay,
 }: {
-  tournament: ReturnType<typeof TOURNAMENTS.find> & object;
+  tournament: AnyTournament;
   onBack: () => void;
   onPlay: () => void;
 }) => {
-  if (!tournament) return null;
+  const fmt = getFormat(tournament.format);
   return (
     <div className="space-y-5 animate-in fade-in duration-300">
       <button onClick={onBack} className="flex items-center gap-1 text-action font-bold text-lg">
@@ -109,30 +125,45 @@ const TournamentInfo = ({
               </div>
               <h1 className="text-xl font-bold leading-snug">{tournament.name}</h1>
             </div>
-            <div
-              className={cn(
-                "h-10 w-10 rounded-full grid place-items-center text-[9px] font-bold text-primary-foreground shadow-soft shrink-0",
-                tierColor[tournament.tier],
-              )}
-              title={TIER_LABELS[tournament.tier]}
-            >
-              {tournament.tier === "gold" && "G"}
-              {tournament.tier === "platinum" && "PL"}
-              {tournament.tier === "diamond" && "◆"}
-              {tournament.tier === "closed" && "C"}
-            </div>
+            {tournament.tier && (
+              <div
+                className={cn("h-10 w-10 rounded-full grid place-items-center text-[9px] font-bold text-primary-foreground shadow-soft shrink-0", tierColor[tournament.tier])}
+                title={TIER_LABELS[tournament.tier]}
+              >
+                {tournament.tier === "gold" && "G"}
+                {tournament.tier === "platinum" && "PL"}
+                {tournament.tier === "diamond" && "◆"}
+                {tournament.tier === "closed" && "C"}
+              </div>
+            )}
           </div>
 
           <div className="mt-3 flex flex-wrap gap-2">
-            <span className="px-2.5 py-1 rounded-full bg-muted text-xs font-semibold">
-              {TIER_LABELS[tournament.tier]}
+            <span className="px-2.5 py-1 rounded-full bg-muted text-xs font-semibold flex items-center gap-1">
+              <span>{fmt.emoji}</span> {fmt.name}
             </span>
+            {tournament.tier && (
+              <span className="px-2.5 py-1 rounded-full bg-muted text-xs font-semibold">
+                {TIER_LABELS[tournament.tier]}
+              </span>
+            )}
             {tournament.fee && (
               <span className="px-2.5 py-1 rounded-full bg-muted text-xs font-semibold">
                 Взнос {tournament.fee} BYN
               </span>
             )}
           </div>
+
+          {/* Format description */}
+          <div className="mt-4 p-3 rounded-xl bg-muted/50">
+            <div className="text-xs font-semibold text-foreground mb-1">{fmt.name} — правила</div>
+            <div className="text-xs text-muted-foreground">{fmt.description}</div>
+            <div className="text-xs text-action mt-1 font-medium">💡 {fmt.tip}</div>
+          </div>
+
+          {tournament.notes && (
+            <div className="mt-3 text-sm text-muted-foreground">{tournament.notes}</div>
+          )}
         </div>
 
         <div className="px-5 pb-5">
@@ -145,30 +176,15 @@ const TournamentInfo = ({
           </Button>
         </div>
       </Card>
-
-      <Card className="p-4 shadow-soft">
-        <div className="text-xs uppercase tracking-wider text-muted-foreground font-semibold mb-2">Golf Club Minsk</div>
-        <div className="text-sm text-muted-foreground">
-          Нажмите «Начать лайвскоринг», выберите поле и игроков — и вводите счёт по ходу турнира.
-        </div>
-      </Card>
     </div>
   );
 };
 
 /* ── Setup screen ── */
 const TournamentSetup = ({
-  tournament,
-  course,
-  courseId,
-  setCourseId,
-  players,
-  setPlayers,
-  frequent,
-  onBack,
-  onStart,
+  tournament, course, courseId, setCourseId, players, setPlayers, frequent, onBack, onStart,
 }: {
-  tournament: ReturnType<typeof TOURNAMENTS.find> & object;
+  tournament: AnyTournament;
   course: ReturnType<typeof COURSES.find> & object;
   courseId: string;
   setCourseId: (id: string) => void;
@@ -178,13 +194,13 @@ const TournamentSetup = ({
   onBack: () => void;
   onStart: () => void;
 }) => {
-  if (!tournament) return null;
+  const fmt = getFormat(tournament.format);
   const slots = Array.from({ length: 4 });
   const addPlayer = (p: Player) => {
     if (players.length >= 4 || players.find((x) => x.id === p.id)) return;
     setPlayers([...players, p]);
   };
-  const removePlayer = (id: string) => setPlayers(players.filter((p) => p.id !== id || (p as Player).isMe));
+  const removePlayer = (id: string) => setPlayers(players.filter((p) => p.id !== id || p.isMe));
 
   return (
     <div className="space-y-5 animate-in slide-in-from-right duration-300">
@@ -195,6 +211,7 @@ const TournamentSetup = ({
       <Card className="p-3 shadow-soft border-l-4 border-action">
         <div className="text-xs text-muted-foreground font-semibold uppercase tracking-wider mb-0.5">Турнир</div>
         <div className="text-sm font-bold leading-snug">{tournament.name}</div>
+        <div className="text-xs text-action mt-0.5">{fmt.emoji} {fmt.name}</div>
       </Card>
 
       <Card className="p-4 shadow-soft">
@@ -250,7 +267,7 @@ const TournamentSetup = ({
                 <Avatar name={p.name} tone={p.isMe ? "orange" : "muted"} />
                 <div className="min-w-0">
                   <div className="font-semibold truncate">{p.name}</div>
-                  <div className="text-xs text-muted-foreground">HCP {p.hcp} · 88%</div>
+                  <div className="text-xs text-muted-foreground">HCP {p.hcp}</div>
                 </div>
               </div>
               <div className="flex items-center gap-3">
@@ -302,7 +319,7 @@ const TournamentSetup = ({
   );
 };
 
-/* ── Round player (same logic as in Play.tsx but with tournament header) ── */
+/* ── Scoring helpers ── */
 const scoreLabel = (score: number, par: number) => {
   const d = score - par;
   if (d <= -2) return "Игл";
@@ -321,14 +338,139 @@ const scoreLabelColor = (score: number, par: number) => {
   return "text-red-400";
 };
 
+const parSignColor = (vsPar: number) => {
+  if (vsPar < 0) return "#22c55e";
+  if (vsPar === 0) return "rgba(255,255,255,0.9)";
+  return "#f87171";
+};
+
+const parSignText = (vsPar: number) => {
+  if (vsPar === 0) return "E";
+  if (vsPar > 0) return `+${vsPar}`;
+  return `${vsPar}`;
+};
+
+/* ── Leaderboard ── */
+const Leaderboard = ({
+  activeRound,
+  course,
+  format,
+}: {
+  activeRound: NonNullable<ReturnType<typeof useGolf>["activeRound"]>;
+  course: ReturnType<typeof COURSES.find> & object;
+  format: FormatId;
+}) => {
+  const isStableford = format === "stableford";
+
+  type Entry = {
+    player: Player;
+    total: number;
+    vsPar: number;
+    points: number;
+    holesPlayed: number;
+  };
+
+  const entries: Entry[] = activeRound.players.map((p) => {
+    const played = activeRound.scores[p.id] ?? [];
+    let total = 0;
+    let vsPar = 0;
+    let points = 0;
+    played.forEach((s) => {
+      const h = course.holes.find((h) => h.number === s.hole);
+      const par = h?.par ?? 4;
+      total += s.score;
+      vsPar += s.score - par;
+      points += stablefordPoints(s.score, par);
+    });
+    return { player: p, total, vsPar, points, holesPlayed: played.length };
+  });
+
+  const sorted = [...entries].sort((a, b) =>
+    isStableford ? b.points - a.points : a.vsPar - b.vsPar || a.total - b.total
+  );
+
+  const medals = ["🥇", "🥈", "🥉"];
+
+  return (
+    <div className="flex-1 overflow-y-auto px-5 pb-4 pt-2">
+      <div className="rounded-2xl overflow-hidden" style={{ background: "#1a1a1a" }}>
+        {/* Header row */}
+        <div
+          className="grid px-4 py-2.5 text-[11px] font-bold uppercase tracking-wider"
+          style={{ gridTemplateColumns: "2rem 1fr auto auto", color: "rgba(255,255,255,0.4)", borderBottom: "1px solid rgba(255,255,255,0.07)" }}
+        >
+          <div>#</div>
+          <div>Игрок</div>
+          <div className="w-12 text-center">{isStableford ? "Очки" : "±"}</div>
+          <div className="w-12 text-center">Итого</div>
+        </div>
+
+        {sorted.map((e, i) => (
+          <div
+            key={e.player.id}
+            className="grid items-center px-4 py-3"
+            style={{
+              gridTemplateColumns: "2rem 1fr auto auto",
+              borderTop: i > 0 ? "1px solid rgba(255,255,255,0.05)" : undefined,
+            }}
+          >
+            {/* Position */}
+            <div className="text-sm font-black" style={{ color: i < 3 ? "#22c55e" : "rgba(255,255,255,0.3)" }}>
+              {medals[i] ?? i + 1}
+            </div>
+
+            {/* Player */}
+            <div className="flex items-center gap-2 min-w-0">
+              <Avatar name={e.player.name} tone={e.player.isMe ? "orange" : "muted"} />
+              <div className="min-w-0">
+                <div className="text-white font-semibold text-sm truncate">
+                  {e.player.name.split(" ")[0]}
+                  <span className="text-white/40 font-normal ml-1">[{e.player.hcp}]</span>
+                </div>
+                <div className="text-white/40 text-xs">{e.holesPlayed} лун.</div>
+              </div>
+            </div>
+
+            {/* ±par or points */}
+            <div className="w-12 text-center">
+              {isStableford ? (
+                <span className="text-white font-black text-base tabular-nums">{e.points}</span>
+              ) : (
+                <span className="font-black text-base tabular-nums" style={{ color: parSignColor(e.vsPar) }}>
+                  {parSignText(e.vsPar)}
+                </span>
+              )}
+            </div>
+
+            {/* Total */}
+            <div className="w-12 text-center">
+              <span className="text-white/70 font-bold text-sm tabular-nums">{e.total || "—"}</span>
+            </div>
+          </div>
+        ))}
+
+        {sorted.length === 0 && (
+          <div className="py-8 text-center text-white/30 text-sm">
+            Введите счёт, чтобы увидеть лидерборд
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+/* ── Round player ── */
 const TournamentRoundPlayer = ({
   tournamentName,
+  format,
   onExit,
 }: {
   tournamentName: string;
+  format: FormatId;
   onExit: () => void;
 }) => {
   const { activeRound, enterScore, finishRound } = useGolf();
+  const [view, setView] = useState<"scoring" | "leaderboard">("scoring");
   const [holeIdx, setHoleIdx] = useState(0);
   const [sheetPlayer, setSheetPlayer] = useState<Player | null>(null);
   const [hole, setHole] = useState({ score: 4, putts: 2, fairwayBunker: false, greenSideBunker: false, hazard: false, outOfBounds: false });
@@ -371,11 +513,9 @@ const TournamentRoundPlayer = ({
     enterScore(sheetPlayer.id, { hole: currentHole.number, ...hole });
     setSheetPlayer(null);
     toast.success(`Лунка ${currentHole.number}: ${hole.score}`);
-
     const allOthersScored = activeRound.players
       .filter((p) => p.id !== sheetPlayer.id)
       .every((p) => !!activeRound.scores[p.id]?.find((x) => x.hole === currentHole.number));
-
     if (allOthersScored && holeIdx < totalHoles - 1) {
       setTimeout(() => setHoleIdx((h) => Math.min(totalHoles - 1, h + 1)), 600);
     }
@@ -411,17 +551,21 @@ const TournamentRoundPlayer = ({
           <X className="h-4 w-4 text-white" strokeWidth={2.5} />
         </button>
 
-        <div className="flex items-center gap-3">
-          <button onClick={() => setHoleIdx(Math.max(0, holeIdx - 1))} disabled={holeIdx === 0} className="h-9 w-9 grid place-items-center disabled:opacity-20">
-            <ChevronLeft className="h-6 w-6 text-white" strokeWidth={2.5} />
-          </button>
-          <span className="text-white font-bold text-base tracking-wider min-w-[90px] text-center">
-            Лунка {currentHole.number}
-          </span>
-          <button onClick={() => setHoleIdx(Math.min(totalHoles - 1, holeIdx + 1))} disabled={holeIdx === totalHoles - 1} className="h-9 w-9 grid place-items-center disabled:opacity-20">
-            <ChevronRight className="h-6 w-6 text-white" strokeWidth={2.5} />
-          </button>
-        </div>
+        {view === "scoring" ? (
+          <div className="flex items-center gap-3">
+            <button onClick={() => setHoleIdx(Math.max(0, holeIdx - 1))} disabled={holeIdx === 0} className="h-9 w-9 grid place-items-center disabled:opacity-20">
+              <ChevronLeft className="h-6 w-6 text-white" strokeWidth={2.5} />
+            </button>
+            <span className="text-white font-bold text-base tracking-wider min-w-[90px] text-center">
+              Лунка {currentHole.number}
+            </span>
+            <button onClick={() => setHoleIdx(Math.min(totalHoles - 1, holeIdx + 1))} disabled={holeIdx === totalHoles - 1} className="h-9 w-9 grid place-items-center disabled:opacity-20">
+              <ChevronRight className="h-6 w-6 text-white" strokeWidth={2.5} />
+            </button>
+          </div>
+        ) : (
+          <span className="text-white font-bold text-base tracking-wider">Лидерборд</span>
+        )}
 
         <button
           onClick={handleFinish}
@@ -432,110 +576,141 @@ const TournamentRoundPlayer = ({
         </button>
       </div>
 
-      {/* Main */}
-      <div className="flex-1 flex flex-col justify-center px-5 pb-4 gap-4 overflow-y-auto">
-        <div className="rounded-3xl overflow-hidden" style={{ background: "#1a1a1a" }}>
-          <div className="flex items-center gap-2 px-5 pt-5 pb-3">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-              <path d="M12 2L4 6v6c0 5.5 3.5 10.7 8 12 4.5-1.3 8-6.5 8-12V6L12 2z"
-                stroke="white" strokeWidth="1.8" fill="none" strokeLinejoin="round" />
-            </svg>
-            <span className="text-white/70 font-semibold text-sm tracking-[0.15em] truncate">{tournamentName}</span>
-          </div>
-
-          <div className="flex items-baseline gap-6 px-5 pb-4">
-            <div><span className="text-white font-black text-4xl tracking-tight">ПАР {currentHole.par}</span></div>
-            <div><span className="text-white/50 font-bold text-2xl tracking-tight">ГКП {currentHole.hcp}</span></div>
-          </div>
-
-          <div className="px-5 pb-4">
-            <button
-              onClick={openNextPlayer}
-              className="w-full h-12 rounded-full font-black text-sm tracking-[0.15em] active:scale-[0.97] transition-transform"
-              style={{ background: "#22c55e", color: "#000" }}
-            >
-              ВВЕСТИ СЧЁТ
-            </button>
-          </div>
-
-          <div
-            className="flex items-center justify-between px-5 py-3"
-            style={{ background: "rgba(255,255,255,0.05)", borderTop: "1px solid rgba(255,255,255,0.07)" }}
+      {/* View toggle */}
+      <div className="px-5 pb-3">
+        <div className="flex rounded-full p-1 gap-1" style={{ background: "rgba(255,255,255,0.07)" }}>
+          <button
+            onClick={() => setView("scoring")}
+            className="flex-1 h-8 rounded-full text-xs font-bold tracking-wider transition-all"
+            style={view === "scoring"
+              ? { background: "#22c55e", color: "#000" }
+              : { color: "rgba(255,255,255,0.5)" }
+            }
           >
-            <div>
-              <div className="text-white/80 text-sm font-semibold">{course.club}</div>
-              <div className="text-white/40 text-xs">{course.name} · {currentHole.yards} ярд</div>
-            </div>
-            <div className="flex items-center gap-2">
-              <Flag className="h-5 w-5" style={{ color: "#22c55e" }} />
-              <span className="text-white font-black text-2xl tabular-nums">{currentHole.number}</span>
-            </div>
-          </div>
-        </div>
-
-        {activeRound.players.map((p) => {
-          const t = total(p);
-          const tp = totalVsPar(p);
-          const sign = tp === 0 ? "E" : tp > 0 ? `+${tp}` : `${tp}`;
-          const has = activeRound.scores[p.id]?.find((x) => x.hole === currentHole.number);
-          return (
-            <button
-              key={p.id}
-              onClick={() => openSheet(p)}
-              className="w-full rounded-2xl p-4 flex items-center justify-between gap-3 active:scale-[0.98] transition-transform"
-              style={{ background: "#1a1a1a" }}
-            >
-              <div className="flex items-center gap-3 min-w-0">
-                <Avatar name={p.name} tone={p.isMe ? "orange" : "muted"} />
-                <div className="text-left min-w-0">
-                  <div className="text-white font-semibold truncate">
-                    {p.name.split(" ")[0]}
-                    <span className="text-white/40 text-sm font-normal ml-1">[{p.hcp}]</span>
-                  </div>
-                  <div className="text-white/50 text-sm">{sign} · {t} уд.</div>
-                </div>
-              </div>
-              <div
-                className="min-w-[60px] h-14 rounded-xl flex flex-col items-center justify-center"
-                style={has
-                  ? { background: "rgba(34,197,94,0.15)", border: "2px solid #22c55e" }
-                  : { background: "rgba(255,255,255,0.07)", border: "2px solid rgba(255,255,255,0.1)" }
-                }
-              >
-                {has ? (
-                  <>
-                    <div className="text-white font-black text-2xl tabular-nums leading-none">{has.score}</div>
-                    <div className={cn("text-[10px] font-bold mt-0.5", scoreLabelColor(has.score, currentHole.par))}>
-                      {scoreLabel(has.score, currentHole.par)}
-                    </div>
-                  </>
-                ) : (
-                  <div className="text-white/25 text-2xl font-light">—</div>
-                )}
-              </div>
-            </button>
-          );
-        })}
-
-        <div className="flex items-center justify-center gap-1.5 pt-1">
-          {course.holes.map((_, i) => (
-            <button
-              key={i}
-              onClick={() => setHoleIdx(i)}
-              className="rounded-full transition-all duration-200"
-              style={{
-                width: i === holeIdx ? 20 : 8,
-                height: 8,
-                background: i === holeIdx
-                  ? "#22c55e"
-                  : activeRound.players.some((p) => activeRound.scores[p.id]?.find((s) => s.hole === course.holes[i].number))
-                  ? "rgba(255,255,255,0.35)"
-                  : "rgba(255,255,255,0.12)",
-              }}
-            />
-          ))}
+            СЧЁТ
+          </button>
+          <button
+            onClick={() => setView("leaderboard")}
+            className="flex-1 h-8 rounded-full text-xs font-bold tracking-wider transition-all flex items-center justify-center gap-1"
+            style={view === "leaderboard"
+              ? { background: "#22c55e", color: "#000" }
+              : { color: "rgba(255,255,255,0.5)" }
+            }
+          >
+            <Trophy className="h-3 w-3" /> ЛИДЕРБОРД
+          </button>
         </div>
       </div>
+
+      {/* Content */}
+      {view === "leaderboard" ? (
+        <Leaderboard activeRound={activeRound} course={course} format={format} />
+      ) : (
+        <div className="flex-1 flex flex-col justify-center px-5 pb-4 gap-4 overflow-y-auto">
+          {/* Widget card */}
+          <div className="rounded-3xl overflow-hidden" style={{ background: "#1a1a1a" }}>
+            <div className="flex items-center gap-2 px-5 pt-5 pb-3">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+                <path d="M12 2L4 6v6c0 5.5 3.5 10.7 8 12 4.5-1.3 8-6.5 8-12V6L12 2z"
+                  stroke="white" strokeWidth="1.8" fill="none" strokeLinejoin="round" />
+              </svg>
+              <span className="text-white/70 font-semibold text-sm tracking-[0.15em] truncate">{tournamentName}</span>
+            </div>
+            <div className="flex items-baseline gap-6 px-5 pb-4">
+              <span className="text-white font-black text-4xl tracking-tight">ПАР {currentHole.par}</span>
+              <span className="text-white/50 font-bold text-2xl tracking-tight">ГКП {currentHole.hcp}</span>
+            </div>
+            <div className="px-5 pb-4">
+              <button
+                onClick={openNextPlayer}
+                className="w-full h-12 rounded-full font-black text-sm tracking-[0.15em] active:scale-[0.97] transition-transform"
+                style={{ background: "#22c55e", color: "#000" }}
+              >
+                ВВЕСТИ СЧЁТ
+              </button>
+            </div>
+            <div
+              className="flex items-center justify-between px-5 py-3"
+              style={{ background: "rgba(255,255,255,0.05)", borderTop: "1px solid rgba(255,255,255,0.07)" }}
+            >
+              <div>
+                <div className="text-white/80 text-sm font-semibold">{course.club}</div>
+                <div className="text-white/40 text-xs">{course.name} · {currentHole.yards} ярд</div>
+              </div>
+              <div className="flex items-center gap-2">
+                <Flag className="h-5 w-5" style={{ color: "#22c55e" }} />
+                <span className="text-white font-black text-2xl tabular-nums">{currentHole.number}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Player score cards */}
+          {activeRound.players.map((p) => {
+            const t = total(p);
+            const tp = totalVsPar(p);
+            const has = activeRound.scores[p.id]?.find((x) => x.hole === currentHole.number);
+            return (
+              <button
+                key={p.id}
+                onClick={() => openSheet(p)}
+                className="w-full rounded-2xl p-4 flex items-center justify-between gap-3 active:scale-[0.98] transition-transform"
+                style={{ background: "#1a1a1a" }}
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <Avatar name={p.name} tone={p.isMe ? "orange" : "muted"} />
+                  <div className="text-left min-w-0">
+                    <div className="text-white font-semibold truncate">
+                      {p.name.split(" ")[0]}
+                      <span className="text-white/40 text-sm font-normal ml-1">[{p.hcp}]</span>
+                    </div>
+                    <div className="text-white/50 text-sm" style={{ color: parSignColor(tp) }}>
+                      {parSignText(tp)} · {t} уд.
+                    </div>
+                  </div>
+                </div>
+                <div
+                  className="min-w-[60px] h-14 rounded-xl flex flex-col items-center justify-center"
+                  style={has
+                    ? { background: "rgba(34,197,94,0.15)", border: "2px solid #22c55e" }
+                    : { background: "rgba(255,255,255,0.07)", border: "2px solid rgba(255,255,255,0.1)" }
+                  }
+                >
+                  {has ? (
+                    <>
+                      <div className="text-white font-black text-2xl tabular-nums leading-none">{has.score}</div>
+                      <div className={cn("text-[10px] font-bold mt-0.5", scoreLabelColor(has.score, currentHole.par))}>
+                        {scoreLabel(has.score, currentHole.par)}
+                      </div>
+                    </>
+                  ) : (
+                    <div className="text-white/25 text-2xl font-light">—</div>
+                  )}
+                </div>
+              </button>
+            );
+          })}
+
+          {/* Hole progress dots */}
+          <div className="flex items-center justify-center gap-1.5 pt-1">
+            {course.holes.map((_, i) => (
+              <button
+                key={i}
+                onClick={() => setHoleIdx(i)}
+                className="rounded-full transition-all duration-200"
+                style={{
+                  width: i === holeIdx ? 20 : 8,
+                  height: 8,
+                  background: i === holeIdx
+                    ? "#22c55e"
+                    : activeRound.players.some((p) => activeRound.scores[p.id]?.find((s) => s.hole === course.holes[i].number))
+                    ? "rgba(255,255,255,0.35)"
+                    : "rgba(255,255,255,0.12)",
+                }}
+              />
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Score sheet */}
       {sheetPlayer && (
@@ -558,30 +733,17 @@ const TournamentRoundPlayer = ({
                 <X className="h-4 w-4 text-white" />
               </button>
             </div>
-
             <div className="px-5 pt-5 pb-2">
               <div className="grid grid-cols-2 gap-3 mb-4">
-                <ScoreCounter
-                  label="СЧЁТ"
-                  value={hole.score}
-                  onChange={(v) => setHole({ ...hole, score: v })}
-                  sublabel={scoreLabel(hole.score, currentHole.par)}
-                  sublabelColor={scoreLabelColor(hole.score, currentHole.par)}
-                />
-                <ScoreCounter
-                  label="ПАТТЫ"
-                  value={hole.putts}
-                  onChange={(v) => setHole({ ...hole, putts: v })}
-                />
+                <ScoreCounter label="СЧЁТ" value={hole.score} onChange={(v) => setHole({ ...hole, score: v })} sublabel={scoreLabel(hole.score, currentHole.par)} sublabelColor={scoreLabelColor(hole.score, currentHole.par)} />
+                <ScoreCounter label="ПАТТЫ" value={hole.putts} onChange={(v) => setHole({ ...hole, putts: v })} />
               </div>
-
               <div className="grid grid-cols-4 gap-2 mb-5">
                 <PenaltyToggle icon={<Mountain className="h-4 w-4" />} label="Бункер Ф" active={hole.fairwayBunker} onClick={() => setHole({ ...hole, fairwayBunker: !hole.fairwayBunker })} />
                 <PenaltyToggle icon={<Mountain className="h-4 w-4" />} label="Бункер Г" active={hole.greenSideBunker} onClick={() => setHole({ ...hole, greenSideBunker: !hole.greenSideBunker })} />
                 <PenaltyToggle icon={<Waves className="h-4 w-4" />} label="Вода" active={hole.hazard} onClick={() => setHole({ ...hole, hazard: !hole.hazard })} />
                 <PenaltyToggle icon={<ShieldAlert className="h-4 w-4" />} label="OB" active={hole.outOfBounds} onClick={() => setHole({ ...hole, outOfBounds: !hole.outOfBounds })} />
               </div>
-
               <button
                 onClick={submit}
                 className="w-full h-14 rounded-2xl font-black text-base uppercase tracking-wider active:scale-[0.98] transition-transform"
@@ -597,14 +759,8 @@ const TournamentRoundPlayer = ({
   );
 };
 
-const ScoreCounter = ({
-  label, value, onChange, sublabel, sublabelColor,
-}: {
-  label: string;
-  value: number;
-  onChange: (v: number) => void;
-  sublabel?: string;
-  sublabelColor?: string;
+const ScoreCounter = ({ label, value, onChange, sublabel, sublabelColor }: {
+  label: string; value: number; onChange: (v: number) => void; sublabel?: string; sublabelColor?: string;
 }) => (
   <div className="rounded-2xl flex flex-col items-center" style={{ background: "rgba(255,255,255,0.06)" }}>
     <div className="text-[10px] font-bold uppercase tracking-widest pt-3 pb-1" style={{ color: "rgba(255,255,255,0.4)" }}>{label}</div>

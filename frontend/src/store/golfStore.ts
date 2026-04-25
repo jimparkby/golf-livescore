@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { COURSES, type Course } from "@/lib/courses";
+import { type FormatId } from "@/lib/formats";
 
 export type Player = {
   id: string;
@@ -23,15 +24,17 @@ export type HoleScore = {
 
 export type Round = {
   id: string;
-  date: string; // ISO
+  date: string;
   courseId: string;
   courseName: string;
   tee: string;
   rating: number;
   slope: number;
   players: Player[];
-  scores: Record<string, HoleScore[]>; // playerId -> scores
+  scores: Record<string, HoleScore[]>;
   completed: boolean;
+  tournamentId?: string;
+  format?: FormatId;
 };
 
 export type Profile = {
@@ -45,6 +48,18 @@ export type Profile = {
   memberSince: string;
 };
 
+export type CustomTournament = {
+  id: string;
+  name: string;
+  date: string;
+  day: string;
+  month: string;
+  format: FormatId;
+  courseId?: string;
+  notes?: string;
+  createdAt: string;
+};
+
 export type FrequentPlayer = Player;
 
 type State = {
@@ -52,22 +67,20 @@ type State = {
   frequent: FrequentPlayer[];
   rounds: Round[];
   activeRound: Round | null;
+  customTournaments: CustomTournament[];
   updateProfile: (p: Partial<Profile>) => void;
-  startRound: (course: Course, players: Player[]) => void;
+  startRound: (course: Course, players: Player[], tournamentId?: string, format?: FormatId) => void;
   cancelActiveRound: () => void;
   enterScore: (playerId: string, score: HoleScore) => void;
   finishRound: () => void;
+  deleteRound: (id: string) => void;
   addFrequent: (p: Player) => void;
+  addCustomTournament: (t: Omit<CustomTournament, "id" | "createdAt">) => void;
+  deleteCustomTournament: (id: string) => void;
 };
 
 const mkInitials = (name: string) =>
-  name
-    .split(" ")
-    .map((p) => p[0])
-    .filter(Boolean)
-    .slice(0, 2)
-    .join("")
-    .toUpperCase();
+  name.split(" ").map((p) => p[0]).filter(Boolean).slice(0, 2).join("").toUpperCase();
 
 const defaultProfile: Profile = {
   firstName: "",
@@ -87,6 +100,7 @@ export const useGolf = create<State>()(
       frequent: [],
       rounds: [],
       activeRound: null,
+      customTournaments: [],
 
       updateProfile: (p) =>
         set((s) => {
@@ -95,7 +109,7 @@ export const useGolf = create<State>()(
           return { profile: merged };
         }),
 
-      startRound: (course, players) => {
+      startRound: (course, players, tournamentId, format) => {
         const round: Round = {
           id: `r-${Date.now()}`,
           date: new Date().toISOString(),
@@ -107,6 +121,8 @@ export const useGolf = create<State>()(
           players,
           scores: Object.fromEntries(players.map((p) => [p.id, []])),
           completed: false,
+          tournamentId,
+          format,
         };
         set({ activeRound: round });
       },
@@ -121,27 +137,30 @@ export const useGolf = create<State>()(
           const next = [...list];
           if (existing >= 0) next[existing] = score;
           else next.push(score);
-          return {
-            activeRound: {
-              ...s.activeRound,
-              scores: { ...s.activeRound.scores, [playerId]: next },
-            },
-          };
+          return { activeRound: { ...s.activeRound, scores: { ...s.activeRound.scores, [playerId]: next } } };
         }),
 
       finishRound: () => {
         const a = get().activeRound;
         if (!a) return;
-        set((s) => ({
-          rounds: [{ ...a, completed: true }, ...s.rounds],
-          activeRound: null,
-        }));
+        set((s) => ({ rounds: [{ ...a, completed: true }, ...s.rounds], activeRound: null }));
       },
 
+      deleteRound: (id) => set((s) => ({ rounds: s.rounds.filter((r) => r.id !== id) })),
+
       addFrequent: (p) =>
-        set((s) =>
-          s.frequent.find((x) => x.id === p.id) ? s : { frequent: [...s.frequent, p] },
-        ),
+        set((s) => s.frequent.find((x) => x.id === p.id) ? s : { frequent: [...s.frequent, p] }),
+
+      addCustomTournament: (t) =>
+        set((s) => ({
+          customTournaments: [
+            { ...t, id: `ct-${Date.now()}`, createdAt: new Date().toISOString() },
+            ...s.customTournaments,
+          ],
+        })),
+
+      deleteCustomTournament: (id) =>
+        set((s) => ({ customTournaments: s.customTournaments.filter((t) => t.id !== id) })),
     }),
     { name: "golfminsk-store" },
   ),

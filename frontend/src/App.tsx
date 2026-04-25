@@ -8,6 +8,7 @@ import AppLayout from "@/components/AppLayout";
 import PlayPage from "./pages/Play";
 import TournamentsPage from "./pages/Tournaments";
 import TournamentPlayPage from "./pages/TournamentPlay";
+import CreateTournamentPage from "./pages/CreateTournament";
 import StatsPage from "./pages/Stats";
 import ProfilePage from "./pages/Profile";
 import NotFound from "./pages/NotFound";
@@ -34,6 +35,7 @@ function AppRoutes() {
         <Route path="/" element={<PlayPage />} />
         <Route path="/tournaments" element={<TournamentsPage />} />
         <Route path="/tournament/:id" element={<TournamentPlayPage />} />
+        <Route path="/create-tournament" element={<CreateTournamentPage />} />
         <Route path="/stats" element={<StatsPage />} />
         <Route path="/profile" element={<ProfilePage />} />
       </Route>
