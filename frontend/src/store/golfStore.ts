@@ -35,6 +35,7 @@ export type Round = {
   completed: boolean;
   tournamentId?: string;
   format?: FormatId;
+  photoUrl?: string;
 };
 
 export type Profile = {
@@ -46,6 +47,7 @@ export type Profile = {
   email: string;
   city: string;
   memberSince: string;
+  photoUrl?: string;
 };
 
 export type CustomTournament = {
@@ -74,6 +76,7 @@ type State = {
   enterScore: (playerId: string, score: HoleScore) => void;
   finishRound: () => void;
   deleteRound: (id: string) => void;
+  setRoundPhoto: (id: string, photoUrl: string) => void;
   addFrequent: (p: Player) => void;
   addCustomTournament: (t: Omit<CustomTournament, "id" | "createdAt">) => void;
   deleteCustomTournament: (id: string) => void;
@@ -147,6 +150,9 @@ export const useGolf = create<State>()(
       },
 
       deleteRound: (id) => set((s) => ({ rounds: s.rounds.filter((r) => r.id !== id) })),
+
+      setRoundPhoto: (id, photoUrl) =>
+        set((s) => ({ rounds: s.rounds.map((r) => r.id === id ? { ...r, photoUrl } : r) })),
 
       addFrequent: (p) =>
         set((s) => s.frequent.find((x) => x.id === p.id) ? s : { frequent: [...s.frequent, p] }),

@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import { useGolf } from "@/store/golfStore";
 import { useAuth } from "@/hooks/useAuth";
 import { Card } from "@/components/ui/card";
@@ -6,16 +6,27 @@ import { Avatar } from "@/components/PlayerAvatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Pencil, Check, MapPin, Calendar, Trophy } from "lucide-react";
+import { Pencil, Check, MapPin, Calendar, Trophy, Camera } from "lucide-react";
 import { toast } from "sonner";
 import { getDifferentials, calcHandicapIndex, playingHandicap } from "@/lib/handicap";
 import { COURSES } from "@/lib/courses";
+import { compressImage } from "@/lib/imageUtils";
 
 const ProfilePage = () => {
   const { profile, updateProfile, rounds } = useGolf();
   const { deviceId } = useAuth();
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(profile);
+  const photoInputRef = useRef<HTMLInputElement>(null);
+
+  const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const compressed = await compressImage(file, 400);
+    updateProfile({ photoUrl: compressed });
+    toast.success("Фото профиля обновлено");
+    e.target.value = "";
+  };
 
   // WHS calculation
   const diffs = useMemo(() => getDifferentials(rounds, "me", profile.hcp), [rounds, profile.hcp]);
@@ -61,8 +72,24 @@ const ProfilePage = () => {
         <div className="absolute inset-0 gradient-hero opacity-95" />
         <div className="relative z-10 text-primary-foreground">
           <div className="flex items-center gap-4">
-            <div className="h-20 w-20 rounded-full bg-warning grid place-items-center font-bold text-2xl text-primary shadow-glow">
-              {profile.initials || "?"}
+            <div className="relative shrink-0">
+              <div className="h-20 w-20 rounded-full overflow-hidden shadow-glow border-2 border-action/30">
+                {profile.photoUrl ? (
+                  <img src={profile.photoUrl} alt={profile.firstName} className="h-full w-full object-cover" />
+                ) : (
+                  <div className="h-full w-full bg-warning grid place-items-center font-bold text-2xl text-primary">
+                    {profile.initials || "?"}
+                  </div>
+                )}
+              </div>
+              <button
+                onClick={() => photoInputRef.current?.click()}
+                className="absolute -bottom-1 -right-1 h-7 w-7 rounded-full grid place-items-center shadow-md"
+                style={{ background: "#22c55e" }}
+              >
+                <Camera className="h-3.5 w-3.5 text-black" />
+              </button>
+              <input ref={photoInputRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoChange} />
             </div>
             <div className="flex-1 min-w-0">
               {isEmpty ? (

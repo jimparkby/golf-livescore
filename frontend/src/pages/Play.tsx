@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Avatar } from "@/components/PlayerAvatar";
 import { COURSES } from "@/lib/courses";
-import { useGolf, type Player } from "@/store/golfStore";
-import { ChevronLeft, ChevronRight, Plus, Cog, X, Waves, ShieldAlert, Mountain, PlayCircle, Flag } from "lucide-react";
+import { useGolf, type Player, type Round } from "@/store/golfStore";
+import { compressImage } from "@/lib/imageUtils";
+import { ChevronLeft, ChevronRight, Plus, Cog, X, Waves, ShieldAlert, Mountain, PlayCircle, Flag, Camera } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import heroImg from "@/assets/golfminsk/hero.jpg";
@@ -276,10 +277,100 @@ const scoreLabelColor = (score: number, par: number) => {
 };
 
 const RoundPlayer = ({ onExit }: { onExit: () => void }) => {
-  const { activeRound, enterScore, finishRound } = useGolf();
+  const { activeRound, enterScore, finishRound, setRoundPhoto } = useGolf();
   const [holeIdx, setHoleIdx] = useState(0);
   const [sheetPlayer, setSheetPlayer] = useState<Player | null>(null);
   const [hole, setHole] = useState({ score: 4, putts: 2, fairwayBunker: false, greenSideBunker: false, hazard: false, outOfBounds: false });
+  const [completedRound, setCompletedRound] = useState<Round | null>(null);
+  const photoRef = useRef<HTMLInputElement>(null);
+
+  if (completedRound) {
+    const completedCourse = COURSES.find((c) => c.id === completedRound.courseId);
+    const cme = completedRound.players.find((p) => p.isMe) ?? completedRound.players[0];
+    const cScores = cme ? (completedRound.scores[cme.id] ?? []) : [];
+    const cTotal = cScores.reduce((a, s) => a + s.score, 0);
+    const cVsPar = cScores.reduce((a, s) => {
+      const h = completedCourse?.holes.find((h) => h.number === s.hole);
+      return a + (s.score - (h?.par ?? 4));
+    }, 0);
+    const vpText = cVsPar === 0 ? "E" : cVsPar > 0 ? `+${cVsPar}` : `${cVsPar}`;
+    const vpColor = cVsPar < 0 ? "#22c55e" : cVsPar === 0 ? "rgba(255,255,255,0.8)" : "#f87171";
+
+    const handlePhoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      const compressed = await compressImage(file);
+      setRoundPhoto(completedRound.id, compressed);
+      setCompletedRound({ ...completedRound, photoUrl: compressed });
+      toast.success("Фото добавлено!");
+      e.target.value = "";
+    };
+
+    return (
+      <div
+        className="fixed inset-0 z-50 flex flex-col"
+        style={{ background: "#0a0a0a", paddingTop: "max(env(safe-area-inset-top), 32px)", paddingBottom: "max(env(safe-area-inset-bottom), 28px)" }}
+      >
+        <div className="flex-1 flex flex-col items-center justify-center px-5 gap-6 overflow-y-auto">
+          <div className="text-center">
+            <div
+              className="h-16 w-16 rounded-full mx-auto mb-4 grid place-items-center"
+              style={{ background: "rgba(34,197,94,0.15)", border: "2px solid #22c55e" }}
+            >
+              <svg width="28" height="22" viewBox="0 0 28 22" fill="none">
+                <path d="M2 11L10 19L26 3" stroke="#22c55e" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </div>
+            <div className="text-[10px] uppercase tracking-[0.3em] font-bold" style={{ color: "rgba(255,255,255,0.4)" }}>
+              Раунд завершён
+            </div>
+            <div className="text-white font-black text-5xl tabular-nums leading-none mt-2">{cTotal}</div>
+            <div className="text-xl font-bold mt-1" style={{ color: vpColor }}>{vpText}</div>
+            <div className="text-sm mt-2" style={{ color: "rgba(255,255,255,0.4)" }}>
+              {completedRound.courseName.split(" · ")[0]}
+            </div>
+          </div>
+
+          {completedRound.photoUrl ? (
+            <div className="w-full">
+              <div className="w-full rounded-2xl overflow-hidden" style={{ aspectRatio: "4/3", maxHeight: 220 }}>
+                <img src={completedRound.photoUrl} alt="Round" className="w-full h-full object-cover" />
+              </div>
+              <button
+                onClick={() => photoRef.current?.click()}
+                className="flex items-center justify-center gap-2 w-full mt-2 py-2 text-sm font-semibold"
+                style={{ color: "#22c55e" }}
+              >
+                <Camera className="h-4 w-4" /> Заменить фото
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => photoRef.current?.click()}
+              className="w-full rounded-2xl flex flex-col items-center justify-center gap-3 py-10"
+              style={{ background: "rgba(255,255,255,0.04)", border: "2px dashed rgba(255,255,255,0.12)" }}
+            >
+              <Camera className="h-8 w-8" style={{ color: "#22c55e" }} />
+              <div className="text-sm font-semibold" style={{ color: "rgba(255,255,255,0.6)" }}>
+                Добавить фото раунда
+              </div>
+            </button>
+          )}
+          <input ref={photoRef} type="file" accept="image/*" className="hidden" onChange={handlePhoto} />
+        </div>
+
+        <div className="px-5 pt-4">
+          <button
+            onClick={onExit}
+            className="w-full h-14 rounded-2xl font-black text-base uppercase tracking-wider active:scale-[0.98] transition-transform"
+            style={{ background: "#22c55e", color: "#000" }}
+          >
+            ГОТОВО
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   if (!activeRound) {
     return (
@@ -331,9 +422,9 @@ const RoundPlayer = ({ onExit }: { onExit: () => void }) => {
   };
 
   const handleFinish = () => {
+    const snapshot = activeRound;
     finishRound();
-    toast.success("Раунд завершён!");
-    onExit();
+    setCompletedRound({ ...snapshot, completed: true });
   };
 
   const total = (p: Player) =>

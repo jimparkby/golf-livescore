@@ -1,17 +1,16 @@
 import { useState, useMemo } from "react";
 import { useGolf } from "@/store/golfStore";
 import { Card } from "@/components/ui/card";
-import { ArrowDownUp, BadgeCheck, Trash2, ChevronDown, ChevronUp } from "lucide-react";
+import { ArrowDownUp, ChevronDown, ChevronUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getDifferentials, calcHandicapIndex, diffUseCount, roundsNeeded } from "@/lib/handicap";
 import { COURSES as COURSE_LIST } from "@/lib/courses";
+import RoundCard from "@/components/RoundCard";
 
 const StatsPage = () => {
-  const { rounds, profile, deleteRound, updateProfile } = useGolf();
-  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const { rounds, profile, deleteRound, setRoundPhoto, updateProfile } = useGolf();
   const [showAllDiffs, setShowAllDiffs] = useState(false);
 
-  // WHS calculation
   const diffs = useMemo(
     () => getDifferentials(rounds, "me", profile.hcp),
     [rounds, profile.hcp],
@@ -22,19 +21,20 @@ const StatsPage = () => {
   const completedCount = diffs.length;
   const needed = roundsNeeded(completedCount);
   const useCount = completedCount >= 3 ? diffUseCount(completedCount) : 0;
-
   const visibleDiffs = showAllDiffs ? diffs : diffs.slice(0, 5);
 
-  // Scoring trend
   const totals = rounds.map((r) => {
     const me = r.players.find((p) => p.isMe);
-    if (!me) return { id: r.id, total: 0, rating: r.rating, slope: r.slope, course: r.courseName, date: r.date, tee: r.tee, isGreen: false };
+    if (!me) return { id: r.id, total: 0, isGreen: false };
     const total = r.scores[me.id]?.reduce((a, s) => a + s.score, 0) ?? 0;
-    return { id: r.id, total, rating: r.rating, slope: r.slope, course: r.courseName, date: r.date, tee: r.tee, isGreen: total <= 95 };
+    return { id: r.id, total, isGreen: total <= 95 };
   });
-
   const max = Math.max(...totals.map((t) => t.total), 1);
   const hcpChanged = whsIndex !== null && Math.abs(whsIndex - profile.hcp) >= 0.1;
+
+  const playerName = profile.firstName
+    ? `${profile.firstName} ${profile.lastName}`.trim()
+    : "Игрок";
 
   return (
     <div className="space-y-5 animate-in fade-in duration-300">
@@ -60,15 +60,11 @@ const StatsPage = () => {
                 <>
                   <div className="text-4xl font-black text-muted-foreground leading-none">—</div>
                   <div className="text-xs text-muted-foreground mt-1.5">
-                    {needed > 0
-                      ? `Нужно ещё ${needed} завершённых раунда`
-                      : "Нет данных"}
+                    {needed > 0 ? `Нужно ещё ${needed} завершённых раунда` : "Нет данных"}
                   </div>
                 </>
               )}
             </div>
-
-            {/* Course handicaps */}
             {whsIndex !== null && (
               <div className="text-right space-y-1.5 shrink-0">
                 <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Гандикап поля</div>
@@ -84,8 +80,6 @@ const StatsPage = () => {
               </div>
             )}
           </div>
-
-          {/* Apply to profile button */}
           {hcpChanged && (
             <button
               onClick={() => { updateProfile({ hcp: whsIndex! }); }}
@@ -97,37 +91,24 @@ const StatsPage = () => {
           )}
         </div>
 
-        {/* Differentials table */}
         {diffs.length > 0 && (
           <>
             <div className="border-t border-border">
-              <div
-                className="grid px-4 py-2 text-[10px] uppercase tracking-wider font-bold text-muted-foreground"
-                style={{ gridTemplateColumns: "1.5rem 1fr auto auto auto" }}
-              >
-                <div />
-                <div>Поле · Дата</div>
+              <div className="grid px-4 py-2 text-[10px] uppercase tracking-wider font-bold text-muted-foreground"
+                style={{ gridTemplateColumns: "1.5rem 1fr auto auto auto" }}>
+                <div /><div>Поле · Дата</div>
                 <div className="text-center w-10">Счёт</div>
                 <div className="text-center w-10">Adj.</div>
                 <div className="text-right w-12">Diff.</div>
               </div>
-
               {visibleDiffs.map((d) => (
-                <div
-                  key={d.roundId}
-                  className="grid items-center px-4 py-2.5 border-t border-border/50"
-                  style={{ gridTemplateColumns: "1.5rem 1fr auto auto auto" }}
-                >
-                  {/* Used indicator */}
+                <div key={d.roundId} className="grid items-center px-4 py-2.5 border-t border-border/50"
+                  style={{ gridTemplateColumns: "1.5rem 1fr auto auto auto" }}>
                   <div className="flex items-center justify-center">
-                    {d.isUsed ? (
-                      <div className="h-2 w-2 rounded-full bg-action" title="Используется в расчёте" />
-                    ) : (
-                      <div className="h-2 w-2 rounded-full bg-muted-foreground/30" />
-                    )}
+                    {d.isUsed
+                      ? <div className="h-2 w-2 rounded-full bg-action" />
+                      : <div className="h-2 w-2 rounded-full bg-muted-foreground/30" />}
                   </div>
-
-                  {/* Course + date */}
                   <div className="min-w-0 pr-2">
                     <div className="text-sm font-medium truncate">{d.courseName}</div>
                     <div className="text-[10px] text-muted-foreground tabular-nums">
@@ -135,39 +116,24 @@ const StatsPage = () => {
                       <span className="ml-1 opacity-60">{d.courseRating}/{d.slopeRating}</span>
                     </div>
                   </div>
-
-                  {/* Gross */}
-                  <div className="w-10 text-center text-sm tabular-nums font-semibold text-muted-foreground">
-                    {d.grossScore}
-                  </div>
-
-                  {/* Adjusted */}
+                  <div className="w-10 text-center text-sm tabular-nums font-semibold text-muted-foreground">{d.grossScore}</div>
                   <div className={cn("w-10 text-center text-sm tabular-nums font-semibold", d.adjustedScore < d.grossScore ? "text-action" : "text-muted-foreground")}>
                     {d.adjustedScore}
                   </div>
-
-                  {/* Differential */}
                   <div className={cn("w-12 text-right text-sm tabular-nums font-black", d.isUsed ? "text-foreground" : "text-muted-foreground")}>
                     {d.differential.toFixed(1)}
                   </div>
                 </div>
               ))}
             </div>
-
             {diffs.length > 5 && (
-              <button
-                onClick={() => setShowAllDiffs((v) => !v)}
-                className="w-full flex items-center justify-center gap-1 py-3 text-xs font-semibold text-action border-t border-border hover:bg-muted/20 transition-colors"
-              >
-                {showAllDiffs ? (
-                  <><ChevronUp className="h-3.5 w-3.5" /> Свернуть</>
-                ) : (
-                  <><ChevronDown className="h-3.5 w-3.5" /> Ещё {diffs.length - 5} раундов</>
-                )}
+              <button onClick={() => setShowAllDiffs((v) => !v)}
+                className="w-full flex items-center justify-center gap-1 py-3 text-xs font-semibold text-action border-t border-border hover:bg-muted/20 transition-colors">
+                {showAllDiffs
+                  ? <><ChevronUp className="h-3.5 w-3.5" /> Свернуть</>
+                  : <><ChevronDown className="h-3.5 w-3.5" /> Ещё {diffs.length - 5} раундов</>}
               </button>
             )}
-
-            {/* Legend */}
             <div className="px-4 py-3 border-t border-border bg-muted/20 flex items-center gap-4 text-[10px] text-muted-foreground">
               <div className="flex items-center gap-1.5"><div className="h-2 w-2 rounded-full bg-action" /> Используется в расчёте ({useCount} лучших)</div>
               <div>Adj. = скор. по Net Double Bogey</div>
@@ -185,9 +151,7 @@ const StatsPage = () => {
               <div className="text-xs text-muted-foreground">Зелёные раунды ≤ 95 ударов</div>
             </div>
             <div className="text-center">
-              <div className="h-14 w-14 rounded-full bg-muted grid place-items-center font-bold text-sm">
-                {profile.hcp}
-              </div>
+              <div className="h-14 w-14 rounded-full bg-muted grid place-items-center font-bold text-sm">{profile.hcp}</div>
               <div className="text-[10px] uppercase tracking-wider mt-1 text-muted-foreground">HCP</div>
             </div>
           </div>
@@ -196,10 +160,8 @@ const StatsPage = () => {
               {totals.slice().reverse().map((t, i) => (
                 <div key={i} className="flex-1 flex flex-col items-center gap-1.5">
                   <div className="text-[10px] tabular-nums font-semibold">{t.total}</div>
-                  <div
-                    className={cn("w-full rounded-t-md transition-spring", t.isGreen ? "bg-accent" : "bg-action")}
-                    style={{ height: `${(t.total / max) * 80}%`, minHeight: 8 }}
-                  />
+                  <div className={cn("w-full rounded-t-md transition-spring", t.isGreen ? "bg-accent" : "bg-action")}
+                    style={{ height: `${(t.total / max) * 80}%`, minHeight: 8 }} />
                 </div>
               ))}
             </div>
@@ -207,87 +169,35 @@ const StatsPage = () => {
         </Card>
       )}
 
-      {/* ── Scoring Record ── */}
+      {/* ── Round Cards (TheGrint style) ── */}
       <div>
         <div className="flex items-center justify-between mb-3">
           <div>
-            <div className="font-bold">Scoring Record</div>
-            <div className="text-xs text-muted-foreground">{rounds.length} раундов</div>
+            <div className="font-bold">Раунды</div>
+            <div className="text-xs text-muted-foreground">{rounds.length} сыграно</div>
           </div>
           <button className="inline-flex items-center gap-1 text-action text-sm font-semibold">
             <ArrowDownUp className="h-3.5 w-3.5" /> Sort
           </button>
         </div>
 
-        {totals.length === 0 && (
+        {rounds.length === 0 && (
           <Card className="p-8 text-center text-muted-foreground shadow-soft">
             Сыграйте первый раунд — он появится здесь
           </Card>
         )}
 
-        <div className="space-y-3">
-          {totals.map((t) => (
-            <Card key={t.id} className="shadow-soft overflow-hidden">
-              <div className="p-4 flex items-center gap-4">
-                <div className="flex flex-col items-center shrink-0">
-                  <div
-                    className={cn(
-                      "h-14 w-14 rounded-full border-2 grid place-items-center font-bold tabular-nums text-lg",
-                      t.isGreen ? "border-accent text-accent" : "border-action text-action",
-                    )}
-                  >
-                    {t.total}
-                  </div>
-                  <div className="text-[10px] mt-1 tabular-nums text-muted-foreground">
-                    {(t.total - 72 + 0.6).toFixed(1)}
-                  </div>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="font-semibold truncate">{t.course.split(" · ")[0]}</div>
-                  <div className="text-sm text-muted-foreground truncate">{t.course.split(" · ")[1]}</div>
-                  <div className="text-xs text-muted-foreground mt-1">
-                    {t.tee} {t.rating} / {t.slope}
-                  </div>
-                  <span className="inline-flex items-center gap-1 mt-2 px-2 py-0.5 text-[10px] font-semibold rounded border border-accent text-accent">
-                    <BadgeCheck className="h-3 w-3" /> Attested
-                  </span>
-                </div>
-                <div className="flex flex-col items-end gap-2 shrink-0">
-                  <div className="text-xs text-muted-foreground tabular-nums">
-                    {new Date(t.date).toLocaleDateString("ru-RU", { day: "2-digit", month: "2-digit", year: "2-digit" })}
-                  </div>
-                  <button
-                    onClick={() => setDeletingId(deletingId === t.id ? null : t.id)}
-                    className={cn(
-                      "h-8 w-8 rounded-full grid place-items-center transition-colors",
-                      deletingId === t.id
-                        ? "bg-destructive text-destructive-foreground"
-                        : "bg-muted text-muted-foreground hover:text-destructive",
-                    )}
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </button>
-                </div>
-              </div>
-
-              {deletingId === t.id && (
-                <div className="flex items-center gap-3 px-4 py-3 border-t border-border bg-destructive/5 animate-in slide-in-from-top duration-150">
-                  <div className="flex-1 text-sm text-destructive font-semibold">Удалить этот раунд?</div>
-                  <button
-                    onClick={() => { deleteRound(t.id); setDeletingId(null); }}
-                    className="px-4 py-1.5 rounded-lg bg-destructive text-destructive-foreground text-sm font-bold"
-                  >
-                    Удалить
-                  </button>
-                  <button
-                    onClick={() => setDeletingId(null)}
-                    className="px-4 py-1.5 rounded-lg bg-muted text-foreground text-sm font-bold"
-                  >
-                    Отмена
-                  </button>
-                </div>
-              )}
-            </Card>
+        <div className="space-y-4">
+          {rounds.map((r) => (
+            <RoundCard
+              key={r.id}
+              round={r}
+              profilePhoto={profile.photoUrl}
+              playerName={playerName}
+              playerHcp={profile.hcp}
+              onDelete={() => deleteRound(r.id)}
+              onAddPhoto={(url) => setRoundPhoto(r.id, url)}
+            />
           ))}
         </div>
       </div>
