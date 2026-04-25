@@ -4,7 +4,7 @@ import { Card } from "@/components/ui/card";
 import { Avatar } from "@/components/PlayerAvatar";
 import { COURSES } from "@/lib/courses";
 import { useGolf, type Player } from "@/store/golfStore";
-import { ChevronLeft, ChevronRight, Plus, Cog, X, Waves, ShieldAlert, Mountain, PlayCircle } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, Cog, X, Waves, ShieldAlert, Mountain, PlayCircle, Flag } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import heroImg from "@/assets/golfminsk/hero.jpg";
@@ -259,7 +259,7 @@ const SetupScreen = ({
 /* ────────── PLAYING ────────── */
 const scoreLabel = (score: number, par: number) => {
   const d = score - par;
-  if (d <= -2) return "Орёл";
+  if (d <= -2) return "Игл";
   if (d === -1) return "Бёрди";
   if (d === 0) return "Пар";
   if (d === 1) return "Богги";
@@ -338,88 +338,104 @@ const RoundPlayer = ({ onExit }: { onExit: () => void }) => {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-primary">
-      {/* ── Top bar ── */}
-      <div className="flex items-center justify-between px-4 pt-safe" style={{ paddingTop: `max(env(safe-area-inset-top), 12px)`, paddingBottom: 12 }}>
+    <div className="fixed inset-0 z-50 flex flex-col" style={{ background: "#0a0a0a" }}>
+
+      {/* ── Top: hole navigation ── */}
+      <div
+        className="flex items-center justify-between px-5"
+        style={{ paddingTop: `max(env(safe-area-inset-top), 14px)`, paddingBottom: 10 }}
+      >
         <button
           onClick={onExit}
-          className="h-10 w-10 rounded-full bg-primary-foreground/10 grid place-items-center"
+          className="h-9 w-9 rounded-full grid place-items-center"
+          style={{ background: "rgba(255,255,255,0.1)" }}
         >
-          <X className="h-5 w-5 text-primary-foreground" strokeWidth={2.5} />
+          <X className="h-4 w-4 text-white" strokeWidth={2.5} />
         </button>
 
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
           <button
             onClick={() => setHoleIdx(Math.max(0, holeIdx - 1))}
             disabled={holeIdx === 0}
-            className="h-9 w-9 grid place-items-center text-primary-foreground disabled:opacity-25"
+            className="h-9 w-9 grid place-items-center disabled:opacity-20"
           >
-            <ChevronLeft className="h-6 w-6" strokeWidth={2.5} />
+            <ChevronLeft className="h-6 w-6 text-white" strokeWidth={2.5} />
           </button>
-          <div className="text-center min-w-[110px]">
-            <div className="text-primary-foreground font-bold text-lg tracking-wide">
-              ЛУНКА {currentHole.number}
-            </div>
-          </div>
+          <span className="text-white font-bold text-base tracking-wider min-w-[90px] text-center">
+            Лунка {currentHole.number}
+          </span>
           <button
             onClick={() => setHoleIdx(Math.min(totalHoles - 1, holeIdx + 1))}
             disabled={holeIdx === totalHoles - 1}
-            className="h-9 w-9 grid place-items-center text-primary-foreground disabled:opacity-25"
+            className="h-9 w-9 grid place-items-center disabled:opacity-20"
           >
-            <ChevronRight className="h-6 w-6" strokeWidth={2.5} />
+            <ChevronRight className="h-6 w-6 text-white" strokeWidth={2.5} />
           </button>
         </div>
 
         <button
           onClick={handleFinish}
-          className="h-10 px-3 rounded-full bg-primary-foreground/10 grid place-items-center"
+          className="h-9 px-4 rounded-full font-bold text-xs tracking-wider"
+          style={{ background: "rgba(255,255,255,0.1)", color: "#4ade80" }}
         >
-          <span className="text-action font-bold text-sm">ФИНИШ</span>
+          ФИНИШ
         </button>
       </div>
 
-      {/* ── Main scrollable area ── */}
-      <div className="flex-1 overflow-y-auto px-4 pb-4 space-y-3">
+      {/* ── Main card (widget style) ── */}
+      <div className="flex-1 flex flex-col justify-center px-5 pb-4 gap-4 overflow-y-auto">
 
-        {/* Hole stats */}
-        <div className="flex items-center justify-center gap-6 py-3">
-          <div className="text-center">
-            <div className="text-primary-foreground/60 text-[10px] uppercase tracking-widest">Пар</div>
-            <div className="text-primary-foreground font-bold text-2xl">{currentHole.par}</div>
-          </div>
-          <div className="w-px h-8 bg-primary-foreground/20" />
-          <div className="text-center">
-            <div className="text-primary-foreground/60 text-[10px] uppercase tracking-widest">Ярды</div>
-            <div className="text-primary-foreground font-bold text-2xl">{currentHole.yards}</div>
-          </div>
-          <div className="w-px h-8 bg-primary-foreground/20" />
-          <div className="text-center">
-            <div className="text-primary-foreground/60 text-[10px] uppercase tracking-widest">ГКП</div>
-            <div className="text-primary-foreground font-bold text-2xl">{currentHole.hcp}</div>
-          </div>
-        </div>
+        {/* Widget card */}
+        <div className="rounded-3xl overflow-hidden" style={{ background: "#1a1a1a" }}>
 
-        {/* Hole progress dots */}
-        <div className="flex items-center justify-center gap-1.5 py-1">
-          {course.holes.map((_, i) => (
+          {/* Card header */}
+          <div className="flex items-center gap-2 px-5 pt-5 pb-3">
+            {/* Shield icon like Tag Golf */}
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+              <path d="M12 2L4 6v6c0 5.5 3.5 10.7 8 12 4.5-1.3 8-6.5 8-12V6L12 2z"
+                stroke="white" strokeWidth="1.8" fill="none" strokeLinejoin="round"/>
+            </svg>
+            <span className="text-white/70 font-semibold text-sm tracking-[0.15em]">GOLF</span>
+          </div>
+
+          {/* Par + HCP */}
+          <div className="flex items-baseline gap-6 px-5 pb-4">
+            <div>
+              <span className="text-white font-black text-4xl tracking-tight">ПАР {currentHole.par}</span>
+            </div>
+            <div>
+              <span className="text-white/50 font-bold text-2xl tracking-tight">ГКП {currentHole.hcp}</span>
+            </div>
+          </div>
+
+          {/* ВВЕСТИ СЧЁТ button */}
+          <div className="px-5 pb-4">
             <button
-              key={i}
-              onClick={() => setHoleIdx(i)}
-              className={cn(
-                "rounded-full transition-all duration-200",
-                i === holeIdx
-                  ? "w-5 h-2 bg-action"
-                  : activeRound.players.some((p) =>
-                      activeRound.scores[p.id]?.find((s) => s.hole === course.holes[i].number)
-                    )
-                  ? "w-2 h-2 bg-primary-foreground/50"
-                  : "w-2 h-2 bg-primary-foreground/20",
-              )}
-            />
-          ))}
+              onClick={openNextPlayer}
+              className="w-full h-12 rounded-full font-black text-sm tracking-[0.15em] active:scale-[0.97] transition-transform"
+              style={{ background: "#22c55e", color: "#000" }}
+            >
+              ВВЕСТИ СЧЁТ
+            </button>
+          </div>
+
+          {/* Card footer: course + hole number */}
+          <div
+            className="flex items-center justify-between px-5 py-3"
+            style={{ background: "rgba(255,255,255,0.05)", borderTop: "1px solid rgba(255,255,255,0.07)" }}
+          >
+            <div>
+              <div className="text-white/80 text-sm font-semibold">{course.club}</div>
+              <div className="text-white/40 text-xs">{course.name} · {currentHole.yards} ярд</div>
+            </div>
+            <div className="flex items-center gap-2">
+              <Flag className="h-5 w-5" style={{ color: "#22c55e" }} />
+              <span className="text-white font-black text-2xl tabular-nums">{currentHole.number}</span>
+            </div>
+          </div>
         </div>
 
-        {/* Player cards */}
+        {/* Player score cards */}
         {activeRound.players.map((p) => {
           const t = total(p);
           const tp = totalVsPar(p);
@@ -429,87 +445,96 @@ const RoundPlayer = ({ onExit }: { onExit: () => void }) => {
             <button
               key={p.id}
               onClick={() => openSheet(p)}
-              className="w-full bg-primary-foreground/10 rounded-2xl p-4 flex items-center justify-between gap-3 active:scale-[0.98] transition-transform"
+              className="w-full rounded-2xl p-4 flex items-center justify-between gap-3 active:scale-[0.98] transition-transform"
+              style={{ background: "#1a1a1a" }}
             >
               <div className="flex items-center gap-3 min-w-0">
                 <Avatar name={p.name} tone={p.isMe ? "orange" : "muted"} />
                 <div className="text-left min-w-0">
-                  <div className="text-primary-foreground font-semibold truncate">
-                    {p.name.split(" ")[0]} <span className="text-primary-foreground/50 text-sm font-normal">[{p.hcp}]</span>
+                  <div className="text-white font-semibold truncate">
+                    {p.name.split(" ")[0]}
+                    <span className="text-white/40 text-sm font-normal ml-1">[{p.hcp}]</span>
                   </div>
-                  <div className="text-primary-foreground/60 text-sm">{sign} · {t} ударов</div>
+                  <div className="text-white/50 text-sm">{sign} · {t} уд.</div>
                 </div>
               </div>
-
-              {/* Score badge */}
-              <div className={cn(
-                "min-w-[64px] h-16 rounded-xl flex flex-col items-center justify-center",
-                has ? "bg-action/20 border-2 border-action" : "bg-primary-foreground/10 border-2 border-primary-foreground/20",
-              )}>
+              <div
+                className="min-w-[60px] h-14 rounded-xl flex flex-col items-center justify-center"
+                style={has
+                  ? { background: "rgba(34,197,94,0.15)", border: "2px solid #22c55e" }
+                  : { background: "rgba(255,255,255,0.07)", border: "2px solid rgba(255,255,255,0.1)" }
+                }
+              >
                 {has ? (
                   <>
-                    <div className="text-primary-foreground font-bold text-2xl tabular-nums leading-none">{has.score}</div>
-                    <div className={cn("text-[11px] font-medium mt-0.5", scoreLabelColor(has.score, currentHole.par))}>
+                    <div className="text-white font-black text-2xl tabular-nums leading-none">{has.score}</div>
+                    <div className={cn("text-[10px] font-bold mt-0.5", scoreLabelColor(has.score, currentHole.par))}>
                       {scoreLabel(has.score, currentHole.par)}
                     </div>
                   </>
                 ) : (
-                  <div className="text-primary-foreground/40 text-2xl font-light">—</div>
+                  <div className="text-white/25 text-2xl font-light">—</div>
                 )}
               </div>
             </button>
           );
         })}
-      </div>
 
-      {/* ── Bottom action bar ── */}
-      <div
-        className="bg-card border-t border-border flex items-center gap-3 px-4"
-        style={{ paddingBottom: `max(env(safe-area-inset-bottom), 16px)`, paddingTop: 16 }}
-      >
-        <div className="flex-1 min-w-0">
-          <div className="text-xs text-muted-foreground font-medium uppercase tracking-wider truncate">
-            {course.club}
-          </div>
-          <div className="text-sm font-bold text-foreground">
-            Пар {currentHole.par} · {currentHole.yards} ярд · ГКП {currentHole.hcp}
-          </div>
+        {/* Hole progress dots */}
+        <div className="flex items-center justify-center gap-1.5 pt-1">
+          {course.holes.map((_, i) => (
+            <button
+              key={i}
+              onClick={() => setHoleIdx(i)}
+              className="rounded-full transition-all duration-200"
+              style={{
+                width: i === holeIdx ? 20 : 8,
+                height: 8,
+                background: i === holeIdx
+                  ? "#22c55e"
+                  : activeRound.players.some((p) =>
+                      activeRound.scores[p.id]?.find((s) => s.hole === course.holes[i].number)
+                    )
+                  ? "rgba(255,255,255,0.35)"
+                  : "rgba(255,255,255,0.12)",
+              }}
+            />
+          ))}
         </div>
-        <button
-          onClick={openNextPlayer}
-          className="bg-action text-action-foreground font-bold text-sm uppercase tracking-wider px-6 h-12 rounded-xl shadow-glow active:scale-95 transition-transform shrink-0"
-        >
-          ВВЕСТИ СЧЁТ
-        </button>
       </div>
 
       {/* ── Score Sheet ── */}
       {sheetPlayer && (
         <div className="fixed inset-0 z-50 flex items-end animate-in fade-in duration-150">
-          <button className="absolute inset-0 bg-black/50" onClick={() => setSheetPlayer(null)} />
+          <button className="absolute inset-0 bg-black/70" onClick={() => setSheetPlayer(null)} />
           <div
-            className="relative w-full bg-card rounded-t-3xl shadow-elevated animate-in slide-in-from-bottom duration-250"
-            style={{ paddingBottom: `max(env(safe-area-inset-bottom), 24px)` }}
+            className="relative w-full rounded-t-3xl animate-in slide-in-from-bottom duration-250"
+            style={{ background: "#1a1a1a", paddingBottom: `max(env(safe-area-inset-bottom), 24px)` }}
           >
-            <div className="mx-auto w-10 h-1 bg-border rounded-full mt-3 mb-1" />
+            {/* drag handle */}
+            <div className="mx-auto w-10 h-1 rounded-full mt-3 mb-1" style={{ background: "rgba(255,255,255,0.15)" }} />
 
-            {/* Sheet header */}
-            <div className="flex items-center justify-between px-5 py-3 border-b border-border">
+            {/* Header */}
+            <div className="flex items-center justify-between px-5 py-3" style={{ borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
               <div className="flex items-center gap-3">
                 <Avatar name={sheetPlayer.name} tone={sheetPlayer.isMe ? "orange" : "muted"} />
                 <div>
-                  <div className="font-bold">{sheetPlayer.name.split(" ")[0]}</div>
-                  <div className="text-xs text-muted-foreground">Лунка {currentHole.number} · Пар {currentHole.par}</div>
+                  <div className="text-white font-bold">{sheetPlayer.name.split(" ")[0]}</div>
+                  <div className="text-white/40 text-xs">Лунка {currentHole.number} · Пар {currentHole.par}</div>
                 </div>
               </div>
-              <button onClick={() => setSheetPlayer(null)} className="h-9 w-9 rounded-full bg-muted grid place-items-center">
-                <X className="h-4 w-4" />
+              <button
+                onClick={() => setSheetPlayer(null)}
+                className="h-9 w-9 rounded-full grid place-items-center"
+                style={{ background: "rgba(255,255,255,0.1)" }}
+              >
+                <X className="h-4 w-4 text-white" />
               </button>
             </div>
 
-            <div className="px-5 pt-4 pb-2">
+            <div className="px-5 pt-5 pb-2">
               {/* Score + Putts counters */}
-              <div className="grid grid-cols-2 gap-4 mb-5">
+              <div className="grid grid-cols-2 gap-3 mb-4">
                 <ScoreCounter
                   label="СЧЁТ"
                   value={hole.score}
@@ -535,7 +560,8 @@ const RoundPlayer = ({ onExit }: { onExit: () => void }) => {
               {/* Save button */}
               <button
                 onClick={submit}
-                className="w-full h-14 rounded-2xl bg-action text-action-foreground font-bold text-base uppercase tracking-wider shadow-glow active:scale-[0.98] transition-transform"
+                className="w-full h-14 rounded-2xl font-black text-base uppercase tracking-wider active:scale-[0.98] transition-transform"
+                style={{ background: "#22c55e", color: "#000" }}
               >
                 СОХРАНИТЬ
               </button>
@@ -556,19 +582,24 @@ const ScoreCounter = ({
   sublabel?: string;
   sublabelColor?: string;
 }) => (
-  <div className="bg-muted rounded-2xl p-1 flex flex-col items-center">
-    <div className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground pt-2 pb-1">{label}</div>
+  <div className="rounded-2xl flex flex-col items-center" style={{ background: "rgba(255,255,255,0.06)" }}>
+    <div className="text-[10px] font-bold uppercase tracking-widest pt-3 pb-1" style={{ color: "rgba(255,255,255,0.4)" }}>{label}</div>
     <button
       onClick={() => onChange(value + 1)}
-      className="w-full h-14 grid place-items-center text-action active:bg-action/10 rounded-xl transition-colors"
+      className="w-full h-14 grid place-items-center rounded-xl transition-colors active:bg-white/10"
+      style={{ color: "#22c55e" }}
     >
       <Plus className="h-7 w-7" strokeWidth={2.5} />
     </button>
-    <div className="text-4xl font-bold tabular-nums text-foreground py-1">{value}</div>
-    {sublabel && <div className={cn("text-[11px] font-semibold -mt-1 mb-1", sublabelColor)}>{sublabel}</div>}
+    <div className="text-4xl font-black tabular-nums text-white py-0.5">{value}</div>
+    {sublabel
+      ? <div className={cn("text-[11px] font-bold mb-0.5", sublabelColor)}>{sublabel}</div>
+      : <div className="mb-0.5 h-4" />
+    }
     <button
       onClick={() => onChange(Math.max(1, value - 1))}
-      className="w-full h-14 grid place-items-center text-action active:bg-action/10 rounded-xl transition-colors"
+      className="w-full h-14 grid place-items-center rounded-xl transition-colors active:bg-white/10"
+      style={{ color: "#22c55e" }}
     >
       <span className="text-3xl leading-none font-bold">−</span>
     </button>
@@ -578,12 +609,13 @@ const ScoreCounter = ({
 const PenaltyToggle = ({ label, icon, active, onClick }: { label: string; icon: React.ReactNode; active: boolean; onClick: () => void }) => (
   <button
     onClick={onClick}
-    className={cn(
-      "flex flex-col items-center gap-1 py-3 rounded-xl border-2 transition-colors",
-      active ? "border-action bg-action/10 text-action" : "border-border text-muted-foreground",
-    )}
+    className="flex flex-col items-center gap-1 py-3 rounded-xl transition-colors"
+    style={active
+      ? { background: "rgba(34,197,94,0.15)", border: "2px solid #22c55e", color: "#22c55e" }
+      : { background: "rgba(255,255,255,0.05)", border: "2px solid rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.4)" }
+    }
   >
-    <div className={cn("h-8 w-8 rounded-full grid place-items-center", active ? "bg-action/20" : "bg-muted")}>
+    <div className="h-8 w-8 rounded-full grid place-items-center" style={{ background: active ? "rgba(34,197,94,0.2)" : "rgba(255,255,255,0.05)" }}>
       {icon}
     </div>
     <div className="text-[9px] font-semibold leading-tight text-center px-1">{label}</div>
