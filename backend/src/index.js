@@ -13,8 +13,14 @@ const app = express()
 app.use(cors({ origin: '*' }))
 app.use(express.json())
 
+console.log('[boot] registering /api/auth ...')
 app.use('/api/auth', authRouter)
+console.log('[boot] registering /api/profile ...')
 app.use('/api/profile', profileRouter)
+console.log('[boot] all API routes registered')
+
+app.get('/api/ping', (_req, res) => res.json({ ok: true }))
+app.post('/api/ping', (_req, res) => res.json({ ok: true, method: 'POST' }))
 
 // JSON error handler — returns proper JSON, not HTML
 app.use((err, _req, res, _next) => {
