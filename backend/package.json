@@ -2,6 +2,7 @@
   "name": "golfminsk-backend",
   "version": "1.0.0",
   "type": "module",
+  "main": "src/index.js",
   "scripts": {
     "start": "node src/index.js",
     "dev": "node --watch src/index.js"
