@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useGolf } from "@/store/golfStore";
 import { useAuth } from "@/hooks/useAuth";
 import { Card } from "@/components/ui/card";
@@ -8,6 +8,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Pencil, Check, MapPin, Calendar, Trophy } from "lucide-react";
 import { toast } from "sonner";
+import { getDifferentials, calcHandicapIndex, playingHandicap } from "@/lib/handicap";
+import { COURSES } from "@/lib/courses";
 
 const ProfilePage = () => {
   const { profile, updateProfile, rounds } = useGolf();
@@ -15,11 +17,14 @@ const ProfilePage = () => {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(profile);
 
+  // WHS calculation
+  const diffs = useMemo(() => getDifferentials(rounds, "me", profile.hcp), [rounds, profile.hcp]);
+  const whsIndex = calcHandicapIndex(diffs.map((d) => d.differential));
+
   const save = () => {
     updateProfile(draft);
     setEditing(false);
     toast.success("Профиль обновлён");
-
     fetch("/api/profile", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -47,6 +52,7 @@ const ProfilePage = () => {
     : 0;
 
   const isEmpty = !profile.firstName && !profile.lastName;
+  const hcpToShow = whsIndex ?? profile.hcp;
 
   return (
     <div className="space-y-5 animate-in fade-in duration-300">
@@ -73,12 +79,8 @@ const ProfilePage = () => {
             </div>
             <button
               onClick={() => {
-                if (editing) {
-                  save();
-                } else {
-                  setDraft(profile);
-                  setEditing(true);
-                }
+                if (editing) save();
+                else { setDraft(profile); setEditing(true); }
               }}
               className="h-10 w-10 rounded-full bg-primary-foreground/20 hover:bg-primary-foreground/30 grid place-items-center transition-base"
             >
@@ -87,12 +89,57 @@ const ProfilePage = () => {
           </div>
 
           <div className="grid grid-cols-3 gap-3 mt-5">
-            <HeroStat label="HCP" value={String(profile.hcp || 0)} />
+            <div className="text-center bg-primary-foreground/10 backdrop-blur rounded-xl py-3 relative">
+              <div className="text-2xl font-bold tabular-nums">{hcpToShow.toFixed(1)}</div>
+              <div className="text-[10px] uppercase tracking-wider opacity-70 mt-0.5">
+                {whsIndex !== null ? "WHS" : "HCP"}
+              </div>
+              {whsIndex !== null && (
+                <div className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-action grid place-items-center">
+                  <svg width="8" height="6" viewBox="0 0 8 6" fill="none">
+                    <path d="M1 3L3 5L7 1" stroke="black" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </div>
+              )}
+            </div>
             <HeroStat label="Best" value={best ? String(best) : "—"} />
             <HeroStat label="Avg" value={avg ? String(avg) : "—"} />
           </div>
         </div>
       </Card>
+
+      {/* WHS Handicap detail */}
+      {whsIndex !== null && (
+        <Card className="p-4 shadow-soft">
+          <div className="flex items-center justify-between mb-3">
+            <div className="text-xs uppercase tracking-[0.2em] font-bold text-action">WHS Гандикап-Индекс</div>
+            <div className="text-2xl font-black text-foreground tabular-nums">{whsIndex.toFixed(1)}</div>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            {COURSES.map((c) => {
+              const ph = playingHandicap(whsIndex, c.slope, c.rating, c.totalPar);
+              return (
+                <div key={c.id} className="flex items-center justify-between px-3 py-2 rounded-xl bg-muted">
+                  <div>
+                    <div className="text-xs font-semibold">{c.name}</div>
+                    <div className="text-[10px] text-muted-foreground">{c.tee} · {c.rating}/{c.slope}</div>
+                  </div>
+                  <div className="text-xl font-black text-foreground tabular-nums">{ph}</div>
+                </div>
+              );
+            })}
+          </div>
+          {Math.abs(whsIndex - profile.hcp) >= 0.1 && (
+            <button
+              onClick={() => { updateProfile({ hcp: whsIndex }); toast.success(`HCP обновлён до ${whsIndex.toFixed(1)}`); }}
+              className="mt-3 w-full h-10 rounded-xl font-bold text-sm transition-colors"
+              style={{ background: "rgba(34,197,94,0.12)", border: "1.5px solid rgba(34,197,94,0.4)", color: "#22c55e" }}
+            >
+              Применить WHS: {profile.hcp} → {whsIndex.toFixed(1)}
+            </button>
+          )}
+        </Card>
+      )}
 
       {/* Edit form */}
       {editing ? (
@@ -104,12 +151,8 @@ const ProfilePage = () => {
             <Field label="Фамилия">
               <Input value={draft.lastName} onChange={(e) => setDraft({ ...draft, lastName: e.target.value })} />
             </Field>
-            <Field label="HCP">
-              <Input
-                type="number"
-                value={draft.hcp}
-                onChange={(e) => setDraft({ ...draft, hcp: Number(e.target.value) })}
-              />
+            <Field label="HCP (ручной)">
+              <Input type="number" step="0.1" value={draft.hcp} onChange={(e) => setDraft({ ...draft, hcp: Number(e.target.value) })} />
             </Field>
             <Field label="Город">
               <Input value={draft.city} onChange={(e) => setDraft({ ...draft, city: e.target.value })} />
@@ -129,7 +172,7 @@ const ProfilePage = () => {
         </Card>
       )}
 
-      {/* Frequent friends */}
+      {/* Frequent partners */}
       {useGolf.getState().frequent.length > 0 && (
         <Card className="p-5 shadow-soft">
           <div className="text-xs uppercase tracking-wider font-semibold text-muted-foreground mb-3">Частые партнёры</div>
