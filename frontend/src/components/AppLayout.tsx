@@ -1,6 +1,7 @@
 import { NavLink, Outlet } from "react-router-dom";
 import { Trophy, CircleUserRound, LineChart, Tent } from "lucide-react";
 import { cn } from "@/lib/utils";
+import golfLogo from "@/assets/golf-logo.png";
 
 const tabs = [
   { to: "/", label: "Играть", icon: Tent, end: true },
@@ -12,15 +13,10 @@ const tabs = [
 const AppLayout = () => {
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      <header style={{ background: "#111111", borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
+      <header style={{ background: "#000000", borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
         <div className="mx-auto max-w-3xl px-5 py-4 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="h-9 w-9 rounded-full grid place-items-center" style={{ background: "rgba(34,197,94,0.15)", border: "1px solid rgba(34,197,94,0.3)" }}>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-                <path d="M12 2L4 6v6c0 5.5 3.5 10.7 8 12 4.5-1.3 8-6.5 8-12V6L12 2z"
-                  stroke="#22c55e" strokeWidth="1.8" fill="none" strokeLinejoin="round"/>
-              </svg>
-            </div>
+            <img src={golfLogo} alt="Golf" className="h-9 w-9 rounded-lg object-cover" />
             <div className="leading-tight">
               <div className="font-bold tracking-wide text-base text-white">GOLFMINSK</div>
               <div className="text-[10px] uppercase tracking-[0.2em]" style={{ color: "rgba(255,255,255,0.45)" }}>Live Scoring</div>
@@ -34,7 +30,7 @@ const AppLayout = () => {
         <Outlet />
       </main>
 
-      <nav className="fixed bottom-0 inset-x-0 z-30" style={{ background: "#111111", borderTop: "1px solid rgba(255,255,255,0.07)" }}>
+      <nav className="fixed bottom-0 inset-x-0 z-30" style={{ background: "#000000", borderTop: "1px solid rgba(255,255,255,0.07)" }}>
         <div className="mx-auto max-w-3xl grid grid-cols-4" style={{ paddingBottom: "env(safe-area-inset-bottom)" }}>
           {tabs.map(({ to, label, icon: Icon, end }) => (
             <NavLink

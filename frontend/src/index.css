@@ -9,16 +9,16 @@ All colors MUST be HSL.
 @layer base {
   :root {
     /* ── Dark theme (основной) ── */
-    --background: 0 0% 4%;        /* #0a0a0a */
+    --background: 0 0% 0%;        /* #000000 */
     --foreground: 0 0% 96%;       /* почти белый */
 
-    --card: 0 0% 10%;             /* #1a1a1a */
+    --card: 0 0% 8%;              /* #141414 */
     --card-foreground: 0 0% 96%;
 
-    --popover: 0 0% 10%;
+    --popover: 0 0% 8%;
     --popover-foreground: 0 0% 96%;
 
-    --primary: 0 0% 10%;
+    --primary: 0 0% 8%;
     --primary-foreground: 0 0% 96%;
 
     --secondary: 0 0% 15%;
@@ -54,7 +54,7 @@ All colors MUST be HSL.
 
     --radius: 0.875rem;
 
-    --gradient-hero: linear-gradient(180deg, #0a0a0a 0%, #141414 100%);
+    --gradient-hero: linear-gradient(180deg, #000000 0%, #0f0f0f 100%);
     --gradient-fairway: linear-gradient(135deg, hsl(142 70% 45%) 0%, hsl(142 60% 35%) 100%);
     --gradient-card: linear-gradient(180deg, #1a1a1a 0%, #111111 100%);
 
