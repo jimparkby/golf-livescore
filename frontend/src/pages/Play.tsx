@@ -76,7 +76,7 @@ const HomeScreen = ({ onStart }: { onStart: () => void }) => {
       <div className="grid grid-cols-3 gap-3">
         <StatTile label="HCP" value={String(profile.hcp)} />
         <StatTile label="Раундов" value={String(rounds.length)} />
-        <StatTile label="Лучший" value={String(Math.min(...rounds.map((r) => r.players[0] ? r.scores[r.players[0].id].reduce((a, s) => a + s.score, 0) : 999)))} />
+        <StatTile label="Лучший" value={rounds.length === 0 ? "—" : String(Math.min(...rounds.map((r) => r.players[0] ? r.scores[r.players[0].id].reduce((a, s) => a + s.score, 0) : 999)))} />
       </div>
 
       {last && (
@@ -115,7 +115,7 @@ const HomeScreen = ({ onStart }: { onStart: () => void }) => {
 
 const StatTile = ({ label, value }: { label: string; value: string }) => (
   <Card className="p-4 text-center shadow-soft">
-    <div className="text-2xl font-bold text-primary tabular-nums">{value}</div>
+    <div className="text-2xl font-bold text-foreground tabular-nums">{value}</div>
     <div className="text-[11px] uppercase tracking-wider text-muted-foreground mt-0.5">{label}</div>
   </Card>
 );

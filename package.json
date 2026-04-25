@@ -8,5 +8,8 @@
     "start": "cd frontend && npm install && npm run build && cd ../backend && npm install && node src/index.js",
     "dev:frontend": "cd frontend && npm run dev",
     "dev:backend": "cd backend && npm run dev"
+  },
+  "devDependencies": {
+    "sharp": "^0.34.5"
   }
 }
