@@ -6,12 +6,12 @@ import { Avatar } from "@/components/PlayerAvatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Pencil, Check, MapPin, Mail, Calendar, Trophy, LogOut } from "lucide-react";
+import { Pencil, Check, MapPin, Calendar, Trophy } from "lucide-react";
 import { toast } from "sonner";
 
 const ProfilePage = () => {
   const { profile, updateProfile, rounds } = useGolf();
-  const { signOut } = useAuth();
+  const { deviceId } = useAuth();
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(profile);
 
@@ -20,20 +20,18 @@ const ProfilePage = () => {
     setEditing(false);
     toast.success("Профиль обновлён");
 
-    const token = localStorage.getItem("golf_jwt");
-    if (token) {
-      fetch("/api/profile", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({
-          first_name: draft.firstName,
-          last_name: draft.lastName,
-          hcp: draft.hcp,
-          home_club: draft.homeClub,
-          city: draft.city,
-        }),
-      }).catch(console.error);
-    }
+    fetch("/api/profile", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        device_id: deviceId,
+        first_name: draft.firstName,
+        last_name: draft.lastName,
+        hcp: draft.hcp,
+        home_club: draft.homeClub,
+        city: draft.city,
+      }),
+    }).catch(console.error);
   };
 
   const playedTotals = rounds
@@ -48,6 +46,8 @@ const ProfilePage = () => {
     ? Math.round(playedTotals.reduce((a, b) => a + b, 0) / playedTotals.length)
     : 0;
 
+  const isEmpty = !profile.firstName && !profile.lastName;
+
   return (
     <div className="space-y-5 animate-in fade-in duration-300">
       {/* Hero */}
@@ -59,7 +59,11 @@ const ProfilePage = () => {
               {profile.initials || "?"}
             </div>
             <div className="flex-1 min-w-0">
-              <div className="text-xl font-bold">{profile.firstName} {profile.lastName}</div>
+              {isEmpty ? (
+                <div className="text-base opacity-80">Введите ваше имя →</div>
+              ) : (
+                <div className="text-xl font-bold">{profile.firstName} {profile.lastName}</div>
+              )}
               <div className="text-sm opacity-80 flex items-center gap-1.5 mt-1">
                 <MapPin className="h-3.5 w-3.5" /> {profile.city || "—"}
               </div>
@@ -68,7 +72,14 @@ const ProfilePage = () => {
               </div>
             </div>
             <button
-              onClick={() => (editing ? save() : setEditing(true))}
+              onClick={() => {
+                if (editing) {
+                  save();
+                } else {
+                  setDraft(profile);
+                  setEditing(true);
+                }
+              }}
               className="h-10 w-10 rounded-full bg-primary-foreground/20 hover:bg-primary-foreground/30 grid place-items-center transition-base"
             >
               {editing ? <Check className="h-4 w-4" /> : <Pencil className="h-4 w-4" />}
@@ -88,7 +99,7 @@ const ProfilePage = () => {
         <Card className="p-5 shadow-soft space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <Field label="Имя">
-              <Input value={draft.firstName} onChange={(e) => setDraft({ ...draft, firstName: e.target.value })} />
+              <Input value={draft.firstName} onChange={(e) => setDraft({ ...draft, firstName: e.target.value })} autoFocus />
             </Field>
             <Field label="Фамилия">
               <Input value={draft.lastName} onChange={(e) => setDraft({ ...draft, lastName: e.target.value })} />
@@ -113,7 +124,6 @@ const ProfilePage = () => {
         </Card>
       ) : (
         <Card className="p-5 shadow-soft space-y-3 text-sm">
-          <Row icon={<Mail className="h-4 w-4" />} label="Email" value={profile.email || "—"} />
           <Row icon={<Calendar className="h-4 w-4" />} label="Член клуба с" value={profile.memberSince || "—"} />
           <Row icon={<Trophy className="h-4 w-4" />} label="Сыграно раундов" value={String(rounds.length)} />
         </Card>
@@ -134,17 +144,6 @@ const ProfilePage = () => {
           </div>
         </Card>
       )}
-
-      {/* Sign out */}
-      <Button
-        variant="outline"
-        className="w-full h-11 text-muted-foreground"
-        onClick={() => {
-          if (confirm("Выйти из аккаунта?")) signOut();
-        }}
-      >
-        <LogOut className="h-4 w-4 mr-2" /> Выйти
-      </Button>
     </div>
   );
 };

@@ -1,10 +1,9 @@
-CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+DROP TABLE IF EXISTS users CASCADE;
 
-CREATE TABLE IF NOT EXISTS users (
-  id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  email      TEXT NOT NULL UNIQUE,
-  first_name TEXT NOT NULL,
-  last_name  TEXT NOT NULL,
+CREATE TABLE users (
+  id         UUID PRIMARY KEY,
+  first_name TEXT NOT NULL DEFAULT '',
+  last_name  TEXT NOT NULL DEFAULT '',
   hcp        NUMERIC(5,1) NOT NULL DEFAULT 0,
   home_club  TEXT NOT NULL DEFAULT 'Golf Club Minsk',
   city       TEXT NOT NULL DEFAULT 'Минск, Беларусь',
@@ -12,5 +11,3 @@ CREATE TABLE IF NOT EXISTS users (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
-
-CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
