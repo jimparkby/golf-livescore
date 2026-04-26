@@ -13,12 +13,13 @@ declare global {
   }
 }
 
-const BOT_USERNAME = import.meta.env.VITE_TG_BOT_USERNAME ?? 'GolfMinskBot'
+const BOT_USERNAME = import.meta.env.VITE_TG_BOT_USERNAME ?? 'golflivescorebot'
 
 export default function AuthPage() {
   const { signIn } = useAuth()
   const [status, setStatus] = useState<'idle' | 'loading' | 'error'>('idle')
   const [error, setError] = useState('')
+  const isInTelegram = Boolean(window.Telegram?.WebApp?.initData)
 
   const authWithTelegram = async (initData: string) => {
     setStatus('loading')
@@ -28,11 +29,12 @@ export default function AuthPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ initData }),
       })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error ?? 'Ошибка авторизации')
+      let data: Record<string, string> = {}
+      try { data = await res.json() } catch { /* non-json */ }
+      if (!res.ok) throw new Error(data.error ?? `Ошибка сервера (${res.status})`)
       await signIn(data.jwt)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Ошибка')
+      setError(err instanceof Error ? err.message : 'Неизвестная ошибка')
       setStatus('error')
     }
   }
@@ -46,32 +48,38 @@ export default function AuthPage() {
     }
   }, [])
 
-  const isInTelegram = Boolean(window.Telegram?.WebApp?.initData)
-
   return (
     <div className="min-h-screen gradient-hero flex flex-col items-center justify-center p-6 gap-8">
       <div className="text-center text-primary-foreground">
-        <div className="text-6xl mb-4">⛳</div>
-        <div className="font-black text-3xl tracking-wider">GOLFMINSK</div>
-        <div className="text-xs opacity-60 uppercase tracking-[0.25em] mt-1">Live Scoring</div>
+        <div className="font-black text-4xl tracking-wider mb-1">GOLFMINSK</div>
+        <div className="text-xs opacity-60 uppercase tracking-[0.25em]">Live Scoring</div>
       </div>
 
       <div className="w-full max-w-xs text-center">
-        {status === 'loading' || isInTelegram ? (
+        {status === 'loading' ? (
           <div className="flex flex-col items-center gap-3 text-primary-foreground">
             <div className="h-8 w-8 rounded-full border-2 border-action border-t-transparent animate-spin" />
             <div className="text-sm opacity-70">Входим через Telegram…</div>
           </div>
         ) : status === 'error' ? (
           <div className="flex flex-col items-center gap-4">
-            <div className="text-red-400 text-sm px-4">{error}</div>
-            <a
-              href={`https://t.me/${BOT_USERNAME}?startapp=open`}
-              className="inline-flex items-center gap-2 bg-[#2AABEE] hover:bg-[#229ED9] text-white font-semibold px-6 py-3.5 rounded-2xl transition-colors text-sm"
-            >
-              <TelegramIcon />
-              Открыть в Telegram
-            </a>
+            <div className="text-red-400 text-sm px-4 break-words">{error}</div>
+            {isInTelegram ? (
+              <button
+                onClick={() => authWithTelegram(window.Telegram!.WebApp.initData)}
+                className="inline-flex items-center gap-2 bg-[#2AABEE] text-white font-semibold px-6 py-3.5 rounded-2xl text-sm"
+              >
+                Попробовать ещё раз
+              </button>
+            ) : (
+              <a
+                href={`https://t.me/${BOT_USERNAME}?startapp=open`}
+                className="inline-flex items-center gap-2 bg-[#2AABEE] text-white font-semibold px-6 py-3.5 rounded-2xl text-sm"
+              >
+                <TelegramIcon />
+                Открыть в Telegram
+              </a>
+            )}
           </div>
         ) : (
           <div className="flex flex-col items-center gap-4">
