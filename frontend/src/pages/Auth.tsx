@@ -1,157 +1,101 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useAuth } from '@/hooks/useAuth'
-import { Card, CardContent } from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
-import { Button } from '@/components/ui/button'
-import { Label } from '@/components/ui/label'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { toast } from 'sonner'
+
+declare global {
+  interface Window {
+    Telegram?: {
+      WebApp: {
+        initData: string
+        ready: () => void
+        expand: () => void
+      }
+    }
+  }
+}
+
+const BOT_USERNAME = import.meta.env.VITE_TG_BOT_USERNAME ?? 'GolfMinskBot'
 
 export default function AuthPage() {
   const { signIn } = useAuth()
+  const [status, setStatus] = useState<'idle' | 'loading' | 'error'>('idle')
+  const [error, setError] = useState('')
 
-  const [loginEmail, setLoginEmail] = useState('')
-  const [loginLoading, setLoginLoading] = useState(false)
-
-  const [regFirst, setRegFirst] = useState('')
-  const [regLast, setRegLast] = useState('')
-  const [regEmail, setRegEmail] = useState('')
-  const [regLoading, setRegLoading] = useState(false)
-
-  const authFetch = async (url: string, body: object) => {
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    })
-    let data: Record<string, string> = {}
-    try { data = await res.json() } catch { /* non-JSON response */ }
-    if (!res.ok) throw new Error(data.error ?? `Ошибка сервера (${res.status})`)
-    return data
-  }
-
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!loginEmail.trim()) return toast.error('Введите email')
-    setLoginLoading(true)
+  const authWithTelegram = async (initData: string) => {
+    setStatus('loading')
     try {
-      const data = await authFetch('/api/auth/login', { email: loginEmail.trim() })
-      await signIn(data.jwt)
-      toast.success('Добро пожаловать!')
-    } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : 'Ошибка входа')
-    } finally {
-      setLoginLoading(false)
-    }
-  }
-
-  const handleRegister = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!regFirst.trim() || !regLast.trim() || !regEmail.trim()) {
-      return toast.error('Заполните все поля')
-    }
-    setRegLoading(true)
-    try {
-      const data = await authFetch('/api/auth/register', {
-        email: regEmail.trim(),
-        first_name: regFirst.trim(),
-        last_name: regLast.trim(),
+      const res = await fetch('/api/auth/telegram', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ initData }),
       })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? 'Ошибка авторизации')
       await signIn(data.jwt)
-      toast.success('Аккаунт создан!')
-    } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : 'Ошибка регистрации')
-    } finally {
-      setRegLoading(false)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Ошибка')
+      setStatus('error')
     }
   }
+
+  useEffect(() => {
+    const tg = window.Telegram?.WebApp
+    if (tg?.initData) {
+      tg.ready()
+      tg.expand()
+      authWithTelegram(tg.initData)
+    }
+  }, [])
+
+  const isInTelegram = Boolean(window.Telegram?.WebApp?.initData)
 
   return (
-    <div className="min-h-screen gradient-hero flex items-center justify-center p-4">
-      <div className="w-full max-w-sm">
-        <div className="text-center text-primary-foreground mb-8">
-          <div className="text-5xl mb-3">⛳</div>
-          <div className="font-bold text-2xl tracking-wide">GOLFMINSK</div>
-          <div className="text-xs opacity-70 uppercase tracking-[0.2em] mt-1">Live Scoring</div>
-        </div>
+    <div className="min-h-screen gradient-hero flex flex-col items-center justify-center p-6 gap-8">
+      <div className="text-center text-primary-foreground">
+        <div className="text-6xl mb-4">⛳</div>
+        <div className="font-black text-3xl tracking-wider">GOLFMINSK</div>
+        <div className="text-xs opacity-60 uppercase tracking-[0.25em] mt-1">Live Scoring</div>
+      </div>
 
-        <Card className="shadow-elevated">
-          <CardContent className="pt-6 pb-6">
-            <Tabs defaultValue="login">
-              <TabsList className="grid grid-cols-2 w-full mb-6">
-                <TabsTrigger value="login">Войти</TabsTrigger>
-                <TabsTrigger value="register">Регистрация</TabsTrigger>
-              </TabsList>
-
-              <TabsContent value="login">
-                <form onSubmit={handleLogin} className="space-y-4">
-                  <div>
-                    <Label className="text-xs uppercase tracking-wider text-muted-foreground">Email</Label>
-                    <Input
-                      type="email"
-                      className="mt-1.5 h-11"
-                      placeholder="you@example.com"
-                      value={loginEmail}
-                      onChange={e => setLoginEmail(e.target.value)}
-                      autoFocus
-                    />
-                  </div>
-                  <Button
-                    type="submit"
-                    className="w-full h-11 bg-action hover:bg-action/90 text-action-foreground rounded-xl font-semibold"
-                    disabled={loginLoading}
-                  >
-                    {loginLoading ? 'Входим…' : 'Войти'}
-                  </Button>
-                </form>
-              </TabsContent>
-
-              <TabsContent value="register">
-                <form onSubmit={handleRegister} className="space-y-4">
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <Label className="text-xs uppercase tracking-wider text-muted-foreground">Имя</Label>
-                      <Input
-                        className="mt-1.5 h-11"
-                        placeholder="Иван"
-                        value={regFirst}
-                        onChange={e => setRegFirst(e.target.value)}
-                        autoFocus
-                      />
-                    </div>
-                    <div>
-                      <Label className="text-xs uppercase tracking-wider text-muted-foreground">Фамилия</Label>
-                      <Input
-                        className="mt-1.5 h-11"
-                        placeholder="Иванов"
-                        value={regLast}
-                        onChange={e => setRegLast(e.target.value)}
-                      />
-                    </div>
-                  </div>
-                  <div>
-                    <Label className="text-xs uppercase tracking-wider text-muted-foreground">Email</Label>
-                    <Input
-                      type="email"
-                      className="mt-1.5 h-11"
-                      placeholder="you@example.com"
-                      value={regEmail}
-                      onChange={e => setRegEmail(e.target.value)}
-                    />
-                  </div>
-                  <Button
-                    type="submit"
-                    className="w-full h-11 bg-action hover:bg-action/90 text-action-foreground rounded-xl font-semibold"
-                    disabled={regLoading}
-                  >
-                    {regLoading ? 'Создаём…' : 'Создать аккаунт'}
-                  </Button>
-                </form>
-              </TabsContent>
-            </Tabs>
-          </CardContent>
-        </Card>
+      <div className="w-full max-w-xs text-center">
+        {status === 'loading' || isInTelegram ? (
+          <div className="flex flex-col items-center gap-3 text-primary-foreground">
+            <div className="h-8 w-8 rounded-full border-2 border-action border-t-transparent animate-spin" />
+            <div className="text-sm opacity-70">Входим через Telegram…</div>
+          </div>
+        ) : status === 'error' ? (
+          <div className="flex flex-col items-center gap-4">
+            <div className="text-red-400 text-sm px-4">{error}</div>
+            <a
+              href={`https://t.me/${BOT_USERNAME}?startapp=open`}
+              className="inline-flex items-center gap-2 bg-[#2AABEE] hover:bg-[#229ED9] text-white font-semibold px-6 py-3.5 rounded-2xl transition-colors text-sm"
+            >
+              <TelegramIcon />
+              Открыть в Telegram
+            </a>
+          </div>
+        ) : (
+          <div className="flex flex-col items-center gap-4">
+            <p className="text-primary-foreground/70 text-sm leading-relaxed">
+              Войдите через Telegram — никаких паролей
+            </p>
+            <a
+              href={`https://t.me/${BOT_USERNAME}?startapp=open`}
+              className="inline-flex items-center gap-2 bg-[#2AABEE] hover:bg-[#229ED9] text-white font-bold px-7 py-4 rounded-2xl transition-colors shadow-lg"
+            >
+              <TelegramIcon />
+              Войти через Telegram
+            </a>
+          </div>
+        )}
       </div>
     </div>
+  )
+}
+
+function TelegramIcon() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+      <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12l-6.871 4.326-2.962-.924c-.643-.204-.657-.643.136-.953l11.57-4.461c.537-.194 1.006.131.833.941z"/>
+    </svg>
   )
 }
