@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import AppLayout from "@/components/AppLayout";
+import AuthPage from "./pages/Auth";
 import PlayPage from "./pages/Play";
 import TournamentsPage from "./pages/Tournaments";
 import TournamentPlayPage from "./pages/TournamentPlay";
@@ -16,7 +17,7 @@ import NotFound from "./pages/NotFound";
 const queryClient = new QueryClient();
 
 function AppRoutes() {
-  const { loading } = useAuth();
+  const { userId, loading } = useAuth();
 
   if (loading) {
     return (
@@ -27,6 +28,10 @@ function AppRoutes() {
         </div>
       </div>
     );
+  }
+
+  if (!userId) {
+    return <AuthPage />;
   }
 
   return (

@@ -1,3 +1,4 @@
+-- Run this once to reset the users table with the correct schema
 DROP TABLE IF EXISTS users CASCADE;
 
 CREATE TABLE users (

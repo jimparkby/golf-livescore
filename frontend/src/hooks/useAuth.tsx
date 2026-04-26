@@ -2,45 +2,87 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from '
 import { useGolf } from '@/store/golfStore'
 
 interface AuthCtx {
-  deviceId: string
+  userId: string | null
   loading: boolean
+  signIn: (jwt: string) => Promise<void>
+  signOut: () => void
 }
 
-const getDeviceId = (): string => {
-  let id = localStorage.getItem('golf_device_id')
-  if (!id) {
-    id = crypto.randomUUID()
-    localStorage.setItem('golf_device_id', id)
+function parseJwt(token: string) {
+  try {
+    return JSON.parse(atob(token.split('.')[1]))
+  } catch {
+    return null
   }
-  return id
 }
 
-const AuthContext = createContext<AuthCtx>({ deviceId: '', loading: true })
+const AuthContext = createContext<AuthCtx>({
+  userId: null,
+  loading: true,
+  signIn: async () => {},
+  signOut: () => {},
+})
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+  const [userId, setUserId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
-  const deviceId = getDeviceId()
   const updateProfile = useGolf(s => s.updateProfile)
 
-  useEffect(() => {
-    fetch(`/api/profile?device_id=${deviceId}`)
-      .then(r => r.ok ? r.json() : null)
-      .then(data => {
-        if (data?.first_name) {
-          updateProfile({
-            firstName: data.first_name,
-            lastName: data.last_name,
-            hcp: data.hcp ?? 0,
-            homeClub: data.home_club ?? 'Golf Club Minsk',
-            city: data.city ?? 'Минск, Беларусь',
-          })
-        }
+  const loadProfile = async () => {
+    const token = localStorage.getItem('golf_jwt')
+    if (!token) return
+    try {
+      const res = await fetch('/api/profile', {
+        headers: { Authorization: `Bearer ${token}` },
       })
-      .catch(() => {})
-      .finally(() => setLoading(false))
+      if (res.ok) {
+        const data = await res.json()
+        updateProfile({
+          firstName: data.first_name,
+          lastName: data.last_name,
+          hcp: Number(data.hcp) ?? 0,
+          homeClub: data.home_club ?? 'Golf Club Minsk',
+          city: data.city ?? 'Минск, Беларусь',
+        })
+      }
+    } catch {}
+  }
+
+  const signIn = async (jwt: string) => {
+    localStorage.setItem('golf_jwt', jwt)
+    const payload = parseJwt(jwt)
+    if (payload?.userId) {
+      setUserId(payload.userId)
+      await loadProfile()
+    }
+  }
+
+  const signOut = () => {
+    localStorage.removeItem('golf_jwt')
+    setUserId(null)
+  }
+
+  useEffect(() => {
+    const token = localStorage.getItem('golf_jwt')
+    if (!token) {
+      setLoading(false)
+      return
+    }
+    const payload = parseJwt(token)
+    if (!payload?.userId || (payload.exp && payload.exp * 1000 < Date.now())) {
+      localStorage.removeItem('golf_jwt')
+      setLoading(false)
+      return
+    }
+    setUserId(payload.userId)
+    loadProfile().finally(() => setLoading(false))
   }, [])
 
-  return <AuthContext.Provider value={{ deviceId, loading }}>{children}</AuthContext.Provider>
+  return (
+    <AuthContext.Provider value={{ userId, loading, signIn, signOut }}>
+      {children}
+    </AuthContext.Provider>
+  )
 }
 
 export const useAuth = () => useContext(AuthContext)

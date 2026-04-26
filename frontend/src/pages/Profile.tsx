@@ -6,7 +6,7 @@ import { Avatar } from "@/components/PlayerAvatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Pencil, Check, MapPin, Calendar, Trophy, Camera } from "lucide-react";
+import { Pencil, Check, MapPin, Calendar, Trophy, Camera, LogOut } from "lucide-react";
 import { toast } from "sonner";
 import { getDifferentials, calcHandicapIndex, playingHandicap } from "@/lib/handicap";
 import { COURSES } from "@/lib/courses";
@@ -14,7 +14,7 @@ import { compressImage } from "@/lib/imageUtils";
 
 const ProfilePage = () => {
   const { profile, updateProfile, rounds } = useGolf();
-  const { deviceId } = useAuth();
+  const { signOut } = useAuth();
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(profile);
   const photoInputRef = useRef<HTMLInputElement>(null);
@@ -36,11 +36,14 @@ const ProfilePage = () => {
     updateProfile(draft);
     setEditing(false);
     toast.success("Профиль обновлён");
+    const token = localStorage.getItem('golf_jwt');
     fetch("/api/profile", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
       body: JSON.stringify({
-        device_id: deviceId,
         first_name: draft.firstName,
         last_name: draft.lastName,
         hcp: draft.hcp,
@@ -198,6 +201,15 @@ const ProfilePage = () => {
           <Row icon={<Trophy className="h-4 w-4" />} label="Сыграно раундов" value={String(rounds.length)} />
         </Card>
       )}
+
+      {/* Sign out */}
+      <button
+        onClick={signOut}
+        className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-medium text-muted-foreground hover:text-destructive transition-colors"
+      >
+        <LogOut className="h-4 w-4" />
+        Выйти из аккаунта
+      </button>
 
       {/* Frequent partners */}
       {useGolf.getState().frequent.length > 0 && (
