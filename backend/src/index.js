@@ -24,12 +24,18 @@ app.use((err, _req, res, _next) => {
   res.status(500).json({ error: err.message || 'Внутренняя ошибка сервера' })
 })
 
-const distPath = path.join(__dirname, '../../dist')
-if (existsSync(distPath)) {
+// Try to find the built frontend in several possible locations
+const distCandidates = [
+  path.join(__dirname, '../../../frontend/dist'),  // /home/app/frontend/dist
+  path.join(__dirname, '../../dist'),               // /home/app/dist
+  path.join(__dirname, '../../../../dist'),         // one level higher
+]
+const distPath = distCandidates.find(p => existsSync(p)) ?? null
+console.log('[boot] distPath:', distPath ?? 'NOT FOUND — api-only mode')
+
+if (distPath) {
   app.use(express.static(distPath))
-  app.get('*', (_req, res) => {
-    res.sendFile(path.join(distPath, 'index.html'))
-  })
+  app.get('*', (_req, res) => res.sendFile(path.join(distPath, 'index.html')))
 } else {
   app.get('*', (_req, res) => res.json({ status: 'api-only' }))
 }
