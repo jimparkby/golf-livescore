@@ -15,6 +15,7 @@ app.use(express.json())
 
 app.use('/api/auth', authRouter)
 app.use('/api/profile', profileRouter)
+console.log('[boot] /api/auth and /api/profile registered')
 
 app.get('/api/ping', (_req, res) => res.json({ ok: true }))
 

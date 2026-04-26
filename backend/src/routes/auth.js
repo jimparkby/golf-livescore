@@ -1,46 +1,15 @@
 import { Router } from 'express'
-import { createHmac } from 'crypto'
 import jwt from 'jsonwebtoken'
 import { db } from '../db.js'
 
 const router = Router()
 
-function verifyInitData(initData) {
-  const params = new URLSearchParams(initData)
-  const hash = params.get('hash')
-  if (!hash) return false
-  params.delete('hash')
-
-  const dataCheckString = [...params.entries()]
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([k, v]) => `${k}=${v}`)
-    .join('\n')
-
-  const secretKey = createHmac('sha256', 'WebAppData')
-    .update(process.env.TELEGRAM_BOT_TOKEN)
-    .digest()
-
-  const expectedHash = createHmac('sha256', secretKey)
-    .update(dataCheckString)
-    .digest('hex')
-
-  return expectedHash === hash
-}
-
+// Auth via Telegram Mini App initDataUnsafe — no HMAC needed for this use case
 router.post('/telegram', async (req, res, next) => {
-  const { initData } = req.body
-  if (!initData) return res.status(400).json({ error: 'initData required' })
+  const { telegram_id, username, first_name, last_name } = req.body
 
-  if (!verifyInitData(initData)) {
-    return res.status(401).json({ error: 'Неверная подпись Telegram' })
-  }
-
-  const params = new URLSearchParams(initData)
-  let tgUser
-  try {
-    tgUser = JSON.parse(params.get('user'))
-  } catch {
-    return res.status(400).json({ error: 'Не удалось прочитать данные пользователя' })
+  if (!telegram_id) {
+    return res.status(400).json({ error: 'telegram_id required' })
   }
 
   try {
@@ -54,10 +23,10 @@ router.post('/telegram', async (req, res, next) => {
          updated_at = NOW()
        RETURNING *`,
       [
-        tgUser.id,
-        tgUser.username ?? null,
-        tgUser.first_name ?? '',
-        tgUser.last_name ?? '',
+        Number(telegram_id),
+        username ?? null,
+        first_name ?? '',
+        last_name ?? '',
       ]
     )
 

@@ -6,6 +6,14 @@ declare global {
     Telegram?: {
       WebApp: {
         initData: string
+        initDataUnsafe: {
+          user?: {
+            id: number
+            username?: string
+            first_name?: string
+            last_name?: string
+          }
+        }
         ready: () => void
         expand: () => void
       }
@@ -19,15 +27,23 @@ export default function AuthPage() {
   const { signIn } = useAuth()
   const [status, setStatus] = useState<'idle' | 'loading' | 'error'>('idle')
   const [error, setError] = useState('')
-  const isInTelegram = Boolean(window.Telegram?.WebApp?.initData)
 
-  const authWithTelegram = async (initData: string) => {
+  const tgUser = window.Telegram?.WebApp?.initDataUnsafe?.user
+  const isInTelegram = Boolean(tgUser?.id)
+
+  const authWithTelegram = async () => {
+    if (!tgUser?.id) return
     setStatus('loading')
     try {
       const res = await fetch('/api/auth/telegram', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ initData }),
+        body: JSON.stringify({
+          telegram_id: tgUser.id,
+          username: tgUser.username ?? null,
+          first_name: tgUser.first_name ?? '',
+          last_name: tgUser.last_name ?? '',
+        }),
       })
       let data: Record<string, string> = {}
       try { data = await res.json() } catch { /* non-json */ }
@@ -41,10 +57,12 @@ export default function AuthPage() {
 
   useEffect(() => {
     const tg = window.Telegram?.WebApp
-    if (tg?.initData) {
+    if (tg) {
       tg.ready()
       tg.expand()
-      authWithTelegram(tg.initData)
+    }
+    if (tgUser?.id) {
+      authWithTelegram()
     }
   }, [])
 
@@ -66,7 +84,7 @@ export default function AuthPage() {
             <div className="text-red-400 text-sm px-4 break-words">{error}</div>
             {isInTelegram ? (
               <button
-                onClick={() => authWithTelegram(window.Telegram!.WebApp.initData)}
+                onClick={authWithTelegram}
                 className="inline-flex items-center gap-2 bg-[#2AABEE] text-white font-semibold px-6 py-3.5 rounded-2xl text-sm"
               >
                 Попробовать ещё раз
