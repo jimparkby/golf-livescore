@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
 import { useGolf } from '@/store/golfStore'
+import { BASE } from '@/lib/api'
 
 interface AuthCtx {
   userId: string | null
@@ -32,7 +33,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const token = localStorage.getItem('golf_jwt')
     if (!token) return
     try {
-      const res = await fetch('/api/profile', {
+      const res = await fetch(`${BASE}/api/profile`, {
         headers: { Authorization: `Bearer ${token}` },
       })
       if (res.ok) {

@@ -1,4 +1,5 @@
 import { useState, useMemo, useRef } from "react";
+import { BASE } from "@/lib/api";
 import { useGolf } from "@/store/golfStore";
 import { useAuth } from "@/hooks/useAuth";
 import { Card } from "@/components/ui/card";
@@ -37,7 +38,7 @@ const ProfilePage = () => {
     setEditing(false);
     toast.success("Профиль обновлён");
     const token = localStorage.getItem('golf_jwt');
-    fetch("/api/profile", {
+    fetch(`${BASE}/api/profile`, {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",

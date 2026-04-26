@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useAuth } from '@/hooks/useAuth'
+import { BASE } from '@/lib/api'
 
 declare global {
   interface Window {
@@ -35,7 +36,7 @@ export default function AuthPage() {
     if (!tgUser?.id) return
     setStatus('loading')
     try {
-      const res = await fetch('/api/auth/telegram', {
+      const res = await fetch(`${BASE}/api/auth/telegram`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

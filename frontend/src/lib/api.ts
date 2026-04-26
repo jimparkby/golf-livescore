@@ -1,4 +1,6 @@
-const BASE = import.meta.env.VITE_BACKEND_URL ?? ''
+export const BASE = import.meta.env.VITE_BACKEND_URL
+  ? `https://${import.meta.env.VITE_BACKEND_URL}`
+  : ''
 
 const authHeaders = (): Record<string, string> => {
   const token = localStorage.getItem('golf_jwt')
