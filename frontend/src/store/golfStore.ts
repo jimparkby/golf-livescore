@@ -15,11 +15,10 @@ export type HoleScore = {
   hole: number;
   score: number;
   putts: number;
+  driving: number;
+  gir: number;
+  penalties: number;
   teeShot?: "fairway" | "left" | "right" | "long" | "short" | "miss";
-  fairwayBunker?: boolean;
-  greenSideBunker?: boolean;
-  hazard?: boolean;
-  outOfBounds?: boolean;
 };
 
 export type Round = {
