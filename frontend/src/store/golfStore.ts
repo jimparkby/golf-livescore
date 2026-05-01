@@ -15,8 +15,9 @@ export type HoleScore = {
   hole: number;
   score: number;
   putts: number;
-  driving: number;
-  gir: number;
+  driving: boolean;
+  gir: boolean;
+  bunker: number;
   penalties: number;
   teeShot?: "fairway" | "left" | "right" | "long" | "short" | "miss";
 };

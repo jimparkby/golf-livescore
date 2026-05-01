@@ -280,7 +280,7 @@ const RoundPlayer = ({ onExit }: { onExit: () => void }) => {
   const { activeRound, enterScore, finishRound, setRoundPhoto } = useGolf();
   const [holeIdx, setHoleIdx] = useState(0);
   const [sheetPlayer, setSheetPlayer] = useState<Player | null>(null);
-  const [hole, setHole] = useState({ score: 4, putts: 0, driving: 0, gir: 0, penalties: 0 });
+  const [hole, setHole] = useState({ score: 4, putts: 2, driving: false, gir: false, bunker: 0, penalties: 0 });
   const [completedRound, setCompletedRound] = useState<Round | null>(null);
   const [showConfirmation, setShowConfirmation] = useState(false);
   const photoRef = useRef<HTMLInputElement>(null);
@@ -485,9 +485,10 @@ const RoundPlayer = ({ onExit }: { onExit: () => void }) => {
     const existing = activeRound.scores[p.id]?.find((x) => x.hole === currentHole.number);
     setHole({
       score: existing?.score ?? currentHole.par,
-      putts: existing?.putts ?? 0,
-      driving: existing?.driving ?? 0,
-      gir: existing?.gir ?? 0,
+      putts: existing?.putts ?? 2,
+      driving: existing?.driving ?? false,
+      gir: existing?.gir ?? false,
+      bunker: existing?.bunker ?? 0,
       penalties: existing?.penalties ?? 0,
     });
     setSheetPlayer(p);
@@ -734,8 +735,8 @@ const RoundPlayer = ({ onExit }: { onExit: () => void }) => {
             </div>
 
             <div className="px-5 pt-5 pb-2">
-              {/* Score counter */}
-              <div className="mb-4">
+              {/* Score + Putts counters */}
+              <div className="grid grid-cols-2 gap-3 mb-4">
                 <ScoreCounter
                   label="СЧЁТ"
                   value={hole.score}
@@ -743,13 +744,18 @@ const RoundPlayer = ({ onExit }: { onExit: () => void }) => {
                   sublabel={scoreLabel(hole.score, currentHole.par)}
                   sublabelColor={scoreLabelColor(hole.score, currentHole.par)}
                 />
+                <ScoreCounter
+                  label="ПАТТЫ"
+                  value={hole.putts}
+                  onChange={(v) => setHole({ ...hole, putts: v })}
+                />
               </div>
 
-              {/* Stats counters */}
+              {/* Stats toggles and counters */}
               <div className="grid grid-cols-4 gap-2 mb-5">
-                <StatCounter label="PUTTS" value={hole.putts} onChange={(v) => setHole({ ...hole, putts: v })} />
-                <StatCounter label="DRIVING" value={hole.driving} onChange={(v) => setHole({ ...hole, driving: v })} />
-                <StatCounter label="GIR" value={hole.gir} onChange={(v) => setHole({ ...hole, gir: v })} />
+                <StatToggle label="DRIVING" active={hole.driving} onClick={() => setHole({ ...hole, driving: !hole.driving })} />
+                <StatToggle label="GIR" active={hole.gir} onClick={() => setHole({ ...hole, gir: !hole.gir })} />
+                <StatCounter label="БУНКЕР" value={hole.bunker} onChange={(v) => setHole({ ...hole, bunker: v })} />
                 <StatCounter label="PENALTIES" value={hole.penalties} onChange={(v) => setHole({ ...hole, penalties: v })} />
               </div>
 
@@ -800,6 +806,22 @@ const ScoreCounter = ({
       <span className="text-3xl leading-none font-bold">−</span>
     </button>
   </div>
+);
+
+const StatToggle = ({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) => (
+  <button
+    onClick={onClick}
+    className="flex flex-col items-center gap-1 py-3 rounded-xl transition-colors"
+    style={active
+      ? { background: "rgba(34,197,94,0.15)", border: "2px solid #22c55e", color: "#22c55e" }
+      : { background: "rgba(255,255,255,0.05)", border: "2px solid rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.4)" }
+    }
+  >
+    <div className="h-8 w-8 rounded-full grid place-items-center" style={{ background: active ? "rgba(34,197,94,0.2)" : "rgba(255,255,255,0.05)" }}>
+      {active && <Check className="h-5 w-5" strokeWidth={3} />}
+    </div>
+    <div className="text-[9px] font-semibold leading-tight text-center px-1">{label}</div>
+  </button>
 );
 
 const StatCounter = ({ label, value, onChange }: { label: string; value: number; onChange: (v: number) => void }) => (
