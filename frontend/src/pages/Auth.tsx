@@ -72,6 +72,10 @@ export default function AuthPage() {
       <div className="text-center text-primary-foreground">
         <div className="font-black text-4xl tracking-wider mb-1">GOLFMINSK</div>
         <div className="text-xs opacity-60 uppercase tracking-[0.25em]">Live Scoring</div>
+        <div className="mt-6 text-base font-medium opacity-90">
+          Добро пожаловать в golf live scoring Minsk.<br />
+          Хорошей игры!
+        </div>
       </div>
 
       <div className="w-full max-w-xs text-center">
