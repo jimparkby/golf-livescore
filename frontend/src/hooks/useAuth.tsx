@@ -28,6 +28,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [userId, setUserId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const updateProfile = useGolf(s => s.updateProfile)
+  const loadRounds = useGolf(s => s.loadRounds)
 
   const loadProfile = async () => {
     const token = localStorage.getItem('golf_jwt')
@@ -45,6 +46,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           homeClub: data.home_club ?? 'Golf Club Minsk',
           city: data.city ?? 'Минск, Беларусь',
         })
+        // Загружаем раунды с сервера
+        await loadRounds()
       }
     } catch {}
   }

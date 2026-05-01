@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { COURSES, type Course } from "@/lib/courses";
 import { type FormatId } from "@/lib/formats";
+import { api } from "@/lib/api";
 
 export type Player = {
   id: string;
@@ -80,6 +81,8 @@ type State = {
   addFrequent: (p: Player) => void;
   addCustomTournament: (t: Omit<CustomTournament, "id" | "createdAt">) => void;
   deleteCustomTournament: (id: string) => void;
+  loadRounds: () => Promise<void>;
+  syncRound: (round: Round) => Promise<void>;
 };
 
 const mkInitials = (name: string) =>
@@ -143,16 +146,37 @@ export const useGolf = create<State>()(
           return { activeRound: { ...s.activeRound, scores: { ...s.activeRound.scores, [playerId]: next } } };
         }),
 
-      finishRound: () => {
+      finishRound: async () => {
         const a = get().activeRound;
         if (!a) return;
-        set((s) => ({ rounds: [{ ...a, completed: true }, ...s.rounds], activeRound: null }));
+        const completedRound = { ...a, completed: true };
+        set((s) => ({ rounds: [completedRound, ...s.rounds], activeRound: null }));
+
+        // Синхронизируем с сервером
+        try {
+          await get().syncRound(completedRound);
+        } catch (err) {
+          console.error('Failed to sync round:', err);
+        }
       },
 
-      deleteRound: (id) => set((s) => ({ rounds: s.rounds.filter((r) => r.id !== id) })),
+      deleteRound: async (id) => {
+        set((s) => ({ rounds: s.rounds.filter((r) => r.id !== id) }));
+        try {
+          await api.delete(`/api/rounds/${id}`);
+        } catch (err) {
+          console.error('Failed to delete round:', err);
+        }
+      },
 
-      setRoundPhoto: (id, photoUrl) =>
-        set((s) => ({ rounds: s.rounds.map((r) => r.id === id ? { ...r, photoUrl } : r) })),
+      setRoundPhoto: async (id, photoUrl) => {
+        set((s) => ({ rounds: s.rounds.map((r) => r.id === id ? { ...r, photoUrl } : r) }));
+        try {
+          await api.put(`/api/rounds/${id}/photo`, { photoUrl });
+        } catch (err) {
+          console.error('Failed to update photo:', err);
+        }
+      },
 
       addFrequent: (p) =>
         set((s) => s.frequent.find((x) => x.id === p.id) ? s : { frequent: [...s.frequent, p] }),
@@ -167,6 +191,24 @@ export const useGolf = create<State>()(
 
       deleteCustomTournament: (id) =>
         set((s) => ({ customTournaments: s.customTournaments.filter((t) => t.id !== id) })),
+
+      loadRounds: async () => {
+        try {
+          const rounds = await api.get<Round[]>('/api/rounds');
+          set({ rounds });
+        } catch (err) {
+          console.error('Failed to load rounds:', err);
+        }
+      },
+
+      syncRound: async (round: Round) => {
+        try {
+          await api.post('/api/rounds', { round });
+        } catch (err) {
+          console.error('Failed to sync round:', err);
+          throw err;
+        }
+      },
     }),
     { name: "golfminsk-store" },
   ),

@@ -6,16 +6,18 @@ import { existsSync } from 'fs'
 import { fileURLToPath } from 'url'
 import authRouter from './routes/auth.js'
 import profileRouter from './routes/profile.js'
+import roundsRouter from './routes/rounds.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const app = express()
 
 app.use(cors({ origin: '*' }))
-app.use(express.json())
+app.use(express.json({ limit: '10mb' }))
 
 app.use('/api/auth', authRouter)
 app.use('/api/profile', profileRouter)
-console.log('[boot] /api/auth and /api/profile registered')
+app.use('/api/rounds', roundsRouter)
+console.log('[boot] /api/auth, /api/profile and /api/rounds registered')
 
 app.get('/api/ping', (_req, res) => res.json({ ok: true }))
 
