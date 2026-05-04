@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { COURSES, type Course } from "@/lib/courses";
+import { COURSES, type Course, type TeeColor } from "@/lib/courses";
 import { type FormatId } from "@/lib/formats";
 import { api } from "@/lib/api";
 
@@ -9,6 +9,7 @@ export type Player = {
   name: string;
   initials: string;
   hcp: number;
+  tee?: TeeColor;
   isMe?: boolean;
 };
 
@@ -116,14 +117,17 @@ export const useGolf = create<State>()(
         }),
 
       startRound: (course, players, tournamentId, format) => {
+        const mePlayer = players.find((p) => p.isMe);
+        const teeColor: TeeColor = mePlayer?.tee ?? "yellow";
+        const teeInfo = course.tees.find((t) => t.color === teeColor) ?? course.tees[2] ?? course.tees[0];
         const round: Round = {
           id: `r-${Date.now()}`,
           date: new Date().toISOString(),
           courseId: course.id,
           courseName: `${course.name} · ${course.club}`,
-          tee: course.tee,
-          rating: course.rating,
-          slope: course.slope,
+          tee: teeInfo.label,
+          rating: teeInfo.rating,
+          slope: teeInfo.slope,
           players,
           scores: Object.fromEntries(players.map((p) => [p.id, []])),
           completed: false,

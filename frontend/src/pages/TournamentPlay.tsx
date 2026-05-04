@@ -228,7 +228,9 @@ const TournamentSetup = ({
               )}
             >
               <div className="font-semibold text-sm">{c.name}</div>
-              <div className="text-[11px] text-muted-foreground mt-0.5">{c.tee} · {c.totalYards}y · Par {c.totalPar}</div>
+              <div className="text-[11px] text-muted-foreground mt-0.5">
+                {c.tees.find(t => t.color === "yellow")?.totalYards ?? c.tees[0]?.totalYards ?? ""}y · Par {c.totalPar}
+              </div>
             </button>
           ))}
         </div>
@@ -578,6 +580,7 @@ const TournamentRoundPlayer = ({
   const course = COURSES.find((c) => c.id === activeRound.courseId)!;
   const currentHole = course.holes[holeIdx];
   const totalHoles = course.holes.length;
+  const mePlayer = activeRound.players.find((p) => p.isMe);
 
   const openSheet = (p: Player) => {
     const existing = activeRound.scores[p.id]?.find((x) => x.hole === currentHole.number);
@@ -726,7 +729,7 @@ const TournamentRoundPlayer = ({
             >
               <div>
                 <div className="text-white/80 text-sm font-semibold">{course.club}</div>
-                <div className="text-white/40 text-xs">{course.name} · {currentHole.yards} ярд</div>
+                <div className="text-white/40 text-xs">{course.name} · {currentHole.yards[mePlayer?.tee ?? "yellow"]} ярд</div>
               </div>
               <div className="flex items-center gap-2">
                 <Flag className="h-5 w-5" style={{ color: "#22c55e" }} />

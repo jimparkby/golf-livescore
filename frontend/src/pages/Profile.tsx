@@ -148,12 +148,13 @@ const ProfilePage = () => {
           </div>
           <div className="grid grid-cols-2 gap-2">
             {COURSES.map((c) => {
-              const ph = playingHandicap(whsIndex, c.slope, c.rating, c.totalPar);
+              const yellowTee = c.tees.find(t => t.color === "yellow") ?? c.tees[0];
+              const ph = playingHandicap(whsIndex, yellowTee.slope, yellowTee.rating, c.totalPar);
               return (
                 <div key={c.id} className="flex items-center justify-between px-3 py-2 rounded-xl bg-muted">
                   <div>
                     <div className="text-xs font-semibold">{c.name}</div>
-                    <div className="text-[10px] text-muted-foreground">{c.tee} · {c.rating}/{c.slope}</div>
+                    <div className="text-[10px] text-muted-foreground">{yellowTee.label} · {yellowTee.rating}/{yellowTee.slope}</div>
                   </div>
                   <div className="text-xl font-black text-foreground tabular-nums">{ph}</div>
                 </div>

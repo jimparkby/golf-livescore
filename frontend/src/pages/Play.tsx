@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Avatar } from "@/components/PlayerAvatar";
-import { COURSES } from "@/lib/courses";
+import { COURSES, TEE_CONFIG, type TeeColor } from "@/lib/courses";
 import { useGolf, type Player, type Round } from "@/store/golfStore";
 import { compressImage } from "@/lib/imageUtils";
 import { api } from "@/lib/api";
@@ -20,7 +20,7 @@ const PlayPage = () => {
   const [step, setStep] = useState<Step>(activeRound ? "playing" : "home");
   const [courseId, setCourseId] = useState<string>(COURSES[0].id);
   const [players, setPlayers] = useState<Player[]>([
-    { id: "me", name: `${profile.firstName} ${profile.lastName}`, initials: profile.initials, hcp: profile.hcp, isMe: true },
+    { id: "me", name: `${profile.firstName} ${profile.lastName}`, initials: profile.initials, hcp: profile.hcp, tee: "yellow", isMe: true },
   ]);
 
   const course = COURSES.find((c) => c.id === courseId)!;
@@ -137,7 +137,13 @@ const SetupScreen = ({
 }) => {
   const { addFrequent } = useGolf();
   const [showAddSheet, setShowAddSheet] = useState(false);
+  const [teePickerFor, setTeePickerFor] = useState<string | null>(null);
   const slots = Array.from({ length: 4 });
+
+  const updatePlayerTee = (playerId: string, tee: TeeColor) => {
+    setPlayers(players.map((p) => (p.id === playerId ? { ...p, tee } : p)));
+    setTeePickerFor(null);
+  };
 
   const addPlayer = (p: Player) => {
     if (players.length >= 4 || players.find((x) => x.id === p.id)) return;
@@ -167,7 +173,9 @@ const SetupScreen = ({
                 )}
               >
                 <div className="font-semibold text-sm">{c.name}</div>
-                <div className="text-[11px] text-muted-foreground mt-0.5">{c.tee} · {c.totalYards}y · Par {c.totalPar}</div>
+                <div className="text-[11px] text-muted-foreground mt-0.5">
+                  {c.tees.find(t => t.color === "yellow")?.totalYards ?? c.tees[0]?.totalYards ?? ""}y · Par {c.totalPar}
+                </div>
               </button>
             ))}
           </div>
@@ -208,7 +216,15 @@ const SetupScreen = ({
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-md border-2 border-action bg-warning/30" title="Yellow tee" />
+                  <button
+                    onClick={() => setTeePickerFor(p.id)}
+                    className="w-10 h-10 rounded-md border-2 transition-base"
+                    style={{
+                      background: TEE_CONFIG[p.tee ?? "yellow"].cssColor,
+                      borderColor: TEE_CONFIG[p.tee ?? "yellow"].border,
+                    }}
+                    title={TEE_CONFIG[p.tee ?? "yellow"].label}
+                  />
                   <div className="relative">
                     <div className="h-12 w-12 rounded-full bg-warning grid place-items-center font-bold text-primary">
                       {p.hcp}
@@ -270,9 +286,76 @@ const SetupScreen = ({
           onClose={() => setShowAddSheet(false)}
         />
       )}
+
+      {teePickerFor && (
+        <TeePickerSheet
+          course={course!}
+          currentTee={players.find(p => p.id === teePickerFor)?.tee ?? "yellow"}
+          onSelect={(tee) => updatePlayerTee(teePickerFor, tee)}
+          onClose={() => setTeePickerFor(null)}
+        />
+      )}
     </>
   );
 };
+
+/* ────────── TEE PICKER SHEET ────────── */
+const TeePickerSheet = ({
+  course,
+  currentTee,
+  onSelect,
+  onClose,
+}: {
+  course: import("@/lib/courses").Course;
+  currentTee: TeeColor;
+  onSelect: (tee: TeeColor) => void;
+  onClose: () => void;
+}) => (
+  <div className="fixed inset-0 z-50 flex items-end animate-in fade-in duration-150">
+    <button className="absolute inset-0 bg-black/70" onClick={onClose} />
+    <div
+      className="relative w-full rounded-t-3xl animate-in slide-in-from-bottom duration-250"
+      style={{ background: "#1c1c1e", paddingBottom: "max(env(safe-area-inset-bottom), 24px)" }}
+    >
+      <div className="mx-auto w-10 h-1 rounded-full mt-3 mb-4" style={{ background: "rgba(255,255,255,0.15)" }} />
+      <div className="flex items-center justify-between px-5 pb-4">
+        <div className="text-white font-bold text-lg">Выбор ти</div>
+        <button
+          onClick={onClose}
+          className="h-8 w-8 rounded-full grid place-items-center"
+          style={{ background: "rgba(255,255,255,0.1)" }}
+        >
+          <X className="h-4 w-4 text-white" />
+        </button>
+      </div>
+      <div className="px-4 pb-4 space-y-2">
+        {course.tees.map((t) => (
+          <button
+            key={t.color}
+            onClick={() => onSelect(t.color)}
+            className="w-full flex items-center gap-4 px-4 py-3 rounded-2xl active:scale-[0.98] transition-transform"
+            style={{
+              background: currentTee === t.color ? "rgba(255,255,255,0.1)" : "rgba(255,255,255,0.05)",
+              border: currentTee === t.color ? "2px solid rgba(255,255,255,0.25)" : "2px solid transparent",
+            }}
+          >
+            <div
+              className="w-10 h-10 rounded-md shrink-0 border-2"
+              style={{ background: t.cssColor, borderColor: TEE_CONFIG[t.color].border }}
+            />
+            <div className="text-left flex-1">
+              <div className="text-white font-bold">{t.label}</div>
+              <div className="text-xs" style={{ color: "rgba(255,255,255,0.4)" }}>
+                {t.totalYards}y · CR {t.rating} / Slope {t.slope}
+              </div>
+            </div>
+            {currentTee === t.color && <Check className="h-5 w-5" style={{ color: "#22c55e" }} strokeWidth={3} />}
+          </button>
+        ))}
+      </div>
+    </div>
+  </div>
+);
 
 /* ────────── ADD PLAYER SHEET ────────── */
 type UserResult = {
@@ -627,6 +710,7 @@ const RoundPlayer = ({ onExit }: { onExit: () => void }) => {
   const course = COURSES.find((c) => c.id === activeRound.courseId)!;
   const currentHole = course.holes[holeIdx];
   const totalHoles = course.holes.length;
+  const mePlayer = activeRound.players.find((p) => p.isMe);
 
   const openSheet = (p: Player) => {
     const existing = activeRound.scores[p.id]?.find((x) => x.hole === currentHole.number);
@@ -774,7 +858,7 @@ const RoundPlayer = ({ onExit }: { onExit: () => void }) => {
           >
             <div>
               <div className="text-white/80 text-sm font-semibold">{course.club}</div>
-              <div className="text-white/40 text-xs">{course.name} · {currentHole.yards} ярд</div>
+              <div className="text-white/40 text-xs">{course.name} · {currentHole.yards[mePlayer?.tee ?? "yellow"]} ярд</div>
             </div>
             <div className="flex items-center gap-2">
               <Flag className="h-5 w-5" style={{ color: "#22c55e" }} />
