@@ -1,11 +1,12 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Avatar } from "@/components/PlayerAvatar";
 import { COURSES } from "@/lib/courses";
 import { useGolf, type Player, type Round } from "@/store/golfStore";
 import { compressImage } from "@/lib/imageUtils";
-import { ChevronLeft, ChevronRight, Plus, Cog, X, PlayCircle, Flag, Camera, Check } from "lucide-react";
+import { api } from "@/lib/api";
+import { ChevronLeft, ChevronRight, Plus, Cog, X, PlayCircle, Flag, Camera, Check, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import heroImg from "@/assets/golfminsk/hero.jpg";
@@ -134,124 +135,270 @@ const SetupScreen = ({
   onBack: () => void;
   onStart: () => void;
 }) => {
+  const { addFrequent } = useGolf();
+  const [showAddSheet, setShowAddSheet] = useState(false);
   const slots = Array.from({ length: 4 });
+
   const addPlayer = (p: Player) => {
     if (players.length >= 4 || players.find((x) => x.id === p.id)) return;
     setPlayers([...players, p]);
+    addFrequent(p);
   };
   const removePlayer = (id: string) => setPlayers(players.filter((p) => p.id !== id || (p as Player).isMe));
 
   return (
-    <div className="space-y-5 animate-in slide-in-from-right duration-300">
-      <button onClick={onBack} className="flex items-center gap-1 text-action font-bold text-lg">
-        <ChevronLeft className="h-5 w-5" strokeWidth={2.5} /> PLAYER SETUP
-      </button>
+    <>
+      <div className="space-y-5 animate-in slide-in-from-right duration-300">
+        <button onClick={onBack} className="flex items-center gap-1 text-action font-bold text-lg">
+          <ChevronLeft className="h-5 w-5" strokeWidth={2.5} /> PLAYER SETUP
+        </button>
 
-      {/* Course selector */}
-      <Card className="p-4 shadow-soft">
-        <div className="text-xs uppercase tracking-wider text-muted-foreground mb-3 font-semibold">Поле</div>
-        <div className="grid grid-cols-2 gap-2">
-          {COURSES.map((c) => (
-            <button
-              key={c.id}
-              onClick={() => setCourseId(c.id)}
-              className={cn(
-                "p-3 rounded-xl border-2 text-left transition-base",
-                courseId === c.id ? "border-action bg-action/5" : "border-border hover:border-muted-foreground/30",
-              )}
-            >
-              <div className="font-semibold text-sm">{c.name}</div>
-              <div className="text-[11px] text-muted-foreground mt-0.5">{c.tee} · {c.totalYards}y · Par {c.totalPar}</div>
-            </button>
-          ))}
-        </div>
-      </Card>
+        {/* Course selector */}
+        <Card className="p-4 shadow-soft">
+          <div className="text-xs uppercase tracking-wider text-muted-foreground mb-3 font-semibold">Поле</div>
+          <div className="grid grid-cols-2 gap-2">
+            {COURSES.map((c) => (
+              <button
+                key={c.id}
+                onClick={() => setCourseId(c.id)}
+                className={cn(
+                  "p-3 rounded-xl border-2 text-left transition-base",
+                  courseId === c.id ? "border-action bg-action/5" : "border-border hover:border-muted-foreground/30",
+                )}
+              >
+                <div className="font-semibold text-sm">{c.name}</div>
+                <div className="text-[11px] text-muted-foreground mt-0.5">{c.tee} · {c.totalYards}y · Par {c.totalPar}</div>
+              </button>
+            ))}
+          </div>
+        </Card>
 
-      {/* Players */}
-      <Card className="overflow-hidden shadow-soft">
-        <div className="grid grid-cols-[1fr_auto_auto] gap-4 px-4 py-3 bg-muted/50 text-xs text-muted-foreground font-semibold">
-          <div>Players / Hcp</div>
-          <div className="w-14 text-center">Tee</div>
-          <div className="w-16 text-center">Sug.</div>
-        </div>
-        {slots.map((_, i) => {
-          const p = players[i];
-          if (!p) {
+        {/* Players */}
+        <Card className="overflow-hidden shadow-soft">
+          <div className="grid grid-cols-[1fr_auto_auto] gap-4 px-4 py-3 bg-muted/50 text-xs text-muted-foreground font-semibold">
+            <div>Players / Hcp</div>
+            <div className="w-14 text-center">Tee</div>
+            <div className="w-16 text-center">Sug.</div>
+          </div>
+          {slots.map((_, i) => {
+            const p = players[i];
+            if (!p) {
+              return (
+                <div key={i} className="flex items-center justify-between px-4 py-4 border-t border-border">
+                  <div className="flex items-center gap-3">
+                    <div className="h-12 w-12 rounded-full border-2 border-dashed border-border" />
+                    <div className="text-muted-foreground">Player {i + 1}</div>
+                  </div>
+                  <button
+                    className="flex items-center gap-1 text-action font-semibold text-sm"
+                    onClick={() => setShowAddSheet(true)}
+                  >
+                    <Plus className="h-4 w-4" /> Add
+                  </button>
+                </div>
+              );
+            }
             return (
-              <div key={i} className="flex items-center justify-between px-4 py-4 border-t border-border">
-                <div className="flex items-center gap-3">
-                  <div className="h-12 w-12 rounded-full border-2 border-dashed border-border" />
-                  <div className="text-muted-foreground">Player {i + 1}</div>
-                </div>
-                <button className="flex items-center gap-1 text-action font-semibold text-sm" onClick={() => {
-                  const next = frequent.find((f) => !players.find((pl) => pl.id === f.id));
-                  if (next) addPlayer(next);
-                  else toast.info("Нет доступных друзей — добавьте в Frequently played");
-                }}>
-                  <Plus className="h-4 w-4" /> Add
-                </button>
-              </div>
-            );
-          }
-          return (
-            <div key={p.id} className="flex items-center justify-between px-4 py-3 border-t border-border">
-              <div className="flex items-center gap-3 min-w-0">
-                <Avatar name={p.name} tone={p.isMe ? "orange" : "muted"} />
-                <div className="min-w-0">
-                  <div className="font-semibold truncate">{p.name}</div>
-                  <div className="text-xs text-muted-foreground">HCP {p.hcp} · 88%</div>
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-md border-2 border-action bg-warning/30" title="Yellow tee" />
-                <div className="relative">
-                  <div className="h-12 w-12 rounded-full bg-warning grid place-items-center font-bold text-primary">
-                    {p.hcp}
+              <div key={p.id} className="flex items-center justify-between px-4 py-3 border-t border-border">
+                <div className="flex items-center gap-3 min-w-0">
+                  <Avatar name={p.name} tone={p.isMe ? "orange" : "muted"} />
+                  <div className="min-w-0">
+                    <div className="font-semibold truncate">{p.name}</div>
+                    <div className="text-xs text-muted-foreground">HCP {p.hcp} · 88%</div>
                   </div>
                 </div>
-                {!p.isMe && (
-                  <button onClick={() => removePlayer(p.id)} className="text-muted-foreground hover:text-destructive">
-                    <X className="h-4 w-4" />
-                  </button>
-                )}
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-md border-2 border-action bg-warning/30" title="Yellow tee" />
+                  <div className="relative">
+                    <div className="h-12 w-12 rounded-full bg-warning grid place-items-center font-bold text-primary">
+                      {p.hcp}
+                    </div>
+                  </div>
+                  {!p.isMe && (
+                    <button onClick={() => removePlayer(p.id)} className="text-muted-foreground hover:text-destructive">
+                      <X className="h-4 w-4" />
+                    </button>
+                  )}
+                </div>
               </div>
-            </div>
-          );
-        })}
-      </Card>
-
-      {/* Frequent */}
-      <Card className="p-4 shadow-soft">
-        <div className="text-xs uppercase tracking-wider text-muted-foreground mb-3 font-semibold">Frequently played</div>
-        <div className="flex gap-3 overflow-x-auto pb-1">
-          {frequent.map((f) => {
-            const added = !!players.find((p) => p.id === f.id);
-            return (
-              <button
-                key={f.id}
-                onClick={() => addPlayer(f)}
-                disabled={added || players.length >= 4}
-                className={cn("flex flex-col items-center gap-1.5 shrink-0 transition-base", (added || players.length >= 4) && "opacity-40")}
-              >
-                <Avatar name={f.name} tone="muted" />
-                <div className="text-xs font-medium">{f.name}</div>
-              </button>
             );
           })}
-        </div>
-      </Card>
+        </Card>
 
-      <div className="grid gap-3">
-        <Button
-          onClick={onStart}
-          size="lg"
-          className="h-14 bg-action hover:bg-action/90 text-action-foreground rounded-xl text-base font-semibold shadow-glow transition-spring"
-        >
-          Start Round · {course?.name}
-        </Button>
-        <Button variant="outline" className="h-12 rounded-xl">
-          <Cog className="h-4 w-4 mr-2" /> Edit Round Settings
-        </Button>
+        {/* Frequent */}
+        <Card className="p-4 shadow-soft">
+          <div className="text-xs uppercase tracking-wider text-muted-foreground mb-3 font-semibold">Frequently played</div>
+          <div className="flex gap-3 overflow-x-auto pb-1">
+            {frequent.length === 0 ? (
+              <div className="text-sm text-muted-foreground py-1">Нет частых игроков</div>
+            ) : frequent.map((f) => {
+              const added = !!players.find((p) => p.id === f.id);
+              return (
+                <button
+                  key={f.id}
+                  onClick={() => addPlayer(f)}
+                  disabled={added || players.length >= 4}
+                  className={cn("flex flex-col items-center gap-1.5 shrink-0 transition-base", (added || players.length >= 4) && "opacity-40")}
+                >
+                  <Avatar name={f.name} tone="muted" />
+                  <div className="text-xs font-medium">{f.name}</div>
+                </button>
+              );
+            })}
+          </div>
+        </Card>
+
+        <div className="grid gap-3">
+          <Button
+            onClick={onStart}
+            size="lg"
+            className="h-14 bg-action hover:bg-action/90 text-action-foreground rounded-xl text-base font-semibold shadow-glow transition-spring"
+          >
+            Start Round · {course?.name}
+          </Button>
+          <Button variant="outline" className="h-12 rounded-xl">
+            <Cog className="h-4 w-4 mr-2" /> Edit Round Settings
+          </Button>
+        </div>
+      </div>
+
+      {showAddSheet && (
+        <AddPlayerSheet
+          players={players}
+          frequent={frequent}
+          onAdd={(p) => { addPlayer(p); setShowAddSheet(false); }}
+          onClose={() => setShowAddSheet(false)}
+        />
+      )}
+    </>
+  );
+};
+
+/* ────────── ADD PLAYER SHEET ────────── */
+type UserResult = {
+  id: string;
+  first_name: string | null;
+  last_name: string | null;
+  username: string | null;
+  hcp: number | null;
+};
+
+const mkPlayerName = (u: UserResult) =>
+  [u.first_name, u.last_name].filter(Boolean).join(" ") || u.username || "Игрок";
+
+const mkInitials = (name: string) =>
+  name.split(" ").map((p) => p[0]).filter(Boolean).slice(0, 2).join("").toUpperCase();
+
+const AddPlayerSheet = ({
+  players,
+  frequent,
+  onAdd,
+  onClose,
+}: {
+  players: Player[];
+  frequent: Player[];
+  onAdd: (p: Player) => void;
+  onClose: () => void;
+}) => {
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState<Player[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (query.trim().length < 2) { setResults([]); return; }
+    const timer = setTimeout(async () => {
+      setLoading(true);
+      try {
+        const data = await api.get<UserResult[]>(`/api/users/search?q=${encodeURIComponent(query.trim())}`);
+        setResults(data.map((u) => ({
+          id: u.id,
+          name: mkPlayerName(u),
+          initials: mkInitials(mkPlayerName(u)),
+          hcp: u.hcp ?? 0,
+        })));
+      } catch {
+        setResults([]);
+      } finally {
+        setLoading(false);
+      }
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [query]);
+
+  const alreadyAdded = (id: string) => !!players.find((p) => p.id === id);
+  const isSearching = query.trim().length >= 2;
+  const list = isSearching ? results : frequent.filter((f) => !alreadyAdded(f.id));
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end animate-in fade-in duration-150">
+      <button className="absolute inset-0 bg-black/70" onClick={onClose} />
+      <div
+        className="relative w-full rounded-t-3xl animate-in slide-in-from-bottom duration-250 flex flex-col"
+        style={{ background: "#1c1c1e", maxHeight: "80vh", paddingBottom: "max(env(safe-area-inset-bottom), 24px)" }}
+      >
+        <div className="mx-auto w-10 h-1 rounded-full mt-3 mb-4" style={{ background: "rgba(255,255,255,0.15)" }} />
+
+        <div className="flex items-center justify-between px-5 pb-3">
+          <div className="text-white font-bold text-lg">Добавить игрока</div>
+          <button
+            onClick={onClose}
+            className="h-8 w-8 rounded-full grid place-items-center"
+            style={{ background: "rgba(255,255,255,0.1)" }}
+          >
+            <X className="h-4 w-4 text-white" />
+          </button>
+        </div>
+
+        <div className="px-5 pb-4">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4" style={{ color: "rgba(255,255,255,0.4)" }} />
+            <input
+              type="text"
+              autoFocus
+              placeholder="Поиск по имени..."
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              className="w-full h-11 rounded-xl pl-10 pr-4 text-white text-sm outline-none placeholder:text-white/30"
+              style={{ background: "rgba(255,255,255,0.08)", border: "1.5px solid rgba(255,255,255,0.1)" }}
+            />
+          </div>
+        </div>
+
+        <div className="px-5 pb-2">
+          <div className="text-xs uppercase tracking-wider font-semibold" style={{ color: "rgba(255,255,255,0.35)" }}>
+            {isSearching
+              ? loading ? "Поиск..." : `Результаты (${results.length})`
+              : "Часто играли"}
+          </div>
+        </div>
+
+        <div className="overflow-y-auto flex-1 px-3 pb-2">
+          {!loading && list.length === 0 ? (
+            <div className="text-center py-10 text-sm" style={{ color: "rgba(255,255,255,0.3)" }}>
+              {isSearching ? "Никого не найдено" : "Нет частых игроков"}
+            </div>
+          ) : (
+            list.map((p) => (
+              <button
+                key={p.id}
+                disabled={alreadyAdded(p.id)}
+                onClick={() => onAdd(p)}
+                className="w-full flex items-center gap-3 px-3 py-3 rounded-xl mb-1 active:scale-[0.98] transition-transform disabled:opacity-40"
+                style={{ background: "rgba(255,255,255,0.05)" }}
+              >
+                <Avatar name={p.name} tone="muted" />
+                <div className="text-left flex-1 min-w-0">
+                  <div className="text-white font-semibold truncate">{p.name}</div>
+                  <div className="text-xs" style={{ color: "rgba(255,255,255,0.4)" }}>HCP {p.hcp}</div>
+                </div>
+                {alreadyAdded(p.id)
+                  ? <div className="text-xs font-semibold" style={{ color: "rgba(255,255,255,0.3)" }}>Добавлен</div>
+                  : <div className="text-sm font-semibold" style={{ color: "#22c55e" }}>+ Добавить</div>
+                }
+              </button>
+            ))
+          )}
+        </div>
       </div>
     </div>
   );
@@ -338,7 +485,6 @@ const RoundPlayer = ({ onExit }: { onExit: () => void }) => {
                   <div className="grid grid-cols-9 gap-1 px-3 pb-3">
                     {scores.slice(0, 18).map((s) => {
                       const h = course.holes.find((hole) => hole.number === s.hole);
-                      const diff = s.score - (h?.par ?? 4);
                       return (
                         <div
                           key={s.hole}
@@ -592,7 +738,6 @@ const RoundPlayer = ({ onExit }: { onExit: () => void }) => {
 
           {/* Card header */}
           <div className="flex items-center gap-2 px-5 pt-5 pb-3">
-            {/* Shield icon like Tag Golf */}
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
               <path d="M12 2L4 6v6c0 5.5 3.5 10.7 8 12 4.5-1.3 8-6.5 8-12V6L12 2z"
                 stroke="white" strokeWidth="1.8" fill="none" strokeLinejoin="round"/>

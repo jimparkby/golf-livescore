@@ -7,6 +7,7 @@ import { fileURLToPath } from 'url'
 import authRouter from './routes/auth.js'
 import profileRouter from './routes/profile.js'
 import roundsRouter from './routes/rounds.js'
+import usersRouter from './routes/users.js'
 import './bot.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -18,7 +19,8 @@ app.use(express.json({ limit: '10mb' }))
 app.use('/api/auth', authRouter)
 app.use('/api/profile', profileRouter)
 app.use('/api/rounds', roundsRouter)
-console.log('[boot] /api/auth, /api/profile and /api/rounds registered')
+app.use('/api/users', usersRouter)
+console.log('[boot] /api/auth, /api/profile, /api/rounds and /api/users registered')
 
 app.get('/api/ping', (_req, res) => res.json({ ok: true }))
 
