@@ -434,6 +434,7 @@ const RoundPlayer = ({ onExit }: { onExit: () => void }) => {
 
   // Экран подтверждения после 18 лунки
   if (showConfirmation && activeRound) {
+    const course = COURSES.find((c) => c.id === activeRound.courseId)!;
     const confirmFinish = () => {
       const snapshot = activeRound;
       finishRound();
@@ -630,7 +631,7 @@ const RoundPlayer = ({ onExit }: { onExit: () => void }) => {
   const openSheet = (p: Player) => {
     const existing = activeRound.scores[p.id]?.find((x) => x.hole === currentHole.number);
     setHole({
-      score: existing?.score ?? currentHole.par,
+      score: currentHole.par,
       putts: existing?.putts ?? 2,
       driving: existing?.driving ?? false,
       gir: existing?.gir ?? false,
