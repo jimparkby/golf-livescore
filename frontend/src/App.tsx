@@ -53,7 +53,7 @@ const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <Toaster />
-      <Sonner position="top-center" />
+      <Sonner position="top-center" offset="calc(var(--header-h) + var(--tg-safe-top) + 8px)" />
       <BrowserRouter>
         <AuthProvider>
           <AppRoutes />
