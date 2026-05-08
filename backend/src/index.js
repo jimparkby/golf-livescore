@@ -9,13 +9,19 @@ import profileRouter from './routes/profile.js'
 import roundsRouter from './routes/rounds.js'
 import usersRouter from './routes/users.js'
 import notificationsRouter from './routes/notifications.js'
-import './bot.js'
+import { processUpdate } from './bot.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const app = express()
 
 app.use(cors({ origin: '*' }))
 app.use(express.json({ limit: '10mb' }))
+
+// Telegram webhook — must be before other routes
+app.post('/bot-webhook', (req, res) => {
+  res.sendStatus(200)
+  processUpdate(req.body)
+})
 
 app.use('/api/auth', authRouter)
 app.use('/api/profile', profileRouter)
