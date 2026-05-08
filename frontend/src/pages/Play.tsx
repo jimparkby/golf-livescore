@@ -561,7 +561,7 @@ const RoundPlayer = ({ onExit }: { onExit: () => void }) => {
     return (
       <div
         className="fixed inset-0 z-50 flex flex-col"
-        style={{ background: "#0a0a0a", paddingTop: "max(env(safe-area-inset-top), 32px)", paddingBottom: "max(env(safe-area-inset-bottom), 28px)" }}
+        style={{ background: "#0a0a0a", paddingTop: "calc(var(--tg-safe-top) + 16px)", paddingBottom: "calc(var(--tg-safe-bottom) + 16px)" }}
       >
         <div className="flex-1 overflow-y-auto px-5 py-6">
           <div className="text-center mb-6">
@@ -668,7 +668,7 @@ const RoundPlayer = ({ onExit }: { onExit: () => void }) => {
     return (
       <div
         className="fixed inset-0 z-50 flex flex-col"
-        style={{ background: "#0a0a0a", paddingTop: "max(env(safe-area-inset-top), 32px)", paddingBottom: "max(env(safe-area-inset-bottom), 28px)" }}
+        style={{ background: "#0a0a0a", paddingTop: "calc(var(--tg-safe-top) + 16px)", paddingBottom: "calc(var(--tg-safe-bottom) + 16px)" }}
       >
         <div className="flex-1 flex flex-col items-center justify-center px-5 gap-6 overflow-y-auto">
           <div className="text-center">
@@ -809,7 +809,7 @@ const RoundPlayer = ({ onExit }: { onExit: () => void }) => {
       {/* ── Top: hole navigation ── */}
       <div
         className="flex items-center justify-between px-5"
-        style={{ paddingTop: `max(env(safe-area-inset-top), 14px)`, paddingBottom: 10 }}
+        style={{ paddingTop: `calc(var(--tg-safe-top) + 14px)`, paddingBottom: 10 }}
       >
         <button
           onClick={onExit}
