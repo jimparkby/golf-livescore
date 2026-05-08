@@ -46,11 +46,18 @@ const PlayPage = () => {
     );
   }
 
-  return <HomeScreen onStart={() => setStep("setup")} />;
+  return (
+    <HomeScreen
+      onStart={(id?: string) => {
+        if (id) setCourseId(id);
+        setStep("setup");
+      }}
+    />
+  );
 };
 
 /* ────────── HOME ────────── */
-const HomeScreen = ({ onStart }: { onStart: () => void }) => {
+const HomeScreen = ({ onStart }: { onStart: (courseId?: string) => void }) => {
   const { rounds, profile } = useGolf();
   const last = rounds[0];
   return (
@@ -66,7 +73,7 @@ const HomeScreen = ({ onStart }: { onStart: () => void }) => {
         </div>
         <div className="p-5 bg-card">
           <Button
-            onClick={onStart}
+            onClick={() => onStart()}
             size="lg"
             className="w-full h-14 text-base font-semibold bg-action hover:bg-action/90 text-action-foreground rounded-xl shadow-glow transition-spring hover:scale-[1.01]"
           >
@@ -100,16 +107,42 @@ const HomeScreen = ({ onStart }: { onStart: () => void }) => {
       )}
 
       <div className="grid grid-cols-2 gap-3">
-        <Card className="overflow-hidden shadow-soft aspect-[4/3] relative group">
+        <button
+          onClick={() => onStart("championship")}
+          className="overflow-hidden rounded-xl shadow-soft aspect-[4/3] relative group focus:outline-none active:scale-[0.97] transition-transform"
+        >
           <img src={photo1} alt="Поле Golf Club Minsk — фарвей" loading="lazy" className="absolute inset-0 h-full w-full object-cover transition-spring group-hover:scale-105" />
           <div className="absolute inset-0 bg-gradient-to-t from-primary/80 to-transparent" />
-          <div className="absolute bottom-3 left-3 text-primary-foreground text-xs font-semibold uppercase tracking-wider">Championship</div>
-        </Card>
-        <Card className="overflow-hidden shadow-soft aspect-[4/3] relative group">
+          <div className="absolute inset-0 flex flex-col justify-between p-3">
+            <div className="self-end opacity-0 group-hover:opacity-100 transition-opacity">
+              <div className="h-7 w-7 rounded-full bg-action/90 grid place-items-center">
+                <PlayCircle className="h-4 w-4 text-action-foreground" strokeWidth={2.5} />
+              </div>
+            </div>
+            <div className="text-left">
+              <div className="text-primary-foreground text-xs font-semibold uppercase tracking-wider">Championship</div>
+              <div className="text-primary-foreground/60 text-[10px] mt-0.5">18 лунок · Пар 72</div>
+            </div>
+          </div>
+        </button>
+        <button
+          onClick={() => onStart("academy")}
+          className="overflow-hidden rounded-xl shadow-soft aspect-[4/3] relative group focus:outline-none active:scale-[0.97] transition-transform"
+        >
           <img src={photo2} alt="Поле Golf Club Minsk — грин" loading="lazy" className="absolute inset-0 h-full w-full object-cover transition-spring group-hover:scale-105" />
           <div className="absolute inset-0 bg-gradient-to-t from-primary/80 to-transparent" />
-          <div className="absolute bottom-3 left-3 text-primary-foreground text-xs font-semibold uppercase tracking-wider">Academy</div>
-        </Card>
+          <div className="absolute inset-0 flex flex-col justify-between p-3">
+            <div className="self-end opacity-0 group-hover:opacity-100 transition-opacity">
+              <div className="h-7 w-7 rounded-full bg-action/90 grid place-items-center">
+                <PlayCircle className="h-4 w-4 text-action-foreground" strokeWidth={2.5} />
+              </div>
+            </div>
+            <div className="text-left">
+              <div className="text-primary-foreground text-xs font-semibold uppercase tracking-wider">Academy</div>
+              <div className="text-primary-foreground/60 text-[10px] mt-0.5">9 лунок · Пар 27</div>
+            </div>
+          </div>
+        </button>
       </div>
     </div>
   );
