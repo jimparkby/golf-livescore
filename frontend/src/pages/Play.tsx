@@ -40,7 +40,6 @@ const PlayPage = () => {
         onStart={() => {
           startRound(course, players);
           setStep("playing");
-          toast.success("Раунд начат — удачной игры!");
         }}
       />
     );
@@ -775,7 +774,6 @@ const RoundPlayer = ({ onExit }: { onExit: () => void }) => {
     if (!sheetPlayer) return;
     enterScore(sheetPlayer.id, { hole: currentHole.number, ...hole });
     setSheetPlayer(null);
-    toast.success(`Лунка ${currentHole.number}: ${hole.score}`);
 
     const allOthersScored = activeRound.players
       .filter((p) => p.id !== sheetPlayer.id)
