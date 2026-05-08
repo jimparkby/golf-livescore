@@ -777,17 +777,34 @@ const RoundPlayer = ({ onExit }: { onExit: () => void }) => {
     setSheetPlayer(null);
     toast.success(`Лунка ${currentHole.number}: ${hole.score}`);
 
-    // Все остальные игроки уже ввели счёт
     const allOthersScored = activeRound.players
       .filter((p) => p.id !== sheetPlayer.id)
       .every((p) => !!activeRound.scores[p.id]?.find((x) => x.hole === currentHole.number));
 
     if (allOthersScored) {
-      // Если это последняя лунка - показываем экран подтверждения
-      if (holeIdx === totalHoles - 1) {
+      // Build updated scores including the score just entered (state not yet updated)
+      const updatedScores = {
+        ...activeRound.scores,
+        [sheetPlayer.id]: [
+          ...(activeRound.scores[sheetPlayer.id]?.filter((x) => x.hole !== currentHole.number) ?? []),
+          { hole: currentHole.number, ...hole },
+        ],
+      };
+
+      // Round is complete only when ALL holes have scores for ALL players
+      const allHolesScored = course.holes.every((h) =>
+        activeRound.players.every((p) => updatedScores[p.id]?.some((s) => s.hole === h.number))
+      );
+
+      if (allHolesScored) {
         setTimeout(() => setShowConfirmation(true), 600);
+      } else if (holeIdx === totalHoles - 1) {
+        // Last index but not all holes done — wrap to first unscored hole
+        const nextIdx = course.holes.findIndex((h) =>
+          !activeRound.players.every((p) => updatedScores[p.id]?.some((s) => s.hole === h.number))
+        );
+        if (nextIdx >= 0) setTimeout(() => setHoleIdx(nextIdx), 600);
       } else {
-        // Иначе переходим на следующую лунку
         setTimeout(() => setHoleIdx((h) => Math.min(totalHoles - 1, h + 1)), 600);
       }
     }
