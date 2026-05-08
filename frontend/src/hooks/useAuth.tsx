@@ -40,13 +40,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (res.ok) {
         const data = await res.json()
         updateProfile({
-          firstName: data.first_name,
-          lastName: data.last_name,
-          hcp: Number(data.hcp) ?? 0,
+          firstName: data.first_name ?? '',
+          lastName: data.last_name ?? '',
+          username: data.username ?? '',
+          hcp: Number(data.hcp) || 0,
           homeClub: data.home_club ?? 'Golf Club Minsk',
           city: data.city ?? 'Минск, Беларусь',
+          notificationsEnabled: data.notifications_enabled ?? true,
+          defaultTee: (data.default_tee as import('@/lib/courses').TeeColor) ?? 'yellow',
         })
-        // Загружаем раунды с сервера
         await loadRounds()
       }
     } catch {}
@@ -63,6 +65,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signOut = () => {
     localStorage.removeItem('golf_jwt')
+    localStorage.removeItem('golfminsk-store')
+    useGolf.getState().resetStore()
     setUserId(null)
   }
 

@@ -51,6 +51,8 @@ export type Profile = {
   city: string;
   memberSince: string;
   photoUrl?: string;
+  notificationsEnabled: boolean;
+  defaultTee: TeeColor;
 };
 
 export type CustomTournament = {
@@ -74,6 +76,7 @@ type State = {
   activeRound: Round | null;
   customTournaments: CustomTournament[];
   updateProfile: (p: Partial<Profile>) => void;
+  resetStore: () => void;
   startRound: (course: Course, players: Player[], tournamentId?: string, format?: FormatId) => void;
   cancelActiveRound: () => void;
   enterScore: (playerId: string, score: HoleScore) => void;
@@ -100,6 +103,8 @@ const defaultProfile: Profile = {
   email: "",
   city: "Минск, Беларусь",
   memberSince: String(new Date().getFullYear()),
+  notificationsEnabled: true,
+  defaultTee: "yellow",
 };
 
 export const useGolf = create<State>()(
@@ -117,6 +122,9 @@ export const useGolf = create<State>()(
           merged.initials = mkInitials(`${merged.firstName} ${merged.lastName}`);
           return { profile: merged };
         }),
+
+      resetStore: () =>
+        set({ profile: defaultProfile, frequent: [], rounds: [], activeRound: null, customTournaments: [] }),
 
       startRound: (course, players, tournamentId, format) => {
         const mePlayer = players.find((p) => p.isMe);

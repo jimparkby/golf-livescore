@@ -20,7 +20,7 @@ const PlayPage = () => {
   const [step, setStep] = useState<Step>(activeRound ? "playing" : "home");
   const [courseId, setCourseId] = useState<string>(COURSES[0].id);
   const [players, setPlayers] = useState<Player[]>([
-    { id: "me", name: `${profile.firstName} ${profile.lastName}`, initials: profile.initials, hcp: profile.hcp, tee: "yellow", isMe: true },
+    { id: "me", name: `${profile.firstName} ${profile.lastName}`, initials: profile.initials, hcp: profile.hcp, tee: profile.defaultTee ?? "yellow", isMe: true },
   ]);
 
   const course = COURSES.find((c) => c.id === courseId)!;

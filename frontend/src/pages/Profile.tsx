@@ -7,10 +7,11 @@ import { Avatar } from "@/components/PlayerAvatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Pencil, Check, MapPin, Calendar, Trophy, Camera, LogOut, Trash2 } from "lucide-react";
+import { Pencil, Check, MapPin, Calendar, Trophy, Camera, LogOut, Trash2, Bell, ChevronRight, X } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { getDifferentials, calcHandicapIndex, playingHandicap } from "@/lib/handicap";
-import { COURSES } from "@/lib/courses";
+import { COURSES, TEE_CONFIG, type TeeColor } from "@/lib/courses";
 import { compressImage } from "@/lib/imageUtils";
 
 const ProfilePage = () => {
@@ -18,6 +19,7 @@ const ProfilePage = () => {
   const { signOut } = useAuth();
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(profile);
+  const [showTeePicker, setShowTeePicker] = useState(false);
   const photoInputRef = useRef<HTMLInputElement>(null);
 
   const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -48,6 +50,20 @@ const ProfilePage = () => {
       body: JSON.stringify({ hcp: whsIndex }),
     }).catch(console.error);
   }, [whsIndex]);
+
+  const pushSetting = (patch: Partial<typeof profile>) => {
+    updateProfile(patch);
+    const token = localStorage.getItem('golf_jwt');
+    fetch(`${BASE}/api/profile`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      body: JSON.stringify(
+        'notificationsEnabled' in patch
+          ? { notifications_enabled: patch.notificationsEnabled }
+          : { default_tee: patch.defaultTee }
+      ),
+    }).catch(console.error);
+  };
 
   const syncProfile = (data: typeof draft) => {
     const token = localStorage.getItem('golf_jwt');
@@ -232,10 +248,58 @@ const ProfilePage = () => {
         </Card>
       )}
 
+      {/* Settings */}
+      <Card className="overflow-hidden shadow-soft">
+        {/* Notifications toggle */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+          <div className="flex items-center gap-3">
+            <Bell className="h-4 w-4 text-muted-foreground" />
+            <div>
+              <div className="text-sm font-medium">Уведомления</div>
+              <div className="text-[10px] text-muted-foreground">Турниры и ежедневные советы</div>
+            </div>
+          </div>
+          <button
+            onClick={() => pushSetting({ notificationsEnabled: !profile.notificationsEnabled })}
+            className={cn(
+              "w-12 h-6 rounded-full transition-colors relative shrink-0",
+              profile.notificationsEnabled ? "bg-action" : "bg-muted-foreground/30"
+            )}
+          >
+            <div className={cn(
+              "absolute top-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition-transform",
+              profile.notificationsEnabled ? "translate-x-6" : "translate-x-0.5"
+            )} />
+          </button>
+        </div>
+
+        {/* Default tee */}
+        <button
+          onClick={() => setShowTeePicker(true)}
+          className="w-full flex items-center justify-between px-5 py-4"
+        >
+          <div className="text-sm font-medium">Ти по умолчанию</div>
+          <div className="flex items-center gap-2 text-muted-foreground">
+            <div
+              className="w-4 h-4 rounded-sm border"
+              style={{
+                background: TEE_CONFIG[profile.defaultTee].cssColor,
+                borderColor: TEE_CONFIG[profile.defaultTee].border,
+              }}
+            />
+            <span className="text-sm">{TEE_CONFIG[profile.defaultTee].label}</span>
+            <ChevronRight className="h-4 w-4" />
+          </div>
+        </button>
+      </Card>
+
       {/* Sign out */}
       <button
-        onClick={signOut}
-        className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-medium text-muted-foreground hover:text-destructive transition-colors"
+        onClick={() => {
+          signOut();
+          toast.success("Вы вышли из аккаунта");
+        }}
+        className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-medium border border-destructive/30 text-destructive hover:bg-destructive/10 transition-colors"
       >
         <LogOut className="h-4 w-4" />
         Выйти из аккаунта
@@ -255,6 +319,51 @@ const ProfilePage = () => {
             ))}
           </div>
         </Card>
+      )}
+
+      {/* Default tee picker sheet */}
+      {showTeePicker && (
+        <div className="fixed inset-0 z-50 flex items-end animate-in fade-in duration-150">
+          <button className="absolute inset-0 bg-black/70" onClick={() => setShowTeePicker(false)} />
+          <div
+            className="relative w-full rounded-t-3xl animate-in slide-in-from-bottom duration-250"
+            style={{ background: "#1c1c1e", paddingBottom: "max(env(safe-area-inset-bottom), 24px)" }}
+          >
+            <div className="mx-auto w-10 h-1 rounded-full mt-3 mb-4" style={{ background: "rgba(255,255,255,0.15)" }} />
+            <div className="flex items-center justify-between px-5 pb-4">
+              <div className="text-white font-bold text-lg">Ти по умолчанию</div>
+              <button
+                onClick={() => setShowTeePicker(false)}
+                className="h-8 w-8 rounded-full grid place-items-center"
+                style={{ background: "rgba(255,255,255,0.1)" }}
+              >
+                <X className="h-4 w-4 text-white" />
+              </button>
+            </div>
+            <div className="px-4 pb-4 space-y-2">
+              {(Object.keys(TEE_CONFIG) as TeeColor[]).map((color) => (
+                <button
+                  key={color}
+                  onClick={() => { pushSetting({ defaultTee: color }); setShowTeePicker(false); toast.success(`Ти по умолчанию: ${TEE_CONFIG[color].label}`); }}
+                  className="w-full flex items-center gap-4 px-4 py-3 rounded-2xl active:scale-[0.98] transition-transform"
+                  style={{
+                    background: profile.defaultTee === color ? "rgba(255,255,255,0.1)" : "rgba(255,255,255,0.05)",
+                    border: profile.defaultTee === color ? "2px solid rgba(255,255,255,0.25)" : "2px solid transparent",
+                  }}
+                >
+                  <div
+                    className="w-10 h-10 rounded-md shrink-0 border-2"
+                    style={{ background: TEE_CONFIG[color].cssColor, borderColor: TEE_CONFIG[color].border }}
+                  />
+                  <div className="text-white font-bold">{TEE_CONFIG[color].label}</div>
+                  {profile.defaultTee === color && (
+                    <Check className="h-5 w-5 ml-auto" style={{ color: "#22c55e" }} strokeWidth={3} />
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
