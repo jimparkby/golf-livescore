@@ -53,7 +53,7 @@ const StatsPage = () => {
                 <>
                   <div className="text-5xl font-black tabular-nums text-foreground leading-none">{whsIndex.toFixed(1)}</div>
                   <div className="text-xs text-muted-foreground mt-1.5">
-                    лучшие {useCount} из {completedCount} раундов × 0.96
+                    лучшие {useCount} из {completedCount} раундов (WHS)
                   </div>
                 </>
               ) : (
@@ -69,7 +69,8 @@ const StatsPage = () => {
               <div className="text-right space-y-1.5 shrink-0">
                 <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Гандикап поля</div>
                 {COURSE_LIST.map((c) => {
-                  const ch = Math.round(whsIndex * (c.slope / 113) + (c.rating - c.totalPar));
+                  const tee = c.tees.find(t => t.color === "yellow") ?? c.tees[0];
+                  const ch = Math.round(whsIndex * (tee.slope / 113) + (tee.rating - c.totalPar));
                   return (
                     <div key={c.id} className="flex items-center gap-2 justify-end">
                       <span className="text-xs text-muted-foreground">{c.name}</span>
