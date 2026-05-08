@@ -4,154 +4,185 @@ import { requireAuth } from '../middleware/auth.js'
 
 const router = Router()
 
-// Получить все раунды пользователя
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+const isUUID = (id) => UUID_RE.test(id)
+
+// ── helpers ──────────────────────────────────────────────────────────────────
+
+async function buildRound(round, requesterId) {
+  const { rows: players } = await db.query(
+    `SELECT player_id, name, initials, hcp, is_me, user_id
+     FROM round_players WHERE round_id = $1`,
+    [round.id]
+  )
+
+  const { rows: scoreRows } = await db.query(
+    `SELECT player_id, hole, score, putts, driving, gir, bunker, penalties, tee_shot
+     FROM hole_scores WHERE round_id = $1`,
+    [round.id]
+  )
+
+  const scoresByPlayer = {}
+  scoreRows.forEach((s) => {
+    if (!scoresByPlayer[s.player_id]) scoresByPlayer[s.player_id] = []
+    scoresByPlayer[s.player_id].push({
+      hole: s.hole, score: s.score, putts: s.putts,
+      driving: s.driving, gir: s.gir, bunker: s.bunker,
+      penalties: s.penalties, teeShot: s.tee_shot,
+    })
+  })
+
+  return {
+    id: round.id,
+    date: round.date,
+    courseId: round.course_id,
+    courseName: round.course_name,
+    tee: round.tee,
+    rating: parseFloat(round.rating),
+    slope: round.slope,
+    completed: round.completed,
+    tournamentId: round.tournament_id,
+    format: round.format,
+    photoUrl: round.photo_url,
+    players: players.map((p) => ({
+      id: p.player_id,
+      name: p.name,
+      initials: p.initials,
+      hcp: parseFloat(p.hcp),
+      // isMe: creator's "me" entry if requester is creator,
+      //        OR this player's user_id matches the requester
+      isMe: (p.is_me && round.user_id === requesterId) || (p.user_id === requesterId),
+    })),
+    scores: scoresByPlayer,
+  }
+}
+
+// ── GET /api/rounds ───────────────────────────────────────────────────────────
+// Returns own rounds + rounds where user is a registered participant
+
 router.get('/', requireAuth, async (req, res, next) => {
   try {
     const { rows: rounds } = await db.query(
-      `SELECT * FROM rounds
-       WHERE user_id = $1
-       ORDER BY date DESC`,
+      `SELECT DISTINCT r.*
+       FROM rounds r
+       LEFT JOIN round_players rp
+         ON rp.round_id = r.id AND rp.user_id = $1
+       WHERE r.user_id = $1 OR rp.user_id = $1
+       ORDER BY r.date DESC`,
       [req.user.userId]
     )
 
-    // Для каждого раунда получаем игроков и счета
     const roundsWithData = await Promise.all(
-      rounds.map(async (round) => {
-        const { rows: players } = await db.query(
-          `SELECT player_id as id, name, initials, hcp, is_me
-           FROM round_players
-           WHERE round_id = $1`,
-          [round.id]
-        )
-
-        const { rows: scores } = await db.query(
-          `SELECT player_id, hole, score, putts, driving, gir, bunker, penalties, tee_shot
-           FROM hole_scores
-           WHERE round_id = $1`,
-          [round.id]
-        )
-
-        // Группируем счета по игрокам
-        const scoresByPlayer = {}
-        scores.forEach((s) => {
-          if (!scoresByPlayer[s.player_id]) scoresByPlayer[s.player_id] = []
-          scoresByPlayer[s.player_id].push({
-            hole: s.hole,
-            score: s.score,
-            putts: s.putts,
-            driving: s.driving,
-            gir: s.gir,
-            bunker: s.bunker,
-            penalties: s.penalties,
-            teeShot: s.tee_shot,
-          })
-        })
-
-        return {
-          id: round.id,
-          date: round.date,
-          courseId: round.course_id,
-          courseName: round.course_name,
-          tee: round.tee,
-          rating: parseFloat(round.rating),
-          slope: round.slope,
-          players: players.map(p => ({
-            id: p.id,
-            name: p.name,
-            initials: p.initials,
-            hcp: parseFloat(p.hcp),
-            isMe: p.is_me,
-          })),
-          scores: scoresByPlayer,
-          completed: round.completed,
-          tournamentId: round.tournament_id,
-          format: round.format,
-          photoUrl: round.photo_url,
-        }
-      })
+      rounds.map((r) => buildRound(r, req.user.userId))
     )
-
     res.json(roundsWithData)
-  } catch (err) {
-    next(err)
-  }
+  } catch (err) { next(err) }
 })
 
-// Сохранить раунд
+// ── POST /api/rounds ──────────────────────────────────────────────────────────
+// Save (upsert) a round. On completion, mirror the round for each registered participant.
+
 router.post('/', requireAuth, async (req, res, next) => {
   const { round } = req.body
 
   try {
-    // Начинаем транзакцию
     await db.query('BEGIN')
 
-    // Сохраняем раунд
     await db.query(
       `INSERT INTO rounds (
-        id, user_id, date, course_id, course_name, tee, rating, slope,
-        completed, tournament_id, format, photo_url, updated_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NOW())
-      ON CONFLICT (id) DO UPDATE SET
-        date = EXCLUDED.date,
-        course_id = EXCLUDED.course_id,
-        course_name = EXCLUDED.course_name,
-        tee = EXCLUDED.tee,
-        rating = EXCLUDED.rating,
-        slope = EXCLUDED.slope,
-        completed = EXCLUDED.completed,
-        tournament_id = EXCLUDED.tournament_id,
-        format = EXCLUDED.format,
-        photo_url = EXCLUDED.photo_url,
-        updated_at = NOW()`,
+         id, user_id, date, course_id, course_name, tee, rating, slope,
+         completed, tournament_id, format, photo_url, updated_at
+       ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,NOW())
+       ON CONFLICT (id) DO UPDATE SET
+         completed     = EXCLUDED.completed,
+         photo_url     = EXCLUDED.photo_url,
+         updated_at    = NOW()`,
       [
-        round.id,
-        req.user.userId,
-        round.date,
-        round.courseId,
-        round.courseName,
-        round.tee,
-        round.rating,
-        round.slope,
-        round.completed,
-        round.tournamentId || null,
-        round.format || null,
-        round.photoUrl || null,
+        round.id, req.user.userId, round.date,
+        round.courseId, round.courseName, round.tee,
+        round.rating, round.slope, round.completed,
+        round.tournamentId || null, round.format || null, round.photoUrl || null,
       ]
     )
 
-    // Удаляем старых игроков и счета
     await db.query('DELETE FROM round_players WHERE round_id = $1', [round.id])
     await db.query('DELETE FROM hole_scores WHERE round_id = $1', [round.id])
 
-    // Добавляем игроков
-    for (const player of round.players) {
+    for (const p of round.players) {
+      // store user_id for the creator AND for registered participants (UUID ids)
+      const linkedUserId = p.isMe ? req.user.userId : (isUUID(p.id) ? p.id : null)
       await db.query(
-        `INSERT INTO round_players (round_id, player_id, name, initials, hcp, is_me)
-         VALUES ($1, $2, $3, $4, $5, $6)`,
-        [round.id, player.id, player.name, player.initials, player.hcp, player.isMe || false]
+        `INSERT INTO round_players (round_id, player_id, name, initials, hcp, is_me, user_id)
+         VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+        [round.id, p.id, p.name, p.initials, p.hcp, p.isMe || false, linkedUserId]
       )
     }
 
-    // Добавляем счета
     for (const [playerId, scores] of Object.entries(round.scores)) {
-      for (const score of scores) {
+      for (const s of scores) {
         await db.query(
-          `INSERT INTO hole_scores (
-            round_id, player_id, hole, score, putts, driving, gir, bunker, penalties, tee_shot
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+          `INSERT INTO hole_scores
+             (round_id, player_id, hole, score, putts, driving, gir, bunker, penalties, tee_shot)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
+          [round.id, playerId, s.hole, s.score,
+           s.putts||0, s.driving||false, s.gir||false,
+           s.bunker||0, s.penalties||0, s.teeShot||null]
+        )
+      }
+    }
+
+    // When round is completed, create a mirrored round for each registered participant
+    // so they see it in their own history (with isMe=true for their perspective)
+    if (round.completed) {
+      const registeredParticipants = round.players.filter(
+        (p) => !p.isMe && isUUID(p.id)
+      )
+
+      for (const participant of registeredParticipants) {
+        const mirrorId = `${round.id}-${participant.id.substring(0, 8)}`
+
+        await db.query(
+          `INSERT INTO rounds (
+             id, user_id, date, course_id, course_name, tee, rating, slope,
+             completed, tournament_id, format, updated_at
+           ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,NOW())
+           ON CONFLICT (id) DO NOTHING`,
           [
-            round.id,
-            playerId,
-            score.hole,
-            score.score,
-            score.putts || 0,
-            score.driving || false,
-            score.gir || false,
-            score.bunker || 0,
-            score.penalties || 0,
-            score.teeShot || null,
+            mirrorId, participant.id, round.date,
+            round.courseId, round.courseName, round.tee,
+            round.rating, round.slope, true,
+            round.tournamentId || null, round.format || null,
           ]
         )
+
+        // Players from participant's perspective: their entry becomes "me"
+        for (const p of round.players) {
+          const mirrorPlayerId = p.id === participant.id ? 'me' : p.id
+          const mirrorIsMe    = p.id === participant.id
+          const mirrorUserId  = p.isMe ? req.user.userId : (isUUID(p.id) ? p.id : null)
+          await db.query(
+            `INSERT INTO round_players (round_id, player_id, name, initials, hcp, is_me, user_id)
+             VALUES ($1,$2,$3,$4,$5,$6,$7)
+             ON CONFLICT DO NOTHING`,
+            [mirrorId, mirrorPlayerId, p.name, p.initials, p.hcp, mirrorIsMe, mirrorUserId]
+          )
+        }
+
+        // Scores: participant's scores stored under 'me'
+        for (const [playerId, scores] of Object.entries(round.scores)) {
+          const mirrorPlayerId = playerId === participant.id ? 'me' : playerId
+          for (const s of scores) {
+            await db.query(
+              `INSERT INTO hole_scores
+                 (round_id, player_id, hole, score, putts, driving, gir, bunker, penalties, tee_shot)
+               VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+               ON CONFLICT DO NOTHING`,
+              [mirrorId, mirrorPlayerId, s.hole, s.score,
+               s.putts||0, s.driving||false, s.gir||false,
+               s.bunker||0, s.penalties||0, s.teeShot||null]
+            )
+          }
+        }
       }
     }
 
@@ -163,7 +194,8 @@ router.post('/', requireAuth, async (req, res, next) => {
   }
 })
 
-// Удалить раунд
+// ── DELETE /api/rounds/:id ────────────────────────────────────────────────────
+
 router.delete('/:id', requireAuth, async (req, res, next) => {
   try {
     await db.query(
@@ -171,12 +203,11 @@ router.delete('/:id', requireAuth, async (req, res, next) => {
       [req.params.id, req.user.userId]
     )
     res.json({ success: true })
-  } catch (err) {
-    next(err)
-  }
+  } catch (err) { next(err) }
 })
 
-// Обновить фото раунда
+// ── PUT /api/rounds/:id/photo ─────────────────────────────────────────────────
+
 router.put('/:id/photo', requireAuth, async (req, res, next) => {
   const { photoUrl } = req.body
   try {
@@ -185,9 +216,7 @@ router.put('/:id/photo', requireAuth, async (req, res, next) => {
       [photoUrl, req.params.id, req.user.userId]
     )
     res.json({ success: true })
-  } catch (err) {
-    next(err)
-  }
+  } catch (err) { next(err) }
 })
 
 export default router

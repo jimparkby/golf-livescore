@@ -43,6 +43,38 @@ router.post('/tournament', requireAuth, async (req, res, next) => {
   } catch (err) { next(err) }
 })
 
+// POST /api/notifications/round-start
+// Called by frontend immediately when a round starts with registered players
+router.post('/round-start', requireAuth, async (req, res, next) => {
+  const { playerIds, courseName } = req.body   // playerIds: UUID array
+  if (!Array.isArray(playerIds) || playerIds.length === 0)
+    return res.json({ notified: 0 })
+
+  try {
+    const { rows: [requester] } = await db.query(
+      'SELECT first_name FROM users WHERE id = $1',
+      [req.user.userId]
+    )
+    const { rows: targets } = await db.query(
+      `SELECT telegram_id, first_name FROM users
+       WHERE id = ANY($1::uuid[])
+         AND notifications_enabled = true
+         AND telegram_id IS NOT NULL`,
+      [playerIds]
+    )
+    for (const u of targets) {
+      try {
+        await bot.sendMessage(
+          u.telegram_id,
+          `⛳ ${requester?.first_name ?? 'Игрок'} добавил тебя в раунд!\n📍 ${courseName}\n\nОткрой приложение чтобы следить за счётом.`,
+          { reply_markup: { inline_keyboard: [[{ text: '⛳ Открыть приложение', web_app: { url: process.env.FRONTEND_URL } }]] } }
+        )
+      } catch { /* telegram send error — skip */ }
+    }
+    res.json({ notified: targets.length })
+  } catch (err) { next(err) }
+})
+
 // POST /api/notifications/test  — send test notification to yourself
 router.post('/test', requireAuth, async (req, res, next) => {
   try {

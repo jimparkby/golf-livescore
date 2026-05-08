@@ -93,6 +93,9 @@ type State = {
 const mkInitials = (name: string) =>
   name.split(" ").map((p) => p[0]).filter(Boolean).slice(0, 2).join("").toUpperCase();
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const isUUID = (id: string) => UUID_RE.test(id);
+
 const defaultProfile: Profile = {
   firstName: "",
   lastName: "",
@@ -145,6 +148,15 @@ export const useGolf = create<State>()(
           format,
         };
         set({ activeRound: round });
+
+        // Notify registered participants (players added via search have UUID ids)
+        const registeredParticipants = players.filter((p) => !p.isMe && isUUID(p.id));
+        if (registeredParticipants.length > 0) {
+          api.post('/api/notifications/round-start', {
+            playerIds: registeredParticipants.map((p) => p.id),
+            courseName: course.name,
+          }).catch(() => {});
+        }
       },
 
       cancelActiveRound: () => set({ activeRound: null }),

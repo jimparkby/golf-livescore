@@ -112,13 +112,10 @@ if (!token) {
     )
   })
 
-  // Daily tips at 08:00 Minsk time
-  cron.schedule('0 8 * * *', runDailyNotifications, { timezone: 'Europe/Minsk' })
-
   // Check scheduled tournament/round notifications every 10 min
   cron.schedule('*/10 * * * *', runScheduledNotifications)
 
-  console.log('[bot] Telegram bot started (daily tips + scheduled notifications)')
+  console.log('[bot] Telegram bot started (scheduled notifications enabled)')
 }
 
 export { bot }

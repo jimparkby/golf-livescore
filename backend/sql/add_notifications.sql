@@ -1,4 +1,5 @@
 -- Run once: add notification preferences and default tee to users
+-- Also links registered participants to rounds
 ALTER TABLE users
   ADD COLUMN IF NOT EXISTS notifications_enabled BOOLEAN NOT NULL DEFAULT TRUE,
   ADD COLUMN IF NOT EXISTS default_tee TEXT NOT NULL DEFAULT 'yellow';
@@ -17,3 +18,9 @@ CREATE TABLE IF NOT EXISTS scheduled_notifications (
 
 CREATE INDEX IF NOT EXISTS idx_scheduled_notifications_send_at
   ON scheduled_notifications(send_at) WHERE sent = FALSE;
+
+-- Link registered users to rounds they participate in (as non-creator)
+ALTER TABLE round_players
+  ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES users(id);
+
+CREATE INDEX IF NOT EXISTS idx_round_players_user_id ON round_players(user_id);
