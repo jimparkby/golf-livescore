@@ -101,21 +101,35 @@ async function runScheduledNotifications() {
 if (!token) {
   console.warn('[bot] TELEGRAM_BOT_TOKEN not set — bot disabled')
 } else {
-  // Delete any existing webhook before starting polling (prevents silent failures)
   const tmp = new TelegramBot(token, { polling: false })
-  tmp.deleteWebHook().catch(() => {}).finally(() => {
+  tmp.deleteWebHook()
+    .then(() => console.log('[bot] Webhook deleted'))
+    .catch(err => console.warn('[bot] deleteWebHook error (ignored):', err.message))
+    .finally(() => {
     bot = new TelegramBot(token, {
       polling: { interval: 300, autoStart: true, params: { timeout: 10 } },
     })
 
     bot.onText(/\/start/, async (msg) => {
       console.log('[bot] /start from', msg.from?.id)
+      const text = [
+        `GolfMinsk Live — живой скоринг прямо в Telegram`,
+        ``,
+        `⛳ Веди счёт в реальном времени`,
+        `📊 Следи за статистикой и прогрессом`,
+        `🏆 Участвуй в турнирах Golf Club Minsk`,
+        ``,
+        `GolfMinsk Live. Твой гольф-ассистент.`,
+      ].join('\n')
       try {
-        await bot.sendMessage(
-          msg.chat.id,
-          'Добро пожаловать в GolfMinsk Live.\n\nLive-скоринг, турниры и статистика для Golf Club Minsk.\n\nНажмите кнопку ниже, чтобы открыть приложение.',
-          webAppBtn('Открыть')
-        )
+        await bot.sendMessage(msg.chat.id, text, {
+          parse_mode: 'HTML',
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: '⛳ Открыть GolfMinsk Live', web_app: { url: webAppUrl } }],
+            ],
+          },
+        })
       } catch (err) {
         console.error('[bot] /start sendMessage error:', err.message)
       }
