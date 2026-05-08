@@ -7,7 +7,7 @@ import { Avatar } from "@/components/PlayerAvatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Pencil, Check, MapPin, Calendar, Trophy, Camera, LogOut, Trash2, Bell, ChevronRight, X } from "lucide-react";
+import { Pencil, Check, Trophy, Camera, LogOut, Trash2, Bell, ChevronRight, X, Calendar } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { getDifferentials, calcHandicapIndex, playingHandicap } from "@/lib/handicap";
@@ -139,10 +139,7 @@ const ProfilePage = () => {
                 <div className="text-xl font-bold">{profile.firstName} {profile.lastName}</div>
               )}
               <div className="text-sm opacity-80 flex items-center gap-1.5 mt-1">
-                <MapPin className="h-3.5 w-3.5" /> {profile.city || "—"}
-              </div>
-              <div className="text-sm opacity-80 flex items-center gap-1.5">
-                <Trophy className="h-3.5 w-3.5" /> {profile.homeClub || "—"}
+                <Trophy className="h-3.5 w-3.5" /> Golf Club Minsk
               </div>
             </div>
             <button
@@ -211,21 +208,8 @@ const ProfilePage = () => {
             <Field label="Фамилия">
               <Input value={draft.lastName} onChange={(e) => setDraft({ ...draft, lastName: e.target.value })} />
             </Field>
-            <Field label="Никнейм" className="col-span-2">
-              <Input
-                value={draft.username}
-                onChange={(e) => setDraft({ ...draft, username: e.target.value })}
-                placeholder="@username"
-              />
-            </Field>
-            <Field label="HCP (ручной)">
+            <Field label="HCP (ручной)" className="col-span-2">
               <Input type="number" step="0.1" value={draft.hcp} onChange={(e) => setDraft({ ...draft, hcp: Number(e.target.value) })} />
-            </Field>
-            <Field label="Город">
-              <Input value={draft.city} onChange={(e) => setDraft({ ...draft, city: e.target.value })} />
-            </Field>
-            <Field label="Домашний клуб" className="col-span-2">
-              <Input value={draft.homeClub} onChange={(e) => setDraft({ ...draft, homeClub: e.target.value })} />
             </Field>
           </div>
           {draft.photoUrl && (

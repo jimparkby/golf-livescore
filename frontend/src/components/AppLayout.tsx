@@ -23,7 +23,7 @@ const AppLayout = () => {
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      <header style={{ background: "#000000", borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
+      <header style={{ background: "#000000", borderBottom: "1px solid rgba(255,255,255,0.07)", paddingTop: "env(safe-area-inset-top)" }}>
         <div className="mx-auto max-w-3xl px-5 py-4 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <img src={golfLogo} alt="Golf" className="h-9 w-9 rounded-lg object-cover" />
