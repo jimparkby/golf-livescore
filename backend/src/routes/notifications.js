@@ -1,7 +1,7 @@
 import { Router } from 'express'
 import { db } from '../db.js'
 import { requireAuth } from '../middleware/auth.js'
-import { bot } from '../bot.js'
+import { bot, generateTip } from '../bot.js'
 
 const router = Router()
 
@@ -52,9 +52,33 @@ router.post('/round-start', requireAuth, async (req, res, next) => {
 
   try {
     const { rows: [requester] } = await db.query(
-      'SELECT first_name FROM users WHERE id = $1',
+      'SELECT id, first_name, hcp, telegram_id, notifications_enabled FROM users WHERE id = $1',
       [req.user.userId]
     )
+
+    // Send tip/wish to the player who started the round
+    if (requester?.telegram_id && requester?.notifications_enabled && bot) {
+      try {
+        const { rows: recentScores } = await db.query(
+          `SELECT hs.putts, hs.bunker, hs.gir
+           FROM hole_scores hs
+           JOIN rounds r ON r.id = hs.round_id
+           WHERE r.user_id = $1 AND hs.player_id = 'me' AND r.completed = true
+           ORDER BY r.date DESC
+           LIMIT 54`,
+          [req.user.userId]
+        )
+        const tip = await generateTip(requester, recentScores)
+        const text = tip
+          ? tip
+          : 'Хорошей игры и прямых драйвов!'
+        await bot.sendMessage(requester.telegram_id, text,
+          { reply_markup: { inline_keyboard: [[{ text: 'Открыть', web_app: { url: process.env.FRONTEND_URL } }]] } }
+        )
+      } catch { /* skip */ }
+    }
+
+    // Notify other registered participants
     const { rows: targets } = await db.query(
       `SELECT telegram_id, first_name FROM users
        WHERE id = ANY($1::uuid[])
@@ -66,8 +90,8 @@ router.post('/round-start', requireAuth, async (req, res, next) => {
       try {
         await bot.sendMessage(
           u.telegram_id,
-          `⛳ ${requester?.first_name ?? 'Игрок'} добавил тебя в раунд!\n📍 ${courseName}\n\nОткрой приложение чтобы следить за счётом.`,
-          { reply_markup: { inline_keyboard: [[{ text: '⛳ Открыть приложение', web_app: { url: process.env.FRONTEND_URL } }]] } }
+          `${requester?.first_name ?? 'Игрок'} добавил тебя в раунд!\n${courseName}\n\nОткрой приложение чтобы следить за счётом.`,
+          { reply_markup: { inline_keyboard: [[{ text: 'Открыть', web_app: { url: process.env.FRONTEND_URL } }]] } }
         )
       } catch { /* telegram send error — skip */ }
     }

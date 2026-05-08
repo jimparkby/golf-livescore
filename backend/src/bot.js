@@ -15,8 +15,8 @@ const webAppBtn = (label = '⛳ Открыть приложение') => ({
 })
 
 // Generate personalized tip via Claude based on recent hole scores
-async function generateTip(user, scores) {
-  if (!process.env.ANTHROPIC_API_KEY || scores.length < 9) return null
+export async function generateTip(user, scores) {
+  if (!process.env.ANTHROPIC_API_KEY || scores.length === 0) return null
 
   const totalPutts = scores.reduce((s, h) => s + (h.putts || 0), 0)
   const threePutt = scores.filter(h => h.putts >= 3).length
