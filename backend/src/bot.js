@@ -101,21 +101,42 @@ async function runScheduledNotifications() {
 if (!token) {
   console.warn('[bot] TELEGRAM_BOT_TOKEN not set — bot disabled')
 } else {
-  bot = new TelegramBot(token, { polling: true })
+  // Delete any existing webhook before starting polling (prevents silent failures)
+  const tmp = new TelegramBot(token, { polling: false })
+  tmp.deleteWebHook().catch(() => {}).finally(() => {
+    bot = new TelegramBot(token, {
+      polling: { interval: 300, autoStart: true, params: { timeout: 10 } },
+    })
 
-  bot.onText(/\/start/, (msg) => {
-    const chatId = msg.chat.id
-    bot.sendMessage(
-      chatId,
-      'Добро пожаловать в GolfMinsk Live.\n\nLive-скоринг, турниры и статистика для Golf Club Minsk.\n\nНажмите кнопку ниже, чтобы открыть приложение.',
-      webAppBtn('Открыть')
-    )
+    bot.onText(/\/start/, async (msg) => {
+      console.log('[bot] /start from', msg.from?.id)
+      try {
+        await bot.sendMessage(
+          msg.chat.id,
+          'Добро пожаловать в GolfMinsk Live.\n\nLive-скоринг, турниры и статистика для Golf Club Minsk.\n\nНажмите кнопку ниже, чтобы открыть приложение.',
+          webAppBtn('Открыть')
+        )
+      } catch (err) {
+        console.error('[bot] /start sendMessage error:', err.message)
+      }
+    })
+
+    bot.on('polling_error', (err) => {
+      if (err.code === 'ETELEGRAM' && err.message?.includes('409')) {
+        console.log('[bot] 409 Conflict — another instance polling, retrying in 15s')
+        bot.stopPolling().then(() => {
+          setTimeout(() => { bot.startPolling(); console.log('[bot] Polling restarted') }, 15000)
+        })
+      } else if (!err.message?.includes('ETIMEDOUT')) {
+        console.error('[bot] Polling error:', err.message)
+      }
+    })
+
+    // Check scheduled tournament/round notifications every 10 min
+    cron.schedule('*/10 * * * *', runScheduledNotifications)
+
+    console.log('[bot] Telegram bot started (polling)')
   })
-
-  // Check scheduled tournament/round notifications every 10 min
-  cron.schedule('*/10 * * * *', runScheduledNotifications)
-
-  console.log('[bot] Telegram bot started (scheduled notifications enabled)')
 }
 
 export { bot }
