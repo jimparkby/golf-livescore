@@ -2,7 +2,6 @@ import { useEffect } from "react";
 import { NavLink, Outlet } from "react-router-dom";
 import { Trophy, CircleUserRound, LineChart, Flag } from "lucide-react";
 import { cn } from "@/lib/utils";
-import golfLogo from "@/assets/golf-logo.png";
 
 const tabs = [
   { to: "/", label: "Играть", icon: Flag, end: true },
@@ -23,19 +22,6 @@ const AppLayout = () => {
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      <header style={{ background: "#000000", borderBottom: "1px solid rgba(255,255,255,0.07)", paddingTop: "env(safe-area-inset-top)" }}>
-        <div className="mx-auto max-w-3xl px-5 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <img src={golfLogo} alt="Golf" className="h-9 w-9 rounded-lg object-cover" />
-            <div className="leading-tight">
-              <div className="font-bold tracking-wide text-base text-white">GOLFMINSK</div>
-              <div className="text-[10px] uppercase tracking-[0.2em]" style={{ color: "rgba(255,255,255,0.45)" }}>Live Scoring</div>
-            </div>
-          </div>
-          <div className="text-xs font-medium" style={{ color: "rgba(255,255,255,0.45)" }}>Сезон 2026</div>
-        </div>
-      </header>
-
       <main className="flex-1 mx-auto w-full max-w-3xl px-4 pt-4 pb-28">
         <Outlet />
       </main>
