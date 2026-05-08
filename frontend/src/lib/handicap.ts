@@ -39,9 +39,9 @@ function adjustHoleScore(score: number, par: number, holeHcp: number, courseHand
   return Math.min(score, netDoubleBogey);
 }
 
-// Course Handicap from Handicap Index (WHS, no correction factor for simplicity)
-export function courseHandicap(hi: number, slope: number): number {
-  return Math.round(hi * (slope / 113));
+// Course Handicap (WHS): HI × (Slope / 113) + (CR − Par)
+export function courseHandicap(hi: number, slope: number, courseRating: number, par: number): number {
+  return Math.round(hi * (slope / 113) + (courseRating - par));
 }
 
 // Score Differential (rounded to 1 decimal)
@@ -49,7 +49,7 @@ export function calcDifferential(adjustedGross: number, courseRating: number, sl
   return Math.round(((adjustedGross - courseRating) * (113 / slope)) * 10) / 10;
 }
 
-// Handicap Index from array of differentials (uses last 20, best N, × 0.96)
+// Handicap Index: average of best N differentials from last 20 rounds, rounded to 1 decimal
 export function calcHandicapIndex(diffs: number[]): number | null {
   const n = diffs.length;
   if (n < 3) return null;
@@ -57,7 +57,7 @@ export function calcHandicapIndex(diffs: number[]): number | null {
   const sorted = [...diffs].sort((a, b) => a - b);
   const best = sorted.slice(0, useCount);
   const avg = best.reduce((s, d) => s + d, 0) / best.length;
-  return Math.min(54.0, Math.floor(avg * 0.96 * 10) / 10);
+  return Math.min(54.0, Math.round(avg * 10) / 10);
 }
 
 // How many differentials are used in calculation
@@ -83,7 +83,8 @@ export function getDifferentials(
 
   const result: ScoreDifferential[] = completed.map((r) => {
     const course = COURSES.find((c) => c.id === r.courseId);
-    const ch = courseHandicap(storedHcp, r.slope);
+    const par = course?.totalPar ?? 72;
+    const ch = courseHandicap(storedHcp, r.slope, r.rating, par);
     const holeScores = r.scores[playerId] ?? [];
 
     let gross = 0;
