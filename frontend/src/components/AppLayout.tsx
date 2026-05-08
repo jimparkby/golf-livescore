@@ -1,7 +1,7 @@
-import { useEffect } from "react";
-import { NavLink, Outlet } from "react-router-dom";
+import { useLocation, NavLink, Outlet } from "react-router-dom";
 import { Trophy, CircleUserRound, LineChart, Flag } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useTelegram } from "@/hooks/useTelegram";
 
 const tabs = [
   { to: "/", label: "Играть", icon: Flag, end: true },
@@ -10,24 +10,56 @@ const tabs = [
   { to: "/profile", label: "Профиль", icon: CircleUserRound },
 ];
 
+const PAGE_TITLES: Record<string, string> = {
+  "/tournaments": "ТУРНИРЫ",
+  "/stats":       "СТАТИСТИКА",
+  "/profile":     "ПРОФИЛЬ",
+};
+
 const AppLayout = () => {
-  useEffect(() => {
-    const tg = (window as any).Telegram?.WebApp;
-    if (tg) {
-      tg.ready();
-      tg.expand();
-      if (tg.requestFullscreen) tg.requestFullscreen();
-    }
-  }, []);
+  useTelegram();
+  const { pathname } = useLocation();
+  const title = PAGE_TITLES[pathname];
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
-      <main className="flex-1 mx-auto w-full max-w-3xl px-4 pt-4 pb-28">
+    <div className="flex flex-col" style={{ minHeight: "100dvh" }}>
+      {/* Fixed header — height accounts for Telegram's top bar in fullscreen */}
+      <header
+        className="fixed top-0 inset-x-0 z-40 flex items-end justify-center"
+        style={{
+          background: "#000000",
+          borderBottom: "1px solid rgba(255,255,255,0.07)",
+          height: "calc(var(--header-h) + var(--tg-safe-top))",
+          paddingBottom: "10px",
+        }}
+      >
+        <span
+          className="text-white font-bold tracking-[0.18em]"
+          style={{ fontSize: title ? "13px" : "18px", letterSpacing: title ? "0.1em" : "0.18em" }}
+        >
+          {title ?? "GOLFMINSK"}
+        </span>
+      </header>
+
+      <main
+        className="flex-1 mx-auto w-full max-w-3xl px-4"
+        style={{
+          paddingTop: "calc(var(--header-h) + var(--tg-safe-top) + 16px)",
+          paddingBottom: "calc(var(--nav-h) + var(--tg-safe-bottom) + 8px)",
+        }}
+      >
         <Outlet />
       </main>
 
-      <nav className="fixed bottom-0 inset-x-0 z-30" style={{ background: "#000000", borderTop: "1px solid rgba(255,255,255,0.07)" }}>
-        <div className="mx-auto max-w-3xl grid grid-cols-4" style={{ paddingBottom: "env(safe-area-inset-bottom)" }}>
+      <nav
+        className="fixed bottom-0 inset-x-0 z-30"
+        style={{
+          background: "#000000",
+          borderTop: "1px solid rgba(255,255,255,0.07)",
+          height: "calc(var(--nav-h) + var(--tg-safe-bottom))",
+        }}
+      >
+        <div className="mx-auto max-w-3xl grid grid-cols-4 h-[var(--nav-h)]">
           {tabs.map(({ to, label, icon: Icon, end }) => (
             <NavLink
               key={to}
@@ -35,7 +67,7 @@ const AppLayout = () => {
               end={end}
               className={({ isActive }) =>
                 cn(
-                  "relative flex flex-col items-center gap-1 py-3 text-[11px] font-medium transition-base",
+                  "relative flex flex-col items-center justify-center gap-1 text-[11px] font-medium transition-base",
                   isActive ? "text-action" : "text-muted-foreground",
                 )
               }
