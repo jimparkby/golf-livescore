@@ -10,24 +10,33 @@ const tabs = [
   { to: "/profile", label: "Профиль", icon: CircleUserRound },
 ];
 
+export const AppHeader = ({ title }: { title?: string }) => (
+  <div
+    className="fixed top-0 inset-x-0 z-40 flex items-end justify-center"
+    style={{
+      height: "calc(var(--header-h) + var(--tg-safe-top))",
+      background: "#000000",
+      borderBottom: "1px solid rgba(255,255,255,0.07)",
+      paddingBottom: "10px",
+    }}
+  >
+    <span className="text-white font-bold tracking-[0.18em] text-base">
+      {title ?? "GOLF"}
+    </span>
+  </div>
+);
+
 const AppLayout = () => {
   useTelegram();
 
   return (
     <div className="flex flex-col" style={{ minHeight: "100dvh" }}>
-      {/* Spacer that reserves space for Telegram's top bar in fullscreen */}
-      <div
-        className="fixed top-0 inset-x-0 z-40"
-        style={{
-          background: "#000000",
-          height: "var(--tg-safe-top)",
-        }}
-      />
+      <AppHeader />
 
       <main
         className="flex-1 mx-auto w-full max-w-3xl px-4"
         style={{
-          paddingTop: "calc(var(--tg-safe-top) + 16px)",
+          paddingTop: "calc(var(--header-h) + var(--tg-safe-top) + 16px)",
           paddingBottom: "calc(var(--nav-h) + var(--tg-safe-bottom) + 8px)",
         }}
       >

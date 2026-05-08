@@ -561,8 +561,11 @@ const RoundPlayer = ({ onExit }: { onExit: () => void }) => {
     return (
       <div
         className="fixed inset-0 z-50 flex flex-col"
-        style={{ background: "#0a0a0a", paddingTop: "calc(var(--tg-safe-top) + 16px)", paddingBottom: "calc(var(--tg-safe-bottom) + 16px)" }}
+        style={{ background: "#0a0a0a" }}
       >
+        <div className="shrink-0 flex items-end justify-center" style={{ height: "calc(var(--header-h) + var(--tg-safe-top))", borderBottom: "1px solid rgba(255,255,255,0.07)", paddingBottom: "10px" }}>
+          <span className="text-white font-bold tracking-[0.18em] text-base">GOLF</span>
+        </div>
         <div className="flex-1 overflow-y-auto px-5 py-6">
           <div className="text-center mb-6">
             <div className="text-white/60 text-sm uppercase tracking-wider mb-2">Подтвердите счет</div>
@@ -668,8 +671,11 @@ const RoundPlayer = ({ onExit }: { onExit: () => void }) => {
     return (
       <div
         className="fixed inset-0 z-50 flex flex-col"
-        style={{ background: "#0a0a0a", paddingTop: "calc(var(--tg-safe-top) + 16px)", paddingBottom: "calc(var(--tg-safe-bottom) + 16px)" }}
+        style={{ background: "#0a0a0a" }}
       >
+        <div className="shrink-0 flex items-end justify-center" style={{ height: "calc(var(--header-h) + var(--tg-safe-top))", borderBottom: "1px solid rgba(255,255,255,0.07)", paddingBottom: "10px" }}>
+          <span className="text-white font-bold tracking-[0.18em] text-base">GOLF</span>
+        </div>
         <div className="flex-1 flex flex-col items-center justify-center px-5 gap-6 overflow-y-auto">
           <div className="text-center">
             <div
@@ -806,10 +812,22 @@ const RoundPlayer = ({ onExit }: { onExit: () => void }) => {
   return (
     <div className="fixed inset-0 z-50 flex flex-col" style={{ background: "#0a0a0a" }}>
 
-      {/* ── Top: hole navigation ── */}
+      {/* ── GILDA-style header ── */}
       <div
-        className="flex items-center justify-between px-5"
-        style={{ paddingTop: `calc(var(--tg-safe-top) + 14px)`, paddingBottom: 10 }}
+        className="shrink-0 flex items-end justify-center"
+        style={{
+          height: "calc(var(--header-h) + var(--tg-safe-top))",
+          borderBottom: "1px solid rgba(255,255,255,0.07)",
+          paddingBottom: "10px",
+        }}
+      >
+        <span className="text-white font-bold tracking-[0.18em] text-base">GOLF</span>
+      </div>
+
+      {/* ── Hole navigation (fully below Telegram bar) ── */}
+      <div
+        className="flex items-center justify-between px-5 shrink-0"
+        style={{ paddingTop: 14, paddingBottom: 10 }}
       >
         <button
           onClick={onExit}
