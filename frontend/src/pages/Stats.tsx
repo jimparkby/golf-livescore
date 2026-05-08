@@ -30,7 +30,7 @@ const StatsPage = () => {
     return { id: r.id, total, isGreen: total <= 95 };
   });
   const max = Math.max(...totals.map((t) => t.total), 1);
-  const hcpChanged = whsIndex !== null && Math.abs(whsIndex - profile.hcp) >= 0.1;
+  const hcpChanged = false; // HCP is now auto-applied in Profile.tsx via useEffect
 
   const playerName = profile.firstName
     ? `${profile.firstName} ${profile.lastName}`.trim()

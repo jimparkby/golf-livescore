@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { BASE } from "@/lib/api";
 import { useGolf } from "@/store/golfStore";
 import { useAuth } from "@/hooks/useAuth";
@@ -7,7 +7,7 @@ import { Avatar } from "@/components/PlayerAvatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Pencil, Check, MapPin, Calendar, Trophy, Camera, LogOut } from "lucide-react";
+import { Pencil, Check, MapPin, Calendar, Trophy, Camera, LogOut, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { getDifferentials, calcHandicapIndex, playingHandicap } from "@/lib/handicap";
 import { COURSES } from "@/lib/courses";
@@ -33,10 +33,23 @@ const ProfilePage = () => {
   const diffs = useMemo(() => getDifferentials(rounds, "me", profile.hcp), [rounds, profile.hcp]);
   const whsIndex = calcHandicapIndex(diffs.map((d) => d.differential));
 
-  const save = () => {
-    updateProfile(draft);
-    setEditing(false);
-    toast.success("Профиль обновлён");
+  // Auto-apply WHS index to profile whenever it changes
+  useEffect(() => {
+    if (whsIndex === null) return;
+    if (Math.abs(whsIndex - profile.hcp) < 0.1) return;
+    updateProfile({ hcp: whsIndex });
+    const token = localStorage.getItem('golf_jwt');
+    fetch(`${BASE}/api/profile`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify({ hcp: whsIndex }),
+    }).catch(console.error);
+  }, [whsIndex]);
+
+  const syncProfile = (data: typeof draft) => {
     const token = localStorage.getItem('golf_jwt');
     fetch(`${BASE}/api/profile`, {
       method: "PUT",
@@ -45,13 +58,21 @@ const ProfilePage = () => {
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
       body: JSON.stringify({
-        first_name: draft.firstName,
-        last_name: draft.lastName,
-        hcp: draft.hcp,
-        home_club: draft.homeClub,
-        city: draft.city,
+        first_name: data.firstName,
+        last_name: data.lastName,
+        username: data.username,
+        hcp: data.hcp,
+        home_club: data.homeClub,
+        city: data.city,
       }),
     }).catch(console.error);
+  };
+
+  const save = () => {
+    updateProfile(draft);
+    setEditing(false);
+    toast.success("Профиль обновлён");
+    syncProfile(draft);
   };
 
   const playedTotals = rounds
@@ -161,15 +182,6 @@ const ProfilePage = () => {
               );
             })}
           </div>
-          {Math.abs(whsIndex - profile.hcp) >= 0.1 && (
-            <button
-              onClick={() => { updateProfile({ hcp: whsIndex }); toast.success(`HCP обновлён до ${whsIndex.toFixed(1)}`); }}
-              className="mt-3 w-full h-10 rounded-xl font-bold text-sm transition-colors"
-              style={{ background: "rgba(34,197,94,0.12)", border: "1.5px solid rgba(34,197,94,0.4)", color: "#22c55e" }}
-            >
-              Применить WHS: {profile.hcp} → {whsIndex.toFixed(1)}
-            </button>
-          )}
         </Card>
       )}
 
@@ -183,6 +195,13 @@ const ProfilePage = () => {
             <Field label="Фамилия">
               <Input value={draft.lastName} onChange={(e) => setDraft({ ...draft, lastName: e.target.value })} />
             </Field>
+            <Field label="Никнейм" className="col-span-2">
+              <Input
+                value={draft.username}
+                onChange={(e) => setDraft({ ...draft, username: e.target.value })}
+                placeholder="@username"
+              />
+            </Field>
             <Field label="HCP (ручной)">
               <Input type="number" step="0.1" value={draft.hcp} onChange={(e) => setDraft({ ...draft, hcp: Number(e.target.value) })} />
             </Field>
@@ -193,6 +212,15 @@ const ProfilePage = () => {
               <Input value={draft.homeClub} onChange={(e) => setDraft({ ...draft, homeClub: e.target.value })} />
             </Field>
           </div>
+          {draft.photoUrl && (
+            <button
+              onClick={() => setDraft({ ...draft, photoUrl: "" })}
+              className="w-full flex items-center justify-center gap-2 h-10 rounded-xl text-sm font-semibold transition-colors"
+              style={{ background: "rgba(239,68,68,0.1)", border: "1.5px solid rgba(239,68,68,0.3)", color: "#ef4444" }}
+            >
+              <Trash2 className="h-4 w-4" /> Удалить фото
+            </button>
+          )}
           <Button onClick={save} className="w-full bg-action hover:bg-action/90 text-action-foreground rounded-xl h-12">
             Сохранить изменения
           </Button>

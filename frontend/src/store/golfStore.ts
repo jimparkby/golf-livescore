@@ -43,6 +43,7 @@ export type Round = {
 export type Profile = {
   firstName: string;
   lastName: string;
+  username: string;
   initials: string;
   hcp: number;
   homeClub: string;
@@ -92,6 +93,7 @@ const mkInitials = (name: string) =>
 const defaultProfile: Profile = {
   firstName: "",
   lastName: "",
+  username: "",
   initials: "",
   hcp: 0,
   homeClub: "Golf Club Minsk",
