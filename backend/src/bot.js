@@ -105,10 +105,9 @@ if (!token) {
 
   bot.onText(/\/start/, (msg) => {
     const chatId = msg.chat.id
-    const firstName = msg.from?.first_name ?? 'Игрок'
     bot.sendMessage(
       chatId,
-      `Привет, ${firstName}! 👋\n\nДобро пожаловать в GolfMinsk Live — live-скоринг, турниры и статистика для Golf Club Minsk.\n\nНажми кнопку ниже, чтобы открыть приложение. ⛳`,
+      'Добро пожаловать в GolfMinsk Live.\n\nLive-скоринг, турниры и статистика для Golf Club Minsk.\n\nНажмите кнопку ниже, чтобы открыть приложение.',
       webAppBtn('Открыть')
     )
   })
