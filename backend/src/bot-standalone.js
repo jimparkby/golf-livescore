@@ -51,21 +51,48 @@ function generateTip(scores) {
   if (scores.length === 0) return null
 
   const n = scores.length
-  const avgPutts = scores.reduce((s, h) => s + (h.putts || 0), 0) / n
-  const threePuttRate = scores.filter(h => h.putts >= 3).length / n
-  const bunkerRate = scores.reduce((s, h) => s + (h.bunker || 0), 0) / n
-  const girPct = scores.filter(h => h.gir).length / n
+  const totalPutts = scores.reduce((s, h) => s + (h.putts || 0), 0)
+  const avgPutts = totalPutts / n
+  const threePutts = scores.filter(h => h.putts >= 3).length
+  const threePuttRate = threePutts / n
+  const totalBunkers = scores.reduce((s, h) => s + (h.bunker || 0), 0)
+  const bunkerRate = totalBunkers / n
+  const girCount = scores.filter(h => h.gir).length
+  const girPct = girCount / n
 
-  // Pick tip for the weakest stat
+  // Score each weakness, pick the worst one
   const candidates = [
-    { score: avgPutts - 1.8,      tip: `Сосредоточься на паттинге — в среднем ${avgPutts.toFixed(1)} патта за лунку, это можно улучшить! 🎯` },
-    { score: threePuttRate - 0.1,  tip: 'Читай грин тщательнее — трёхпатты сильно бьют по счёту. 📍' },
-    { score: bunkerRate - 0.3,     tip: 'Поработай над выходом из бункера — это сэкономит удары. ⛱️' },
-    { score: 0.5 - girPct,         tip: 'Точность подходов к грину — ключ к меньшему числу ударов. 📐' },
+    {
+      score: avgPutts - 2.0,
+      tip: `${avgPutts.toFixed(1)} патта за лунку в среднем — перед раундом поработай 10 минут над паттами с 2–3 метров 🎯`,
+    },
+    {
+      score: threePuttRate - 0.12,
+      tip: `${threePutts} трёхпатта за последние ${n} лунок — на длинных паттах целься в метровый круг вокруг лунки, не в саму лунку 📍`,
+    },
+    {
+      score: bunkerRate - 0.4,
+      tip: `Много бункеров (${totalBunkers} за ${n} лунок) — открывай фейс на 30°, бей на 3 см позади мяча и ускоряй клюшку через удар ⛱️`,
+    },
+    {
+      score: 0.33 - girPct,
+      tip: `GIR ${Math.round(girPct * 100)}% — выбирай клюшку на полшага короче расчётной дистанции, целься в центр грина 📐`,
+    },
   ]
 
   const best = candidates.reduce((a, b) => (b.score > a.score ? b : a))
-  return best.score > 0 ? best.tip : 'Доверяй своей игре и получай удовольствие! ⛳'
+
+  if (best.score <= 0) {
+    // All stats look solid
+    const goodTips = [
+      'Статистика отличная — играй в своём темпе и доверяй свингу ⛳',
+      `${Math.round(girPct * 100)}% GIR — хорошая точность. Сегодня атакуй флаги на пар-3 🏹`,
+      'Держишь форму — сосредоточься на ритме паттинга и не спеши на грине ⛳',
+    ]
+    return goodTips[Math.floor(Math.random() * goodTips.length)]
+  }
+
+  return best.tip
 }
 
 const webAppBtn = (label = '⛳ Открыть приложение') => ({

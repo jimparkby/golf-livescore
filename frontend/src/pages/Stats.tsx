@@ -17,7 +17,7 @@ const StatsPage = () => {
   );
 
   const diffValues = diffs.map((d) => d.differential);
-  const whsIndex = calcHandicapIndex(diffValues);
+  const hcpIndex = calcHandicapIndex(diffValues);
   const completedCount = diffs.length;
   const needed = roundsNeeded(completedCount);
   const useCount = completedCount >= 3 ? diffUseCount(completedCount) : 0;
@@ -43,17 +43,17 @@ const StatsPage = () => {
         <h1 className="text-2xl font-bold mt-1">Статистика</h1>
       </div>
 
-      {/* ── WHS Handicap Index ── */}
+      {/* ── HCP Index ── */}
       <Card className="overflow-hidden shadow-elevated">
         <div className="p-5">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <div className="text-xs uppercase tracking-[0.2em] font-bold text-action mb-1">WHS Гандикап-Индекс</div>
-              {whsIndex !== null ? (
+              <div className="text-xs uppercase tracking-[0.2em] font-bold text-action mb-1">Гандикап-Индекс</div>
+              {hcpIndex !== null ? (
                 <>
-                  <div className="text-5xl font-black tabular-nums text-foreground leading-none">{whsIndex.toFixed(1)}</div>
+                  <div className="text-5xl font-black tabular-nums text-foreground leading-none">{hcpIndex.toFixed(1)}</div>
                   <div className="text-xs text-muted-foreground mt-1.5">
-                    лучшие {useCount} из {completedCount} раундов (WHS)
+                    лучшие {useCount} из {completedCount} раундов
                   </div>
                 </>
               ) : (
@@ -65,12 +65,12 @@ const StatsPage = () => {
                 </>
               )}
             </div>
-            {whsIndex !== null && (
+            {hcpIndex !== null && (
               <div className="text-right space-y-1.5 shrink-0">
                 <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Гандикап поля</div>
                 {COURSE_LIST.map((c) => {
                   const tee = c.tees.find(t => t.color === "yellow") ?? c.tees[0];
-                  const ch = Math.round(whsIndex * (tee.slope / 113) + (tee.rating - c.totalPar));
+                  const ch = Math.round(hcpIndex * (tee.slope / 113) + (tee.rating - c.totalPar));
                   return (
                     <div key={c.id} className="flex items-center gap-2 justify-end">
                       <span className="text-xs text-muted-foreground">{c.name}</span>
@@ -83,11 +83,11 @@ const StatsPage = () => {
           </div>
           {hcpChanged && (
             <button
-              onClick={() => { updateProfile({ hcp: whsIndex! }); }}
+              onClick={() => { updateProfile({ hcp: hcpIndex! }); }}
               className="mt-4 w-full h-11 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-colors"
               style={{ background: "rgba(34,197,94,0.12)", border: "1.5px solid rgba(34,197,94,0.4)", color: "#22c55e" }}
             >
-              Обновить профиль: HCP {profile.hcp} → {whsIndex!.toFixed(1)}
+              Обновить профиль: HCP {profile.hcp} → {hcpIndex!.toFixed(1)}
             </button>
           )}
         </div>

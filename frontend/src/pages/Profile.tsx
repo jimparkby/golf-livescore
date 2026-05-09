@@ -31,15 +31,15 @@ const ProfilePage = () => {
     e.target.value = "";
   };
 
-  // WHS calculation
+  // HCP calculation from completed rounds
   const diffs = useMemo(() => getDifferentials(rounds, "me", profile.hcp), [rounds, profile.hcp]);
-  const whsIndex = calcHandicapIndex(diffs.map((d) => d.differential));
+  const hcpIndex = calcHandicapIndex(diffs.map((d) => d.differential));
 
-  // Auto-apply WHS index to profile whenever it changes
+  // Auto-apply calculated HCP to profile whenever it changes
   useEffect(() => {
-    if (whsIndex === null) return;
-    if (Math.abs(whsIndex - profile.hcp) < 0.1) return;
-    updateProfile({ hcp: whsIndex });
+    if (hcpIndex === null) return;
+    if (Math.abs(hcpIndex - profile.hcp) < 0.1) return;
+    updateProfile({ hcp: hcpIndex });
     const token = localStorage.getItem('golf_jwt');
     fetch(`${BASE}/api/profile`, {
       method: "PUT",
@@ -47,9 +47,9 @@ const ProfilePage = () => {
         "Content-Type": "application/json",
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
-      body: JSON.stringify({ hcp: whsIndex }),
+      body: JSON.stringify({ hcp: hcpIndex }),
     }).catch(console.error);
-  }, [whsIndex]);
+  }, [hcpIndex]);
 
   const pushSetting = (patch: Partial<typeof profile>) => {
     updateProfile(patch);
@@ -104,7 +104,7 @@ const ProfilePage = () => {
     : 0;
 
   const isEmpty = !profile.firstName && !profile.lastName;
-  const hcpToShow = whsIndex ?? profile.hcp;
+  const hcpToShow = hcpIndex ?? profile.hcp;
 
   return (
     <div className="space-y-5 animate-in fade-in duration-300">
@@ -157,9 +157,9 @@ const ProfilePage = () => {
             <div className="text-center bg-primary-foreground/10 backdrop-blur rounded-xl py-3 relative">
               <div className="text-2xl font-bold tabular-nums">{hcpToShow.toFixed(1)}</div>
               <div className="text-[10px] uppercase tracking-wider opacity-70 mt-0.5">
-                {whsIndex !== null ? "WHS" : "HCP"}
+                HCP
               </div>
-              {whsIndex !== null && (
+              {hcpIndex !== null && (
                 <div className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-action grid place-items-center">
                   <svg width="8" height="6" viewBox="0 0 8 6" fill="none">
                     <path d="M1 3L3 5L7 1" stroke="black" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
@@ -173,17 +173,17 @@ const ProfilePage = () => {
         </div>
       </Card>
 
-      {/* WHS Handicap detail */}
-      {whsIndex !== null && (
+      {/* HCP detail */}
+      {hcpIndex !== null && (
         <Card className="p-4 shadow-soft">
           <div className="flex items-center justify-between mb-3">
-            <div className="text-xs uppercase tracking-[0.2em] font-bold text-action">WHS Гандикап-Индекс</div>
-            <div className="text-2xl font-black text-foreground tabular-nums">{whsIndex.toFixed(1)}</div>
+            <div className="text-xs uppercase tracking-[0.2em] font-bold text-action">Гандикап-Индекс</div>
+            <div className="text-2xl font-black text-foreground tabular-nums">{hcpIndex.toFixed(1)}</div>
           </div>
           <div className="grid grid-cols-2 gap-2">
             {COURSES.map((c) => {
               const yellowTee = c.tees.find(t => t.color === "yellow") ?? c.tees[0];
-              const ph = playingHandicap(whsIndex, yellowTee.slope, yellowTee.rating, c.totalPar);
+              const ph = playingHandicap(hcpIndex, yellowTee.slope, yellowTee.rating, c.totalPar);
               return (
                 <div key={c.id} className="flex items-center justify-between px-3 py-2 rounded-xl bg-muted">
                   <div>

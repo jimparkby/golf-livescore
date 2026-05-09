@@ -1,7 +1,7 @@
 import { type Round } from "@/store/golfStore";
 import { COURSES } from "@/lib/courses";
 
-// WHS table: rounds played → how many best differentials to average
+// Rounds played → how many best differentials to average
 const DIFF_USE_COUNT: Record<number, number> = {
   3: 1, 4: 1, 5: 1,
   6: 2, 7: 2, 8: 2,
@@ -39,7 +39,7 @@ function adjustHoleScore(score: number, par: number, holeHcp: number, courseHand
   return Math.min(score, netDoubleBogey);
 }
 
-// Course Handicap (WHS): HI × (Slope / 113) + (CR − Par)
+// Course Handicap: HI × (Slope / 113) + (CR − Par)
 export function courseHandicap(hi: number, slope: number, courseRating: number, par: number): number {
   return Math.round(hi * (slope / 113) + (courseRating - par));
 }
@@ -71,7 +71,7 @@ export function roundsNeeded(current: number): number {
 }
 
 // Build full differentials list from rounds for a given player
-// storedHcp is used to compute the Net Double Bogey adjustment (WHS standard)
+// storedHcp is used to compute the Net Double Bogey adjustment per hole
 export function getDifferentials(
   rounds: Round[],
   playerId: string,
