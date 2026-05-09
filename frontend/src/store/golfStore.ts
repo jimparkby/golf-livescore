@@ -149,14 +149,12 @@ export const useGolf = create<State>()(
         };
         set({ activeRound: round });
 
-        // Notify registered participants (players added via search have UUID ids)
+        // Always notify: sends tip to current player + notifies any registered participants
         const registeredParticipants = players.filter((p) => !p.isMe && isUUID(p.id));
-        if (registeredParticipants.length > 0) {
-          api.post('/api/notifications/round-start', {
-            playerIds: registeredParticipants.map((p) => p.id),
-            courseName: course.name,
-          }).catch(() => {});
-        }
+        api.post('/api/notifications/round-start', {
+          playerIds: registeredParticipants.map((p) => p.id),
+          courseName: course.name,
+        }).catch(() => {});
       },
 
       cancelActiveRound: () => set({ activeRound: null }),

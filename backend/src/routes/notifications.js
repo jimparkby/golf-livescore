@@ -44,11 +44,9 @@ router.post('/tournament', requireAuth, async (req, res, next) => {
 })
 
 // POST /api/notifications/round-start
-// Called by frontend immediately when a round starts with registered players
+// Called by frontend when a round starts — notifies starter + any registered participants
 router.post('/round-start', requireAuth, async (req, res, next) => {
-  const { playerIds, courseName } = req.body   // playerIds: UUID array
-  if (!Array.isArray(playerIds) || playerIds.length === 0)
-    return res.json({ notified: 0 })
+  const { playerIds, courseName } = req.body   // playerIds: UUID array (may be empty)
 
   try {
     const { rows: [requester] } = await db.query(
@@ -79,13 +77,15 @@ router.post('/round-start', requireAuth, async (req, res, next) => {
     }
 
     // Notify other registered participants
-    const { rows: targets } = await db.query(
-      `SELECT telegram_id, first_name FROM users
-       WHERE id = ANY($1::uuid[])
-         AND notifications_enabled = true
-         AND telegram_id IS NOT NULL`,
-      [playerIds]
-    )
+    const targets = Array.isArray(playerIds) && playerIds.length > 0
+      ? (await db.query(
+          `SELECT telegram_id, first_name FROM users
+           WHERE id = ANY($1::uuid[])
+             AND notifications_enabled = true
+             AND telegram_id IS NOT NULL`,
+          [playerIds]
+        )).rows
+      : []
     for (const u of targets) {
       try {
         await bot.sendMessage(
