@@ -2,7 +2,6 @@ import 'dotenv/config'
 import TelegramBot from 'node-telegram-bot-api'
 import cron from 'node-cron'
 import pg from 'pg'
-import Anthropic from '@anthropic-ai/sdk'
 import { createRequire } from 'module'
 
 const require = createRequire(import.meta.url)
@@ -48,25 +47,25 @@ const botOpts = proxyAgent
 
 const bot = new TelegramBot(token, botOpts)
 
-async function generateTip(user, scores) {
-  if (!process.env.ANTHROPIC_API_KEY || scores.length === 0) return null
-  const totalPutts = scores.reduce((s, h) => s + (h.putts || 0), 0)
-  const threePutt = scores.filter(h => h.putts >= 3).length
-  const bunkers = scores.reduce((s, h) => s + (h.bunker || 0), 0)
-  const girCount = scores.filter(h => h.gir).length
+function generateTip(scores) {
+  if (scores.length === 0) return null
+
   const n = scores.length
-  const avgPutts = (totalPutts / n).toFixed(1)
-  const girPct = Math.round((girCount / n) * 100)
-  const client = new Anthropic()
-  const msg = await client.messages.create({
-    model: 'claude-haiku-4-5-20251001',
-    max_tokens: 80,
-    messages: [{
-      role: 'user',
-      content: `Гольфист ${user.first_name}, HCP ${user.hcp}. Последние ${n} лунок: среднее патт/лунка ${avgPutts}, 3-паттов ${threePutt}, бункеров ${bunkers}, GIR ${girPct}%. Напиши ОДНУ конкретную дружескую подсказку на русском (до 15 слов), основываясь на главной слабости. Только текст, без вводных слов.`,
-    }],
-  })
-  return msg.content[0]?.text?.trim() ?? null
+  const avgPutts = scores.reduce((s, h) => s + (h.putts || 0), 0) / n
+  const threePuttRate = scores.filter(h => h.putts >= 3).length / n
+  const bunkerRate = scores.reduce((s, h) => s + (h.bunker || 0), 0) / n
+  const girPct = scores.filter(h => h.gir).length / n
+
+  // Pick tip for the weakest stat
+  const candidates = [
+    { score: avgPutts - 1.8,      tip: `Сосредоточься на паттинге — в среднем ${avgPutts.toFixed(1)} патта за лунку, это можно улучшить! 🎯` },
+    { score: threePuttRate - 0.1,  tip: 'Читай грин тщательнее — трёхпатты сильно бьют по счёту. 📍' },
+    { score: bunkerRate - 0.3,     tip: 'Поработай над выходом из бункера — это сэкономит удары. ⛱️' },
+    { score: 0.5 - girPct,         tip: 'Точность подходов к грину — ключ к меньшему числу ударов. 📐' },
+  ]
+
+  const best = candidates.reduce((a, b) => (b.score > a.score ? b : a))
+  return best.score > 0 ? best.tip : 'Доверяй своей игре и получай удовольствие! ⛳'
 }
 
 const webAppBtn = (label = '⛳ Открыть приложение') => ({
@@ -113,9 +112,6 @@ cron.schedule('* * * * *', async () => {
         // For round-start: generate personalized tip via Claude (runs on GH Actions, Anthropic is accessible)
         if (notif.context === 'round-start' && notif.user_id) {
           try {
-            const { rows: [user] } = await db.query(
-              'SELECT first_name, hcp FROM users WHERE id = $1', [notif.user_id]
-            )
             const { rows: scores } = await db.query(
               `SELECT hs.putts, hs.bunker, hs.gir
                FROM hole_scores hs
@@ -124,7 +120,7 @@ cron.schedule('* * * * *', async () => {
                ORDER BY r.date DESC LIMIT 54`,
               [notif.user_id]
             )
-            const tip = await generateTip(user, scores)
+            const tip = generateTip(scores)
             if (tip) message = tip
           } catch (e) {
             console.error('[bot] tip error for notif', notif.id, ':', e.message)
