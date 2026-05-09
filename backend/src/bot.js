@@ -156,7 +156,7 @@ if (!token) {
 
   bot.on('polling_error', (err) => console.error('[bot] Polling error:', err.message))
 
-  cron.schedule('*/10 * * * *', runScheduledNotifications)
+  cron.schedule('* * * * *', runScheduledNotifications)
 
   console.log('[bot] Bot initialized (polling mode)')
 }
