@@ -6,7 +6,7 @@ import { COURSES, TEE_CONFIG, type TeeColor } from "@/lib/courses";
 import { useGolf, type Player, type Round } from "@/store/golfStore";
 import { compressImage } from "@/lib/imageUtils";
 import { api } from "@/lib/api";
-import { ChevronLeft, ChevronRight, Plus, Cog, X, PlayCircle, Flag, Camera, Check, Search } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, X, PlayCircle, Flag, Camera, Check, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import heroImg from "@/assets/golfminsk/hero.jpg";
@@ -336,18 +336,13 @@ const SetupScreen = ({
           </div>
         </Card>
 
-        <div className="grid gap-3">
-          <Button
-            onClick={onStart}
-            size="lg"
-            className="h-14 bg-action hover:bg-action/90 text-action-foreground rounded-xl text-base font-semibold shadow-glow transition-spring"
-          >
-            Start Round · {course?.name}
-          </Button>
-          <Button variant="outline" className="h-12 rounded-xl">
-            <Cog className="h-4 w-4 mr-2" /> Edit Round Settings
-          </Button>
-        </div>
+        <Button
+          onClick={onStart}
+          size="lg"
+          className="h-14 bg-action hover:bg-action/90 text-action-foreground rounded-xl text-base font-semibold shadow-glow transition-spring"
+        >
+          Start Round · {course?.name}
+        </Button>
       </div>
 
       {showAddSheet && (
