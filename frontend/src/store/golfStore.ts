@@ -101,6 +101,24 @@ function scheduleAutoSave(round: Round) {
   }, 1500)
 }
 
+// Flush active round to backend when app is hidden (Telegram close, tab switch, etc.)
+if (typeof document !== 'undefined') {
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState !== 'hidden') return
+    const round = useGolf.getState().activeRound
+    if (!round) return
+    if (autoSaveTimer) { clearTimeout(autoSaveTimer); autoSaveTimer = null }
+    const token = localStorage.getItem('golf_jwt')
+    const base = import.meta.env.VITE_BACKEND_URL ? `https://${import.meta.env.VITE_BACKEND_URL}` : ''
+    fetch(`${base}/api/rounds`, {
+      method: 'POST',
+      keepalive: true,
+      headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      body: JSON.stringify({ round }),
+    }).catch(() => {})
+  })
+}
+
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const isUUID = (id: string) => UUID_RE.test(id);
 

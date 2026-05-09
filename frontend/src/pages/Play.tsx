@@ -574,7 +574,7 @@ const scoreLabelColor = (score: number, par: number) => {
 };
 
 const RoundPlayer = ({ onExit, onCancel }: { onExit: () => void; onCancel: () => void }) => {
-  const { activeRound, enterScore, finishRound, setRoundPhoto } = useGolf();
+  const { activeRound, enterScore, finishRound, setRoundPhoto, syncRound } = useGolf();
   const [holeIdx, setHoleIdx] = useState(0);
   const [sheetPlayer, setSheetPlayer] = useState<Player | null>(null);
   const [hole, setHole] = useState({ score: 4, putts: 2, driving: false, gir: false, bunker: 0, penalties: 0 });
@@ -1048,7 +1048,11 @@ const RoundPlayer = ({ onExit, onCancel }: { onExit: () => void; onCancel: () =>
               </div>
             </div>
             <button
-              onClick={() => { setShowExitConfirm(false); onCancel(); }}
+              onClick={() => {
+                setShowExitConfirm(false);
+                if (activeRound) syncRound(activeRound).catch(() => {});
+                onCancel();
+              }}
               className="w-full h-13 rounded-2xl font-bold text-sm py-4"
               style={{ background: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.7)" }}
             >
