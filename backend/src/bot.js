@@ -1,7 +1,31 @@
 import TelegramBot from 'node-telegram-bot-api'
 import cron from 'node-cron'
 import Anthropic from '@anthropic-ai/sdk'
+import { createRequire } from 'module'
 import { db } from './db.js'
+
+const require = createRequire(import.meta.url)
+
+function createProxyAgent() {
+  const proxyUrl = process.env.TELEGRAM_PROXY_URL
+  if (!proxyUrl) return null
+  try {
+    if (/^socks/i.test(proxyUrl)) {
+      const { SocksProxyAgent } = require('socks-proxy-agent')
+      return new SocksProxyAgent(proxyUrl)
+    }
+    const { HttpsProxyAgent } = require('https-proxy-agent')
+    return new HttpsProxyAgent(proxyUrl)
+  } catch (err) {
+    console.warn('[bot] Proxy agent not created (install package):', err.message)
+    return null
+  }
+}
+
+function botOptions(extra = {}) {
+  const agent = createProxyAgent()
+  return agent ? { ...extra, request: { agent } } : extra
+}
 
 const token = process.env.TELEGRAM_BOT_TOKEN
 const webAppUrl = process.env.FRONTEND_URL || 'https://your-app-url.com'
@@ -105,7 +129,7 @@ if (!token) {
   console.warn('[bot] BACKEND_URL / FRONTEND_URL not set — bot disabled')
 } else {
   // Webhook mode: no polling conflicts, works with multiple instances
-  bot = new TelegramBot(token, { webHook: false })
+  bot = new TelegramBot(token, botOptions({ webHook: false }))
 
   bot.onText(/\/start/, async (msg) => {
     console.log('[bot] /start from', msg.from?.id)
