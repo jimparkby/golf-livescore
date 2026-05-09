@@ -98,7 +98,8 @@ function scheduleAutoSave(round: Round) {
   if (autoSaveTimer) clearTimeout(autoSaveTimer)
   autoSaveTimer = setTimeout(() => {
     api.post('/api/rounds', { round }).catch(() => {})
-  }, 1500)
+    autoSaveTimer = null
+  }, 500)
 }
 
 // Flush active round to backend when app is hidden (Telegram close, tab switch, etc.)
@@ -255,12 +256,20 @@ export const useGolf = create<State>()(
         try {
           const allRounds = await api.get<Round[]>('/api/rounds');
           const completed = allRounds.filter(r => r.completed);
-          const incomplete = allRounds.find(r => !r.completed);
-          set((s) => ({
-            rounds: completed,
-            // Restore active round from backend if not already in local state
-            activeRound: s.activeRound ?? incomplete ?? null,
-          }));
+          const incomplete = allRounds.find(r => !r.completed) ?? null;
+          set((s) => {
+            // Prefer DB version of active round — it has the latest scores
+            // even if localStorage was cleared by Telegram WebView restart
+            const local = s.activeRound;
+            let activeRound = incomplete ?? local ?? null;
+            // If both exist, use whichever has more scores (more up-to-date)
+            if (local && incomplete) {
+              const localScores = Object.values(local.scores).flat().length;
+              const dbScores = Object.values(incomplete.scores).flat().length;
+              activeRound = dbScores >= localScores ? incomplete : local;
+            }
+            return { rounds: completed, activeRound };
+          });
         } catch (err) {
           console.error('Failed to load rounds:', err);
         }

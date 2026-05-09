@@ -575,7 +575,18 @@ const scoreLabelColor = (score: number, par: number) => {
 
 const RoundPlayer = ({ onExit, onCancel }: { onExit: () => void; onCancel: () => void }) => {
   const { activeRound, enterScore, finishRound, setRoundPhoto, syncRound } = useGolf();
-  const [holeIdx, setHoleIdx] = useState(0);
+  const [holeIdx, setHoleIdx] = useState(() => {
+    if (!activeRound) return 0;
+    const course = COURSES.find(c => c.id === activeRound.courseId);
+    if (!course) return 0;
+    // Find first hole where not all players have scored
+    const firstUnscored = course.holes.findIndex(h =>
+      !activeRound.players.every(p =>
+        activeRound.scores[p.id]?.some(s => s.hole === h.number)
+      )
+    );
+    return firstUnscored >= 0 ? firstUnscored : course.holes.length - 1;
+  });
   const [sheetPlayer, setSheetPlayer] = useState<Player | null>(null);
   const [hole, setHole] = useState({ score: 4, putts: 2, driving: false, gir: false, bunker: 0, penalties: 0 });
   const [completedRound, setCompletedRound] = useState<Round | null>(null);
