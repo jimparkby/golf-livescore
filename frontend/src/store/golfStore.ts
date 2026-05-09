@@ -93,6 +93,14 @@ type State = {
 const mkInitials = (name: string) =>
   name.split(" ").map((p) => p[0]).filter(Boolean).slice(0, 2).join("").toUpperCase();
 
+let autoSaveTimer: ReturnType<typeof setTimeout> | null = null
+function scheduleAutoSave(round: Round) {
+  if (autoSaveTimer) clearTimeout(autoSaveTimer)
+  autoSaveTimer = setTimeout(() => {
+    api.post('/api/rounds', { round }).catch(() => {})
+  }, 1500)
+}
+
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const isUUID = (id: string) => UUID_RE.test(id);
 
@@ -148,6 +156,8 @@ export const useGolf = create<State>()(
           format,
         };
         set({ activeRound: round });
+        // Save to backend immediately so it survives app restarts
+        api.post('/api/rounds', { round }).catch(() => {})
 
         // Always notify: sends tip to current player + notifies any registered participants
         const registeredParticipants = players.filter((p) => !p.isMe && isUUID(p.id));
@@ -157,9 +167,13 @@ export const useGolf = create<State>()(
         }).catch(() => {});
       },
 
-      cancelActiveRound: () => set({ activeRound: null }),
+      cancelActiveRound: () => {
+        const round = get().activeRound
+        if (round) api.delete(`/api/rounds/${round.id}`).catch(() => {})
+        set({ activeRound: null })
+      },
 
-      enterScore: (playerId, score) =>
+      enterScore: (playerId, score) => {
         set((s) => {
           if (!s.activeRound) return s;
           const list = s.activeRound.scores[playerId] ?? [];
@@ -168,7 +182,10 @@ export const useGolf = create<State>()(
           if (existing >= 0) next[existing] = score;
           else next.push(score);
           return { activeRound: { ...s.activeRound, scores: { ...s.activeRound.scores, [playerId]: next } } };
-        }),
+        });
+        const updated = get().activeRound
+        if (updated) scheduleAutoSave(updated)
+      },
 
       finishRound: async () => {
         const a = get().activeRound;
@@ -218,8 +235,14 @@ export const useGolf = create<State>()(
 
       loadRounds: async () => {
         try {
-          const rounds = await api.get<Round[]>('/api/rounds');
-          set({ rounds });
+          const allRounds = await api.get<Round[]>('/api/rounds');
+          const completed = allRounds.filter(r => r.completed);
+          const incomplete = allRounds.find(r => !r.completed);
+          set((s) => ({
+            rounds: completed,
+            // Restore active round from backend if not already in local state
+            activeRound: s.activeRound ?? incomplete ?? null,
+          }));
         } catch (err) {
           console.error('Failed to load rounds:', err);
         }
