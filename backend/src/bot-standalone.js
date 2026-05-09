@@ -2,6 +2,9 @@ import 'dotenv/config'
 import TelegramBot from 'node-telegram-bot-api'
 import cron from 'node-cron'
 import pg from 'pg'
+import { createRequire } from 'module'
+
+const require = createRequire(import.meta.url)
 
 const { Pool } = pg
 const db = new Pool({
@@ -21,7 +24,28 @@ if (!token) {
   process.exit(1)
 }
 
-const bot = new TelegramBot(token, { polling: true })
+function createProxyAgent() {
+  const proxyUrl = process.env.TELEGRAM_PROXY_URL
+  if (!proxyUrl) return null
+  try {
+    if (/^socks/i.test(proxyUrl)) {
+      const { SocksProxyAgent } = require('socks-proxy-agent')
+      return new SocksProxyAgent(proxyUrl)
+    }
+    const { HttpsProxyAgent } = require('https-proxy-agent')
+    return new HttpsProxyAgent(proxyUrl)
+  } catch (err) {
+    console.warn('[bot] Proxy agent not created (install package):', err.message)
+    return null
+  }
+}
+
+const proxyAgent = createProxyAgent()
+const botOpts = proxyAgent
+  ? { polling: true, request: { agent: proxyAgent } }
+  : { polling: true }
+
+const bot = new TelegramBot(token, botOpts)
 
 const webAppBtn = (label = '⛳ Открыть приложение') => ({
   reply_markup: {

@@ -123,10 +123,14 @@ async function runScheduledNotifications() {
   }
 }
 
+// BOT_POLLING=true enables polling in this process.
+// When the standalone bot (bot-standalone.js) runs separately, keep this false
+// to avoid two polling instances conflicting over the same token.
+const enablePolling = process.env.BOT_POLLING === 'true'
+
 if (!token) {
   console.warn('[bot] TELEGRAM_BOT_TOKEN not set — bot disabled')
-} else {
-  // Polling mode: server pulls updates from Telegram via proxy (no inbound connections needed)
+} else if (enablePolling) {
   bot = new TelegramBot(token, botOptions({ polling: true }))
 
   bot.onText(/\/start/, async (msg) => {
@@ -159,6 +163,8 @@ if (!token) {
   cron.schedule('* * * * *', runScheduledNotifications)
 
   console.log('[bot] Bot initialized (polling mode)')
+} else if (token) {
+  console.log('[bot] Token set but BOT_POLLING!=true — polling disabled (standalone bot handles it)')
 }
 
 export function processUpdate(update) {

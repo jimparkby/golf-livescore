@@ -56,6 +56,7 @@ router.post('/round-start', requireAuth, async (req, res, next) => {
 
     // Queue tip for the player who started the round
     if (requester?.telegram_id && requester?.notifications_enabled) {
+      let text = 'Хорошей игры и прямых драйвов!'
       try {
         const { rows: recentScores } = await db.query(
           `SELECT hs.putts, hs.bunker, hs.gir
@@ -67,7 +68,9 @@ router.post('/round-start', requireAuth, async (req, res, next) => {
           [req.user.userId]
         )
         const tip = await generateTip(requester, recentScores)
-        const text = tip ?? 'Хорошей игры и прямых драйвов!'
+        if (tip) text = tip
+      } catch (e) { console.error('[notif] tip generation error:', e.message) }
+      try {
         await db.query(
           `INSERT INTO scheduled_notifications (telegram_id, user_id, send_at, message, context)
            VALUES ($1, $2, NOW(), $3, 'round-start')`,
