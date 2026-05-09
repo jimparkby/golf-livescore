@@ -125,11 +125,9 @@ async function runScheduledNotifications() {
 
 if (!token) {
   console.warn('[bot] TELEGRAM_BOT_TOKEN not set — bot disabled')
-} else if (!backendUrl) {
-  console.warn('[bot] BACKEND_URL / FRONTEND_URL not set — bot disabled')
 } else {
-  // Webhook mode: no polling conflicts, works with multiple instances
-  bot = new TelegramBot(token, botOptions({ webHook: false }))
+  // Polling mode: server pulls updates from Telegram via proxy (no inbound connections needed)
+  bot = new TelegramBot(token, botOptions({ polling: true }))
 
   bot.onText(/\/start/, async (msg) => {
     console.log('[bot] /start from', msg.from?.id)
@@ -156,14 +154,11 @@ if (!token) {
     }
   })
 
-  const webhookUrl = `${backendUrl}/bot-webhook`
-  bot.setWebHook(webhookUrl)
-    .then(() => console.log('[bot] Webhook set:', webhookUrl))
-    .catch(err => console.error('[bot] setWebHook error:', err.message))
+  bot.on('polling_error', (err) => console.error('[bot] Polling error:', err.message))
 
   cron.schedule('*/10 * * * *', runScheduledNotifications)
 
-  console.log('[bot] Bot initialized (webhook mode)')
+  console.log('[bot] Bot initialized (polling mode)')
 }
 
 export function processUpdate(update) {
