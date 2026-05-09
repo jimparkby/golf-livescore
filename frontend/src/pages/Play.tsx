@@ -25,7 +25,10 @@ const PlayPage = () => {
 
   const course = COURSES.find((c) => c.id === courseId)!;
 
-  if (activeRound || step === "playing") return <RoundPlayer onExit={() => { cancelActiveRound(); setStep("home"); }} />;
+  if (activeRound && step !== "home") return <RoundPlayer onExit={() => { cancelActiveRound(); setStep("home"); }} onCancel={() => setStep("home")} />;
+  if (activeRound && step === "home") return (
+    <HomeScreen onStart={(id) => { if (id) setCourseId(id); setStep("setup"); }} activeRound={activeRound} onResume={() => setStep("playing")} onAbandon={() => { cancelActiveRound(); }} />
+  );
 
   if (step === "setup") {
     return (
@@ -53,14 +56,51 @@ const PlayPage = () => {
       }}
     />
   );
+
 };
 
 /* ────────── HOME ────────── */
-const HomeScreen = ({ onStart }: { onStart: (courseId?: string) => void }) => {
+const HomeScreen = ({ onStart, activeRound, onResume, onAbandon }: {
+  onStart: (courseId?: string) => void;
+  activeRound?: import("@/store/golfStore").Round | null;
+  onResume?: () => void;
+  onAbandon?: () => void;
+}) => {
   const { rounds, profile } = useGolf();
   const last = rounds[0];
   return (
     <div className="space-y-5 animate-in fade-in duration-300">
+
+      {activeRound && onResume && (
+        <Card className="p-4 shadow-elevated" style={{ border: "1.5px solid rgba(34,197,94,0.4)", background: "rgba(34,197,94,0.06)" }}>
+          <div className="text-xs uppercase tracking-wider font-semibold mb-2" style={{ color: "#22c55e" }}>
+            Незавершённый раунд
+          </div>
+          <div className="font-semibold text-foreground mb-1">{activeRound.courseName.split(" · ")[0]}</div>
+          <div className="text-sm text-muted-foreground mb-3">
+            {Object.values(activeRound.scores).flat().filter(s => s.score > 0).length > 0
+              ? `Сыграно лунок: ${Math.max(...Object.values(activeRound.scores).flat().map(s => s.hole), 0)}`
+              : "Раунд начат, счёт не введён"}
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={onResume}
+              className="flex-1 h-10 rounded-xl font-bold text-sm"
+              style={{ background: "#22c55e", color: "#000" }}
+            >
+              Продолжить
+            </button>
+            <button
+              onClick={onAbandon}
+              className="h-10 px-4 rounded-xl font-bold text-sm"
+              style={{ background: "rgba(239,68,68,0.12)", color: "#f87171", border: "1.5px solid rgba(239,68,68,0.25)" }}
+            >
+              Отменить
+            </button>
+          </div>
+        </Card>
+      )}
+
       <Card className="overflow-hidden border-0 shadow-elevated">
         <div className="relative h-44">
           <img src={heroImg} alt="Поле Golf Club Minsk" className="absolute inset-0 h-full w-full object-cover" />
@@ -538,13 +578,14 @@ const scoreLabelColor = (score: number, par: number) => {
   return "text-red-400";
 };
 
-const RoundPlayer = ({ onExit }: { onExit: () => void }) => {
+const RoundPlayer = ({ onExit, onCancel }: { onExit: () => void; onCancel: () => void }) => {
   const { activeRound, enterScore, finishRound, setRoundPhoto } = useGolf();
   const [holeIdx, setHoleIdx] = useState(0);
   const [sheetPlayer, setSheetPlayer] = useState<Player | null>(null);
   const [hole, setHole] = useState({ score: 4, putts: 2, driving: false, gir: false, bunker: 0, penalties: 0 });
   const [completedRound, setCompletedRound] = useState<Round | null>(null);
   const [showConfirmation, setShowConfirmation] = useState(false);
+  const [showExitConfirm, setShowExitConfirm] = useState(false);
   const photoRef = useRef<HTMLInputElement>(null);
 
   // Экран подтверждения после 18 лунки
@@ -845,7 +886,7 @@ const RoundPlayer = ({ onExit }: { onExit: () => void }) => {
         style={{ paddingTop: 14, paddingBottom: 10 }}
       >
         <button
-          onClick={onExit}
+          onClick={() => setShowExitConfirm(true)}
           className="h-9 w-9 rounded-full grid place-items-center"
           style={{ background: "rgba(255,255,255,0.1)" }}
         >
@@ -1000,6 +1041,34 @@ const RoundPlayer = ({ onExit }: { onExit: () => void }) => {
           ))}
         </div>
       </div>
+
+      {/* ── Exit confirmation ── */}
+      {showExitConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-6 animate-in fade-in duration-150" style={{ background: "rgba(0,0,0,0.7)" }}>
+          <div className="w-full rounded-3xl p-6 space-y-4" style={{ background: "#1a1a1a" }}>
+            <div className="text-center">
+              <div className="text-white font-black text-xl mb-1">Покинуть раунд?</div>
+              <div className="text-sm" style={{ color: "rgba(255,255,255,0.45)" }}>
+                Раунд сохранён — вернись в любой момент и продолжи с того же места
+              </div>
+            </div>
+            <button
+              onClick={() => { setShowExitConfirm(false); onCancel(); }}
+              className="w-full h-13 rounded-2xl font-bold text-sm py-4"
+              style={{ background: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.7)" }}
+            >
+              Свернуть — продолжу позже
+            </button>
+            <button
+              onClick={() => { setShowExitConfirm(false); onExit(); }}
+              className="w-full h-13 rounded-2xl font-bold text-sm py-4"
+              style={{ background: "rgba(239,68,68,0.15)", color: "#f87171", border: "1.5px solid rgba(239,68,68,0.3)" }}
+            >
+              Отменить раунд
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* ── Score Sheet ── */}
       {sheetPlayer && (
