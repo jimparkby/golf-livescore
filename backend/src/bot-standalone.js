@@ -104,12 +104,12 @@ cron.schedule('0 8 * * *', async () => {
   }
 })
 
-// Auto-exit after 5.5h so GitHub Actions restarts cleanly before 6h limit
+// Exit after 4h 55min — next cron fires at 5h, so no overlap/conflict
 setTimeout(async () => {
   console.log('[bot] Scheduled shutdown for restart')
   await bot.stopPolling()
   await db.end()
   process.exit(0)
-}, 5.5 * 60 * 60 * 1000)
+}, (4 * 60 + 55) * 60 * 1000)
 
-console.log('[bot] Standalone bot started (will restart in 5.5h)')
+console.log('[bot] Standalone bot started (will restart every 5h via cron)')
