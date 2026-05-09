@@ -1,7 +1,6 @@
 import { Router } from 'express'
 import { db } from '../db.js'
 import { requireAuth } from '../middleware/auth.js'
-import { generateTip } from '../bot.js'
 
 const router = Router()
 
@@ -54,27 +53,13 @@ router.post('/round-start', requireAuth, async (req, res, next) => {
       [req.user.userId]
     )
 
-    // Queue tip for the player who started the round
+    // Queue round-start notification — the bot generates the personalized tip
     if (requester?.telegram_id && requester?.notifications_enabled) {
-      let text = 'Хорошей игры и прямых драйвов!'
-      try {
-        const { rows: recentScores } = await db.query(
-          `SELECT hs.putts, hs.bunker, hs.gir
-           FROM hole_scores hs
-           JOIN rounds r ON r.id = hs.round_id
-           WHERE r.user_id = $1 AND hs.player_id = 'me' AND r.completed = true
-           ORDER BY r.date DESC
-           LIMIT 54`,
-          [req.user.userId]
-        )
-        const tip = await generateTip(requester, recentScores)
-        if (tip) text = tip
-      } catch (e) { console.error('[notif] tip generation error:', e.message) }
       try {
         await db.query(
           `INSERT INTO scheduled_notifications (telegram_id, user_id, send_at, message, context)
            VALUES ($1, $2, NOW(), $3, 'round-start')`,
-          [requester.telegram_id, req.user.userId, text]
+          [requester.telegram_id, req.user.userId, 'Хорошей игры и прямых драйвов!']
         )
       } catch (e) { console.error('[notif] queue error:', e.message) }
     }
