@@ -1,7 +1,7 @@
 import { Router } from 'express'
 import { db } from '../db.js'
 import { requireAuth } from '../middleware/auth.js'
-import { bot, generateTip } from '../bot.js'
+import { generateTip } from '../bot.js'
 
 const router = Router()
 
@@ -54,15 +54,8 @@ router.post('/round-start', requireAuth, async (req, res, next) => {
       [req.user.userId]
     )
 
-    console.log('[notif] round-start:', {
-      userId: req.user.userId,
-      telegram_id: requester?.telegram_id,
-      notifications_enabled: requester?.notifications_enabled,
-      bot: !!bot,
-    })
-
-    // Send tip/wish to the player who started the round
-    if (requester?.telegram_id && requester?.notifications_enabled && bot) {
+    // Queue tip for the player who started the round
+    if (requester?.telegram_id && requester?.notifications_enabled) {
       try {
         const { rows: recentScores } = await db.query(
           `SELECT hs.putts, hs.bunker, hs.gir
@@ -74,20 +67,19 @@ router.post('/round-start', requireAuth, async (req, res, next) => {
           [req.user.userId]
         )
         const tip = await generateTip(requester, recentScores)
-        const text = tip ? tip : 'Хорошей игры и прямых драйвов!'
-        await bot.sendMessage(requester.telegram_id, text,
-          { reply_markup: { inline_keyboard: [[{ text: 'Открыть', web_app: { url: process.env.FRONTEND_URL } }]] } }
+        const text = tip ?? 'Хорошей игры и прямых драйвов!'
+        await db.query(
+          `INSERT INTO scheduled_notifications (telegram_id, user_id, send_at, message, context)
+           VALUES ($1, $2, NOW(), $3, 'round-start')`,
+          [requester.telegram_id, req.user.userId, text]
         )
-        console.log('[notif] tip sent to', requester.telegram_id)
-      } catch (e) { console.error('[notif] sendMessage error:', e.message) }
-    } else {
-      console.log('[notif] skipped — missing telegram_id, notifications disabled, or bot not ready')
+      } catch (e) { console.error('[notif] queue error:', e.message) }
     }
 
-    // Notify other registered participants
+    // Queue notifications for other registered participants
     const targets = Array.isArray(playerIds) && playerIds.length > 0
       ? (await db.query(
-          `SELECT telegram_id, first_name FROM users
+          `SELECT id, telegram_id, first_name FROM users
            WHERE id = ANY($1::uuid[])
              AND notifications_enabled = true
              AND telegram_id IS NOT NULL`,
@@ -95,15 +87,17 @@ router.post('/round-start', requireAuth, async (req, res, next) => {
         )).rows
       : []
     for (const u of targets) {
-      try {
-        await bot.sendMessage(
+      await db.query(
+        `INSERT INTO scheduled_notifications (telegram_id, user_id, send_at, message, context)
+         VALUES ($1, $2, NOW(), $3, 'round-start')`,
+        [
           u.telegram_id,
-          `${requester?.first_name ?? 'Игрок'} добавил тебя в раунд!\n${courseName}\n\nОткрой приложение чтобы следить за счётом.`,
-          { reply_markup: { inline_keyboard: [[{ text: 'Открыть', web_app: { url: process.env.FRONTEND_URL } }]] } }
-        )
-      } catch { /* telegram send error — skip */ }
+          u.id,
+          `${requester?.first_name ?? 'Игрок'} добавил тебя в раунд!\n${courseName ?? ''}\n\nОткрой приложение чтобы следить за счётом.`,
+        ]
+      )
     }
-    res.json({ notified: targets.length })
+    res.json({ queued: targets.length + (requester?.telegram_id ? 1 : 0) })
   } catch (err) { next(err) }
 })
 
