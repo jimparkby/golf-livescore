@@ -54,6 +54,13 @@ router.post('/round-start', requireAuth, async (req, res, next) => {
       [req.user.userId]
     )
 
+    console.log('[notif] round-start:', {
+      userId: req.user.userId,
+      telegram_id: requester?.telegram_id,
+      notifications_enabled: requester?.notifications_enabled,
+      bot: !!bot,
+    })
+
     // Send tip/wish to the player who started the round
     if (requester?.telegram_id && requester?.notifications_enabled && bot) {
       try {
@@ -67,13 +74,14 @@ router.post('/round-start', requireAuth, async (req, res, next) => {
           [req.user.userId]
         )
         const tip = await generateTip(requester, recentScores)
-        const text = tip
-          ? tip
-          : 'Хорошей игры и прямых драйвов!'
+        const text = tip ? tip : 'Хорошей игры и прямых драйвов!'
         await bot.sendMessage(requester.telegram_id, text,
           { reply_markup: { inline_keyboard: [[{ text: 'Открыть', web_app: { url: process.env.FRONTEND_URL } }]] } }
         )
-      } catch { /* skip */ }
+        console.log('[notif] tip sent to', requester.telegram_id)
+      } catch (e) { console.error('[notif] sendMessage error:', e.message) }
+    } else {
+      console.log('[notif] skipped — missing telegram_id, notifications disabled, or bot not ready')
     }
 
     // Notify other registered participants
