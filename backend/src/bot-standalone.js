@@ -138,6 +138,17 @@ bot.onText(/\/start/, async (msg) => {
 
 bot.on('polling_error', (err) => console.error('[bot] Polling error:', err.message))
 
+// Log available Gemini models so we know what's accessible with this key
+if (process.env.GOOGLE_AI_KEY) {
+  fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${process.env.GOOGLE_AI_KEY}`)
+    .then(r => r.json())
+    .then(data => {
+      const names = (data.models ?? []).map(m => m.name).filter(n => n.includes('gemini'))
+      console.log('[bot] Available Gemini models:', names.join(', ') || 'none found')
+    })
+    .catch(e => console.error('[bot] ListModels error:', e.message))
+}
+
 // Process queued notifications every minute
 cron.schedule('* * * * *', async () => {
   try {
