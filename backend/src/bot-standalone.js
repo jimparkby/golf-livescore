@@ -2,7 +2,6 @@ import 'dotenv/config'
 import TelegramBot from 'node-telegram-bot-api'
 import cron from 'node-cron'
 import pg from 'pg'
-import Anthropic from '@anthropic-ai/sdk'
 import { createRequire } from 'module'
 
 const require = createRequire(import.meta.url)
@@ -70,17 +69,11 @@ async function generateTip(user, scores) {
   const stats = calcStats(scores)
   if (!stats) return null
 
-  if (process.env.ANTHROPIC_API_KEY) {
+  if (process.env.GOOGLE_AI_KEY) {
     try {
-      const client = new Anthropic()
-      const msg = await client.messages.create({
-        model: 'claude-haiku-4-5-20251001',
-        max_tokens: 120,
-        system: `Ты опытный гольф-тренер. Даёшь ОДНУ конкретную практическую подсказку на основе статистики игрока.
-Правила: максимум 2 предложения (до 35 слов), конкретная техника или упражнение (не общие фразы), учитывай уровень по гандикапу, мотивирующий тон, только русский язык, 1 emoji в конце.`,
-        messages: [{
-          role: 'user',
-          content: `Игрок: ${user.first_name}, HCP ${user.hcp ?? '?'}
+      const prompt = `Ты опытный гольф-тренер. Дай ОДНУ конкретную практическую подсказку (макс. 2 предложения, до 35 слов). Конкретная техника или упражнение — не общие фразы. Мотивирующий тон, только русский язык, 1 emoji в конце.
+
+Игрок: ${user.first_name}, HCP ${user.hcp ?? '?'}
 Статистика последних ${stats.n} лунок:
 - Среднее патт/лунка: ${stats.avgPutts}
 - Трёхпатты: ${stats.threePuttPct}% лунок
@@ -88,13 +81,24 @@ async function generateTip(user, scores) {
 - Бункеры в среднем за лунку: ${stats.bunkerPerRound}
 - Фэрвей: ${stats.drivingPct}% лунок
 
-Определи главную слабость и дай конкретный совет для сегодняшнего раунда.`,
-        }],
-      })
-      const tip = msg.content[0]?.text?.trim()
+Определи главную слабость и дай конкретный совет для сегодняшнего раунда.`
+
+      const res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${process.env.GOOGLE_AI_KEY}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: { maxOutputTokens: 120, temperature: 0.7 },
+          }),
+        }
+      )
+      const data = await res.json()
+      const tip = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim()
       if (tip) return tip
     } catch (e) {
-      console.error('[bot] Claude tip error:', e.message)
+      console.error('[bot] Gemini tip error:', e.message)
     }
   }
 
