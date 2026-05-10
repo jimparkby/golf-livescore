@@ -2,6 +2,7 @@ import 'dotenv/config'
 import TelegramBot from 'node-telegram-bot-api'
 import cron from 'node-cron'
 import pg from 'pg'
+import Anthropic from '@anthropic-ai/sdk'
 import { createRequire } from 'module'
 
 const require = createRequire(import.meta.url)
@@ -47,52 +48,67 @@ const botOpts = proxyAgent
 
 const bot = new TelegramBot(token, botOpts)
 
-function generateTip(scores) {
-  if (scores.length === 0) return null
-
+function calcStats(scores) {
   const n = scores.length
-  const totalPutts = scores.reduce((s, h) => s + (h.putts || 0), 0)
-  const avgPutts = totalPutts / n
-  const threePutts = scores.filter(h => h.putts >= 3).length
-  const threePuttRate = threePutts / n
+  if (n === 0) return null
+  const totalPutts   = scores.reduce((s, h) => s + (h.putts  || 0), 0)
+  const threePutts   = scores.filter(h => (h.putts || 0) >= 3).length
   const totalBunkers = scores.reduce((s, h) => s + (h.bunker || 0), 0)
-  const bunkerRate = totalBunkers / n
-  const girCount = scores.filter(h => h.gir).length
-  const girPct = girCount / n
+  const girCount     = scores.filter(h => h.gir).length
+  const drivingHits  = scores.filter(h => h.driving).length
+  return {
+    n,
+    avgPutts:     (totalPutts / n).toFixed(1),
+    threePuttPct: Math.round((threePutts / n) * 100),
+    bunkerPerRound: (totalBunkers / n).toFixed(1),
+    girPct:       Math.round((girCount / n) * 100),
+    drivingPct:   Math.round((drivingHits / n) * 100),
+  }
+}
 
-  // Score each weakness, pick the worst one
-  const candidates = [
-    {
-      score: avgPutts - 2.0,
-      tip: `${avgPutts.toFixed(1)} патта за лунку в среднем — перед раундом поработай 10 минут над паттами с 2–3 метров 🎯`,
-    },
-    {
-      score: threePuttRate - 0.12,
-      tip: `${threePutts} трёхпатта за последние ${n} лунок — на длинных паттах целься в метровый круг вокруг лунки, не в саму лунку 📍`,
-    },
-    {
-      score: bunkerRate - 0.4,
-      tip: `Много бункеров (${totalBunkers} за ${n} лунок) — открывай фейс на 30°, бей на 3 см позади мяча и ускоряй клюшку через удар ⛱️`,
-    },
-    {
-      score: 0.33 - girPct,
-      tip: `GIR ${Math.round(girPct * 100)}% — выбирай клюшку на полшага короче расчётной дистанции, целься в центр грина 📐`,
-    },
-  ]
+async function generateTip(user, scores) {
+  const stats = calcStats(scores)
+  if (!stats) return null
 
-  const best = candidates.reduce((a, b) => (b.score > a.score ? b : a))
+  if (process.env.ANTHROPIC_API_KEY) {
+    try {
+      const client = new Anthropic()
+      const msg = await client.messages.create({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 120,
+        system: `Ты опытный гольф-тренер. Даёшь ОДНУ конкретную практическую подсказку на основе статистики игрока.
+Правила: максимум 2 предложения (до 35 слов), конкретная техника или упражнение (не общие фразы), учитывай уровень по гандикапу, мотивирующий тон, только русский язык, 1 emoji в конце.`,
+        messages: [{
+          role: 'user',
+          content: `Игрок: ${user.first_name}, HCP ${user.hcp ?? '?'}
+Статистика последних ${stats.n} лунок:
+- Среднее патт/лунка: ${stats.avgPutts}
+- Трёхпатты: ${stats.threePuttPct}% лунок
+- GIR: ${stats.girPct}%
+- Бункеры в среднем за лунку: ${stats.bunkerPerRound}
+- Фэрвей: ${stats.drivingPct}% лунок
 
-  if (best.score <= 0) {
-    // All stats look solid
-    const goodTips = [
-      'Статистика отличная — играй в своём темпе и доверяй свингу ⛳',
-      `${Math.round(girPct * 100)}% GIR — хорошая точность. Сегодня атакуй флаги на пар-3 🏹`,
-      'Держишь форму — сосредоточься на ритме паттинга и не спеши на грине ⛳',
-    ]
-    return goodTips[Math.floor(Math.random() * goodTips.length)]
+Определи главную слабость и дай конкретный совет для сегодняшнего раунда.`,
+        }],
+      })
+      const tip = msg.content[0]?.text?.trim()
+      if (tip) return tip
+    } catch (e) {
+      console.error('[bot] Claude tip error:', e.message)
+    }
   }
 
-  return best.tip
+  // Fallback: rule-based if Claude unavailable
+  const avg = parseFloat(stats.avgPutts)
+  if (avg > 2.1)
+    return `${stats.avgPutts} патта/лунка — перед раундом 10 минут на патты с 2–3 м 🎯`
+  if (stats.threePuttPct > 15)
+    return `${stats.threePuttPct}% трёхпаттов — на длинных паттах целься в метровый круг, не в лунку 📍`
+  if (parseFloat(stats.bunkerPerRound) > 0.4)
+    return `Много бункеров — открывай фейс на 30°, бей на 3 см за мячом и ускоряй клюшку ⛱️`
+  if (stats.girPct < 30)
+    return `GIR ${stats.girPct}% — выбирай клюшку на шаг короче расчётной, цель центр грина 📐`
+  return `GIR ${stats.girPct}%, фэрвей ${stats.drivingPct}% — отличная база, играй в своём ритме ⛳`
 }
 
 const webAppBtn = (label = '⛳ Открыть приложение') => ({
@@ -136,19 +152,23 @@ cron.schedule('* * * * *', async () => {
       try {
         let message = notif.message
 
-        // For round-start: generate personalized tip via Claude (runs on GH Actions, Anthropic is accessible)
+        // For round-start: generate personalized AI tip
         if (notif.context === 'round-start' && notif.user_id) {
           try {
+            const { rows: [user] } = await db.query(
+              'SELECT first_name, hcp FROM users WHERE id = $1',
+              [notif.user_id]
+            )
             const { rows: scores } = await db.query(
-              `SELECT hs.putts, hs.bunker, hs.gir
+              `SELECT hs.putts, hs.bunker, hs.gir, hs.driving
                FROM hole_scores hs
                JOIN rounds r ON r.id = hs.round_id
                WHERE r.user_id = $1 AND hs.player_id = 'me' AND r.completed = true
                ORDER BY r.date DESC LIMIT 54`,
               [notif.user_id]
             )
-            const tip = generateTip(scores)
-            if (tip) message = tip
+            const tip = await generateTip(user ?? {}, scores)
+            if (tip) message = `💬 ${tip}`
           } catch (e) {
             console.error('[bot] tip error for notif', notif.id, ':', e.message)
           }
@@ -163,36 +183,6 @@ cron.schedule('* * * * *', async () => {
     }
   } catch (err) {
     console.error('[bot] queue processing error:', err.message)
-  }
-})
-
-// Daily good morning at 8:00 UTC
-cron.schedule('0 8 * * *', async () => {
-  try {
-    const { rows: users } = await db.query(`
-      SELECT u.telegram_id, u.first_name
-      FROM users u
-      WHERE u.notifications_enabled = true
-        AND u.telegram_id IS NOT NULL
-        AND EXISTS (
-          SELECT 1 FROM rounds r
-          WHERE r.user_id = u.id AND r.completed = true AND r.date > NOW() - INTERVAL '60 days'
-        )
-    `)
-    for (const user of users) {
-      try {
-        await bot.sendMessage(
-          user.telegram_id,
-          `☀️ Доброе утро, ${user.first_name}!\n\nХорошей игры! ⛳`,
-          webAppBtn()
-        )
-      } catch (e) {
-        console.error('[bot] daily error for', user.telegram_id, ':', e.message)
-      }
-    }
-    console.log('[bot] daily notifications sent to', users.length, 'users')
-  } catch (err) {
-    console.error('[bot] daily notification error:', err.message)
   }
 })
 
