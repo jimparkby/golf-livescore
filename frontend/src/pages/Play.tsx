@@ -34,7 +34,7 @@ const PlayPage = () => {
 
   const course = COURSES.find((c) => c.id === courseId)!;
 
-  if (activeRound && step !== "home") return <RoundPlayer onExit={() => { cancelActiveRound(); setStep("home"); }} onCancel={() => setStep("home")} />;
+  if (step === "playing") return <RoundPlayer onExit={() => { cancelActiveRound(); setStep("home"); }} onCancel={() => setStep("home")} />;
   if (activeRound && step === "home") return (
     <HomeScreen onStart={(id) => { if (id) setCourseId(id); setStep("setup"); }} activeRound={activeRound} onResume={() => setStep("playing")} onAbandon={() => { cancelActiveRound(); }} />
   );
