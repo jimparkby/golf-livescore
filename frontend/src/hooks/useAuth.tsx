@@ -83,7 +83,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return
     }
     setUserId(payload.userId)
-    loadProfile().finally(() => setLoading(false))
+    // Timeout so a hanging network request doesn't keep the black loading screen forever
+    const timeout = setTimeout(() => setLoading(false), 8000)
+    loadProfile().finally(() => { clearTimeout(timeout); setLoading(false) })
   }, [])
 
   return (
