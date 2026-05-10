@@ -2,6 +2,7 @@ import 'dotenv/config'
 import TelegramBot from 'node-telegram-bot-api'
 import cron from 'node-cron'
 import pg from 'pg'
+import { GoogleGenerativeAI } from '@google/generative-ai'
 import { createRequire } from 'module'
 
 const require = createRequire(import.meta.url)
@@ -83,22 +84,10 @@ async function generateTip(user, scores) {
 
 Определи главную слабость и дай конкретный совет для сегодняшнего раунда.`
 
-      const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${process.env.GOOGLE_AI_KEY}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: prompt }] }],
-            generationConfig: { maxOutputTokens: 120, temperature: 0.7 },
-          }),
-        }
-      )
-      const data = await res.json()
-      if (!res.ok) {
-        console.error('[bot] Gemini API error:', res.status, JSON.stringify(data))
-      }
-      const tip = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim()
+      const genAI = new GoogleGenerativeAI(process.env.GOOGLE_AI_KEY)
+      const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' })
+      const result = await model.generateContent(prompt)
+      const tip = result.response.text().trim()
       if (tip) return tip
     } catch (e) {
       console.error('[bot] Gemini tip error:', e.message)
