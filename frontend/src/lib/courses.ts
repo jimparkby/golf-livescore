@@ -6,10 +6,10 @@ export type TeeInfo = {
   cssColor: string;
   rating: number;
   slope: number;
-  totalYards: number;
+  totalMeters: number;
 };
 
-export type Hole = { number: number; par: number; hcp: number; yards: Record<TeeColor, number> };
+export type Hole = { number: number; par: number; hcp: number; meters: Record<TeeColor, number> };
 export type Course = {
   id: string;
   name: string;
@@ -40,31 +40,31 @@ export const COURSES: Course[] = [
     phone: "+375 (44) 700-22-77",
     designer: "Paul Thomas",
     tees: [
-      { color: "black",  label: "Black",  cssColor: "#1f2937", rating: 75.1, slope: 137, totalYards: 6602 },
-      { color: "white",  label: "White",  cssColor: "#f8fafc", rating: 72.5, slope: 124, totalYards: 6307 },
-      { color: "yellow", label: "Yellow", cssColor: "#f59e0b", rating: 70.9, slope: 102, totalYards: 5919 },
-      { color: "red",    label: "Red",    cssColor: "#ef4444", rating: 67.5, slope: 95,  totalYards: 5178 },
+      { color: "black",  label: "Black",  cssColor: "#1f2937", rating: 75.1, slope: 137, totalMeters: 6037 },
+      { color: "white",  label: "White",  cssColor: "#f8fafc", rating: 72.5, slope: 124, totalMeters: 5767 },
+      { color: "yellow", label: "Yellow", cssColor: "#f59e0b", rating: 70.9, slope: 102, totalMeters: 5412 },
+      { color: "red",    label: "Red",    cssColor: "#ef4444", rating: 67.5, slope: 95,  totalMeters: 4735 },
     ],
     totalPar: 72,
     holes: [
-      { number: 1,  par: 4, hcp: 7,  yards: { black: 393, white: 371, yellow: 350, red: 318 } },
-      { number: 2,  par: 5, hcp: 3,  yards: { black: 490, white: 442, yellow: 438, red: 390 } },
-      { number: 3,  par: 3, hcp: 17, yards: { black: 153, white: 153, yellow: 142, red: 104 } },
-      { number: 4,  par: 4, hcp: 9,  yards: { black: 370, white: 359, yellow: 349, red: 286 } },
-      { number: 5,  par: 4, hcp: 5,  yards: { black: 382, white: 358, yellow: 358, red: 307 } },
-      { number: 6,  par: 4, hcp: 15, yards: { black: 343, white: 332, yellow: 294, red: 274 } },
-      { number: 7,  par: 3, hcp: 13, yards: { black: 172, white: 172, yellow: 149, red: 131 } },
-      { number: 8,  par: 4, hcp: 11, yards: { black: 370, white: 341, yellow: 341, red: 294 } },
-      { number: 9,  par: 5, hcp: 1,  yards: { black: 493, white: 469, yellow: 431, red: 387 } },
-      { number: 10, par: 4, hcp: 10, yards: { black: 358, white: 358, yellow: 320, red: 282 } },
-      { number: 11, par: 3, hcp: 16, yards: { black: 209, white: 200, yellow: 191, red: 176 } },
-      { number: 12, par: 4, hcp: 8,  yards: { black: 459, white: 405, yellow: 382, red: 338 } },
-      { number: 13, par: 5, hcp: 4,  yards: { black: 482, white: 444, yellow: 435, red: 413 } },
-      { number: 14, par: 4, hcp: 6,  yards: { black: 431, white: 425, yellow: 393, red: 333 } },
-      { number: 15, par: 4, hcp: 12, yards: { black: 403, white: 393, yellow: 345, red: 311 } },
-      { number: 16, par: 3, hcp: 18, yards: { black: 180, white: 171, yellow: 158, red: 125 } },
-      { number: 17, par: 5, hcp: 2,  yards: { black: 536, white: 536, yellow: 513, red: 445 } },
-      { number: 18, par: 4, hcp: 14, yards: { black: 378, white: 378, yellow: 330, red: 264 } },
+      { number: 1,  par: 4, hcp: 7,  meters: { black: 359, white: 339, yellow: 320, red: 291 } },
+      { number: 2,  par: 5, hcp: 3,  meters: { black: 448, white: 404, yellow: 401, red: 357 } },
+      { number: 3,  par: 3, hcp: 17, meters: { black: 140, white: 140, yellow: 130, red: 95  } },
+      { number: 4,  par: 4, hcp: 9,  meters: { black: 338, white: 328, yellow: 319, red: 262 } },
+      { number: 5,  par: 4, hcp: 5,  meters: { black: 349, white: 327, yellow: 327, red: 281 } },
+      { number: 6,  par: 4, hcp: 15, meters: { black: 314, white: 304, yellow: 269, red: 251 } },
+      { number: 7,  par: 3, hcp: 13, meters: { black: 157, white: 157, yellow: 136, red: 120 } },
+      { number: 8,  par: 4, hcp: 11, meters: { black: 338, white: 312, yellow: 312, red: 269 } },
+      { number: 9,  par: 5, hcp: 1,  meters: { black: 451, white: 429, yellow: 394, red: 354 } },
+      { number: 10, par: 4, hcp: 10, meters: { black: 327, white: 327, yellow: 293, red: 258 } },
+      { number: 11, par: 3, hcp: 16, meters: { black: 191, white: 183, yellow: 175, red: 161 } },
+      { number: 12, par: 4, hcp: 8,  meters: { black: 420, white: 370, yellow: 349, red: 309 } },
+      { number: 13, par: 5, hcp: 4,  meters: { black: 441, white: 406, yellow: 398, red: 378 } },
+      { number: 14, par: 4, hcp: 6,  meters: { black: 394, white: 389, yellow: 359, red: 305 } },
+      { number: 15, par: 4, hcp: 12, meters: { black: 369, white: 359, yellow: 315, red: 284 } },
+      { number: 16, par: 3, hcp: 18, meters: { black: 165, white: 156, yellow: 144, red: 114 } },
+      { number: 17, par: 5, hcp: 2,  meters: { black: 490, white: 490, yellow: 469, red: 407 } },
+      { number: 18, par: 4, hcp: 14, meters: { black: 346, white: 346, yellow: 302, red: 241 } },
     ],
   },
   {
@@ -75,20 +75,20 @@ export const COURSES: Course[] = [
     website: "https://golfminsk.com",
     phone: "+375 (44) 700-22-77",
     tees: [
-      { color: "yellow", label: "Yellow", cssColor: "#f59e0b", rating: 55.3, slope: 83, totalYards: 859 },
-      { color: "red",    label: "Red",    cssColor: "#ef4444", rating: 53.0, slope: 78, totalYards: 760 },
+      { color: "yellow", label: "Yellow", cssColor: "#f59e0b", rating: 55.3, slope: 83, totalMeters: 785 },
+      { color: "red",    label: "Red",    cssColor: "#ef4444", rating: 53.0, slope: 78, totalMeters: 695 },
     ],
     totalPar: 27,
     holes: [
-      { number: 1, par: 3, hcp: 9, yards: { black: 85,  white: 85,  yellow: 85,  red: 75  } },
-      { number: 2, par: 3, hcp: 3, yards: { black: 100, white: 100, yellow: 100, red: 90  } },
-      { number: 3, par: 3, hcp: 7, yards: { black: 115, white: 115, yellow: 115, red: 100 } },
-      { number: 4, par: 3, hcp: 1, yards: { black: 75,  white: 75,  yellow: 75,  red: 65  } },
-      { number: 5, par: 3, hcp: 5, yards: { black: 95,  white: 95,  yellow: 95,  red: 85  } },
-      { number: 6, par: 3, hcp: 8, yards: { black: 110, white: 110, yellow: 110, red: 95  } },
-      { number: 7, par: 3, hcp: 2, yards: { black: 80,  white: 80,  yellow: 80,  red: 70  } },
-      { number: 8, par: 3, hcp: 6, yards: { black: 105, white: 105, yellow: 105, red: 90  } },
-      { number: 9, par: 3, hcp: 4, yards: { black: 94,  white: 94,  yellow: 94,  red: 90  } },
+      { number: 1, par: 3, hcp: 9, meters: { black: 78,  white: 78,  yellow: 78,  red: 69 } },
+      { number: 2, par: 3, hcp: 3, meters: { black: 91,  white: 91,  yellow: 91,  red: 82 } },
+      { number: 3, par: 3, hcp: 7, meters: { black: 105, white: 105, yellow: 105, red: 91 } },
+      { number: 4, par: 3, hcp: 1, meters: { black: 69,  white: 69,  yellow: 69,  red: 59 } },
+      { number: 5, par: 3, hcp: 5, meters: { black: 87,  white: 87,  yellow: 87,  red: 78 } },
+      { number: 6, par: 3, hcp: 8, meters: { black: 101, white: 101, yellow: 101, red: 87 } },
+      { number: 7, par: 3, hcp: 2, meters: { black: 73,  white: 73,  yellow: 73,  red: 64 } },
+      { number: 8, par: 3, hcp: 6, meters: { black: 96,  white: 96,  yellow: 96,  red: 82 } },
+      { number: 9, par: 3, hcp: 4, meters: { black: 86,  white: 86,  yellow: 86,  red: 82 } },
     ],
   },
 ];

@@ -255,7 +255,7 @@ const SetupScreen = ({
               >
                 <div className="font-semibold text-sm">{c.name}</div>
                 <div className="text-[11px] text-muted-foreground mt-0.5">
-                  {c.tees.find(t => t.color === "yellow")?.totalYards ?? c.tees[0]?.totalYards ?? ""}y · Par {c.totalPar}
+                  {c.tees.find(t => t.color === "yellow")?.totalMeters ?? c.tees[0]?.totalMeters ?? ""}м · Par {c.totalPar}
                 </div>
               </button>
             ))}
@@ -422,7 +422,7 @@ const TeePickerSheet = ({
             <div className="text-left flex-1">
               <div className="text-white font-bold">{t.label}</div>
               <div className="text-xs" style={{ color: "rgba(255,255,255,0.4)" }}>
-                {t.totalYards}y · CR {t.rating} / Slope {t.slope}
+                {t.totalMeters}м · CR {t.rating} / Slope {t.slope}
               </div>
             </div>
             {currentTee === t.color && <Check className="h-5 w-5" style={{ color: "#22c55e" }} strokeWidth={3} />}
@@ -991,7 +991,7 @@ const RoundPlayer = ({ onExit, onCancel }: { onExit: () => void; onCancel: () =>
           >
             <div>
               <div className="text-white/80 text-sm font-semibold">{course.club}</div>
-              <div className="text-white/40 text-xs">{course.name} · {currentHole.yards[mePlayer?.tee ?? "yellow"]} ярд</div>
+              <div className="text-white/40 text-xs">{course.name} · {currentHole.meters[mePlayer?.tee ?? "yellow"]} м</div>
             </div>
             <div className="flex items-center gap-2">
               <Flag className="h-5 w-5" style={{ color: "#22c55e" }} />

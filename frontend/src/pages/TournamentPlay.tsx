@@ -229,7 +229,7 @@ const TournamentSetup = ({
             >
               <div className="font-semibold text-sm">{c.name}</div>
               <div className="text-[11px] text-muted-foreground mt-0.5">
-                {c.tees.find(t => t.color === "yellow")?.totalYards ?? c.tees[0]?.totalYards ?? ""}y · Par {c.totalPar}
+                {c.tees.find(t => t.color === "yellow")?.totalMeters ?? c.tees[0]?.totalMeters ?? ""}м · Par {c.totalPar}
               </div>
             </button>
           ))}
@@ -729,7 +729,7 @@ const TournamentRoundPlayer = ({
             >
               <div>
                 <div className="text-white/80 text-sm font-semibold">{course.club}</div>
-                <div className="text-white/40 text-xs">{course.name} · {currentHole.yards[mePlayer?.tee ?? "yellow"]} ярд</div>
+                <div className="text-white/40 text-xs">{course.name} · {currentHole.meters[mePlayer?.tee ?? "yellow"]} м</div>
               </div>
               <div className="flex items-center gap-2">
                 <Flag className="h-5 w-5" style={{ color: "#22c55e" }} />
