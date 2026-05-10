@@ -9,3 +9,7 @@ export const db = new Pool({
   password: process.env.DB_PASSWORD,
   ssl: { rejectUnauthorized: false },
 })
+
+// Add current_hole column if it doesn't exist yet
+db.query(`ALTER TABLE rounds ADD COLUMN IF NOT EXISTS current_hole INTEGER`)
+  .catch((err) => console.error('[db] migration error:', err.message))

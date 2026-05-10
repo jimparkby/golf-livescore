@@ -38,6 +38,7 @@ export type Round = {
   tournamentId?: string;
   format?: FormatId;
   photoUrl?: string;
+  currentHoleIndex?: number;
 };
 
 export type Profile = {
@@ -86,6 +87,7 @@ type State = {
   addFrequent: (p: Player) => void;
   addCustomTournament: (t: Omit<CustomTournament, "id" | "createdAt">) => void;
   deleteCustomTournament: (id: string) => void;
+  setCurrentHole: (idx: number) => void;
   loadRounds: () => Promise<void>;
   syncRound: (round: Round) => Promise<void>;
 };
@@ -190,6 +192,10 @@ export const useGolf = create<State>()(
         const round = get().activeRound
         if (round) api.delete(`/api/rounds/${round.id}`).catch(() => {})
         set({ activeRound: null })
+      },
+
+      setCurrentHole: (idx) => {
+        set((s) => s.activeRound ? { activeRound: { ...s.activeRound, currentHoleIndex: idx } } : s);
       },
 
       enterScore: (playerId, score) => {

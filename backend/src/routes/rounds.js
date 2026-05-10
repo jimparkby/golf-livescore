@@ -44,6 +44,7 @@ async function buildRound(round, requesterId) {
     tournamentId: round.tournament_id,
     format: round.format,
     photoUrl: round.photo_url,
+    currentHoleIndex: round.current_hole ?? null,
     players: players.map((p) => ({
       id: p.player_id,
       name: p.name,
@@ -91,17 +92,19 @@ router.post('/', requireAuth, async (req, res, next) => {
     await db.query(
       `INSERT INTO rounds (
          id, user_id, date, course_id, course_name, tee, rating, slope,
-         completed, tournament_id, format, photo_url, updated_at
-       ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,NOW())
+         completed, tournament_id, format, photo_url, current_hole, updated_at
+       ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,NOW())
        ON CONFLICT (id) DO UPDATE SET
          completed     = EXCLUDED.completed,
          photo_url     = EXCLUDED.photo_url,
+         current_hole  = EXCLUDED.current_hole,
          updated_at    = NOW()`,
       [
         round.id, req.user.userId, round.date,
         round.courseId, round.courseName, round.tee,
         round.rating, round.slope, round.completed,
         round.tournamentId || null, round.format || null, round.photoUrl || null,
+        round.currentHoleIndex ?? null,
       ]
     )
 

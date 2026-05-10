@@ -18,6 +18,15 @@ type Step = "home" | "setup" | "playing";
 const PlayPage = () => {
   const { profile, frequent, activeRound, startRound, cancelActiveRound } = useGolf();
   const [step, setStep] = useState<Step>(activeRound ? "playing" : "home");
+  const initialHadRound = useRef(!!activeRound);
+
+  // When activeRound loads from DB (localStorage was cleared by Telegram), auto-navigate
+  useEffect(() => {
+    if (activeRound && step === "home" && !initialHadRound.current) {
+      setStep("playing");
+    }
+  }, [activeRound]);
+
   const [courseId, setCourseId] = useState<string>(COURSES[0].id);
   const [players, setPlayers] = useState<Player[]>([
     { id: "me", name: `${profile.firstName} ${profile.lastName}`, initials: profile.initials, hcp: profile.hcp, tee: profile.defaultTee ?? "yellow", isMe: true },
@@ -574,12 +583,17 @@ const scoreLabelColor = (score: number, par: number) => {
 };
 
 const RoundPlayer = ({ onExit, onCancel }: { onExit: () => void; onCancel: () => void }) => {
-  const { activeRound, enterScore, finishRound, setRoundPhoto, syncRound } = useGolf();
+  const { activeRound, enterScore, finishRound, setRoundPhoto, syncRound, setCurrentHole } = useGolf();
   const [holeIdx, setHoleIdx] = useState(() => {
     if (!activeRound) return 0;
     const course = COURSES.find(c => c.id === activeRound.courseId);
     if (!course) return 0;
-    // Find first hole where not all players have scored
+    // Restore from store (saved to DB via visibilitychange)
+    if (activeRound.currentHoleIndex != null) {
+      const idx = activeRound.currentHoleIndex;
+      if (idx >= 0 && idx < course.holes.length) return idx;
+    }
+    // Fall back: first hole where not all players have scored
     const firstUnscored = course.holes.findIndex(h =>
       !activeRound.players.every(p =>
         activeRound.scores[p.id]?.some(s => s.hole === h.number)
@@ -587,6 +601,12 @@ const RoundPlayer = ({ onExit, onCancel }: { onExit: () => void; onCancel: () =>
     );
     return firstUnscored >= 0 ? firstUnscored : course.holes.length - 1;
   });
+
+  // Persist current hole to store → saved to DB on visibilitychange (Telegram close)
+  useEffect(() => {
+    setCurrentHole(holeIdx);
+  }, [holeIdx]);
+
   const [sheetPlayer, setSheetPlayer] = useState<Player | null>(null);
   const [hole, setHole] = useState({ score: 4, putts: 2, driving: false, gir: false, bunker: 0, penalties: 0 });
   const [completedRound, setCompletedRound] = useState<Round | null>(null);
@@ -858,7 +878,7 @@ const RoundPlayer = ({ onExit, onCancel }: { onExit: () => void; onCancel: () =>
   const handleFinish = () => {
     const snapshot = activeRound;
     finishRound();
-    setCompletedRound({ ...snapshot, completed: true });
+    setCompletedRound({ ...snapshot!, completed: true });
   };
 
   const total = (p: Player) =>
