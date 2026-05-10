@@ -84,7 +84,7 @@ async function generateTip(user, scores) {
 Определи главную слабость и дай конкретный совет для сегодняшнего раунда.`
 
       const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${process.env.GOOGLE_AI_KEY}`,
+        `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${process.env.GOOGLE_AI_KEY}`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
