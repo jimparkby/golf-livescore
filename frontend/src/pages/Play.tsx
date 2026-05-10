@@ -133,7 +133,7 @@ const HomeScreen = ({ onStart, activeRound, onResume, onAbandon }: {
       <div className="grid grid-cols-3 gap-3">
         <StatTile label="HCP" value={String(profile.hcp)} />
         <StatTile label="Раундов" value={String(rounds.length)} />
-        <StatTile label="Лучший" value={rounds.length === 0 ? "—" : String(Math.min(...rounds.map((r) => r.players[0] ? r.scores[r.players[0].id].reduce((a, s) => a + s.score, 0) : 999)))} />
+        <StatTile label="Лучший" value={rounds.length === 0 ? "—" : String(Math.min(...rounds.map((r) => r.players[0] ? (r.scores[r.players[0].id] ?? []).reduce((a, s) => a + s.score, 0) : 999)))} />
       </div>
 
       {last && (
@@ -146,7 +146,7 @@ const HomeScreen = ({ onStart, activeRound, onResume, onAbandon }: {
             </div>
             <div className="text-right">
               <div className="text-3xl font-bold text-action tabular-nums">
-                {last.players[0] ? last.scores[last.players[0].id].reduce((a, s) => a + s.score, 0) : "—"}
+                {last.players[0] ? (last.scores[last.players[0].id] ?? []).reduce((a, s) => a + s.score, 0) : "—"}
               </div>
               <div className="text-[11px] text-muted-foreground">{new Date(last.date).toLocaleDateString("ru-RU")}</div>
             </div>
