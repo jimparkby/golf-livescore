@@ -1142,7 +1142,7 @@ const RoundPlayer = ({ onExit, onCancel }: { onExit: () => void; onCancel: () =>
                 <ScoreCounter
                   label="ПАТТЫ"
                   value={hole.putts}
-                  onChange={(v) => setHole({ ...hole, putts: v })}
+                  onChange={(v) => setHole((h) => ({ ...h, putts: v, score: Math.max(1, h.score + (v - h.putts)) }))}
                 />
               </div>
 
@@ -1150,8 +1150,8 @@ const RoundPlayer = ({ onExit, onCancel }: { onExit: () => void; onCancel: () =>
               <div className="grid grid-cols-4 gap-2 mb-5">
                 <StatToggle label="DRIVING" active={hole.driving} onClick={() => setHole({ ...hole, driving: !hole.driving })} />
                 <StatToggle label="GIR" active={hole.gir} onClick={() => setHole({ ...hole, gir: !hole.gir })} />
-                <StatCounter label="БУНКЕР" value={hole.bunker} onChange={(v) => setHole({ ...hole, bunker: v })} />
-                <StatCounter label="PENALTIES" value={hole.penalties} onChange={(v) => setHole({ ...hole, penalties: v })} />
+                <StatCounter label="БУНКЕР" value={hole.bunker} onChange={(v) => setHole((h) => ({ ...h, bunker: v, score: Math.max(1, h.score + (v - h.bunker)) }))} />
+                <StatCounter label="PENALTIES" value={hole.penalties} onChange={(v) => setHole((h) => ({ ...h, penalties: v, score: Math.max(1, h.score + (v - h.penalties)) }))} />
               </div>
 
               {/* Save button */}
@@ -1220,23 +1220,31 @@ const StatToggle = ({ label, active, onClick }: { label: string; active: boolean
 );
 
 const StatCounter = ({ label, value, onChange }: { label: string; value: number; onChange: (v: number) => void }) => (
-  <button
-    onClick={() => onChange(value + 1)}
-    onContextMenu={(e) => {
-      e.preventDefault();
-      onChange(Math.max(0, value - 1));
-    }}
-    className="flex flex-col items-center gap-1 py-3 rounded-xl transition-colors"
+  <div
+    className="flex flex-col items-center rounded-xl overflow-hidden"
     style={value > 0
-      ? { background: "rgba(34,197,94,0.15)", border: "2px solid #22c55e", color: "#22c55e" }
-      : { background: "rgba(255,255,255,0.05)", border: "2px solid rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.4)" }
+      ? { background: "rgba(34,197,94,0.15)", border: "2px solid #22c55e" }
+      : { background: "rgba(255,255,255,0.05)", border: "2px solid rgba(255,255,255,0.1)" }
     }
   >
-    <div className="h-8 w-8 rounded-full grid place-items-center font-black text-lg" style={{ background: value > 0 ? "rgba(34,197,94,0.2)" : "rgba(255,255,255,0.05)" }}>
-      {value || "—"}
-    </div>
-    <div className="text-[9px] font-semibold leading-tight text-center px-1">{label}</div>
-  </button>
+    <div className="text-[9px] font-semibold uppercase tracking-widest pt-2" style={{ color: value > 0 ? "#22c55e" : "rgba(255,255,255,0.4)" }}>{label}</div>
+    <button
+      onClick={() => onChange(value + 1)}
+      className="w-full h-8 grid place-items-center active:bg-white/10"
+      style={{ color: value > 0 ? "#22c55e" : "rgba(255,255,255,0.35)" }}
+    >
+      <Plus className="h-4 w-4" strokeWidth={2.5} />
+    </button>
+    <div className="text-xl font-black tabular-nums leading-none" style={{ color: value > 0 ? "#22c55e" : "rgba(255,255,255,0.3)" }}>{value}</div>
+    <button
+      onClick={() => onChange(Math.max(0, value - 1))}
+      disabled={value === 0}
+      className="w-full h-8 grid place-items-center active:bg-white/10 disabled:opacity-25"
+      style={{ color: value > 0 ? "#22c55e" : "rgba(255,255,255,0.35)" }}
+    >
+      <span className="text-xl leading-none font-bold">−</span>
+    </button>
+  </div>
 );
 
 export default PlayPage;
