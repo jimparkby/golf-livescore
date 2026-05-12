@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Avatar } from "@/components/PlayerAvatar";
 import { COURSES, TEE_CONFIG, type TeeColor } from "@/lib/courses";
-import { useGolf, type Player, type Round } from "@/store/golfStore";
+import { useGolf, type Player, type Round, type HolesMode } from "@/store/golfStore";
 import { compressImage } from "@/lib/imageUtils";
 import { api } from "@/lib/api";
 import { ChevronLeft, ChevronRight, Plus, X, PlayCircle, Flag, Camera, Check, Search } from "lucide-react";
@@ -49,8 +49,8 @@ const PlayPage = () => {
         setPlayers={setPlayers}
         frequent={frequent}
         onBack={() => setStep("home")}
-        onStart={() => {
-          startRound(course, players);
+        onStart={(mode) => {
+          startRound(course, players, undefined, undefined, mode);
           setStep("playing");
         }}
       />
@@ -214,11 +214,13 @@ const SetupScreen = ({
   setPlayers: (p: Player[]) => void;
   frequent: Player[];
   onBack: () => void;
-  onStart: () => void;
+  onStart: (mode: HolesMode) => void;
 }) => {
   const { addFrequent } = useGolf();
   const [showAddSheet, setShowAddSheet] = useState(false);
   const [teePickerFor, setTeePickerFor] = useState<string | null>(null);
+  const [holesMode, setHolesMode] = useState<HolesMode>("18");
+  const is9Hole = holesMode !== "18";
   const slots = Array.from({ length: 4 });
 
   const updatePlayerTee = (playerId: string, tee: TeeColor) => {
@@ -293,7 +295,9 @@ const SetupScreen = ({
                   <Avatar name={p.name} tone={p.isMe ? "orange" : "muted"} />
                   <div className="min-w-0">
                     <div className="font-semibold truncate">{p.name}</div>
-                    <div className="text-xs text-muted-foreground">HCP {p.hcp} · 88%</div>
+                    <div className="text-xs text-muted-foreground">
+                      HCP {is9Hole ? Math.round(p.hcp / 2) : p.hcp}{is9Hole ? " (9H)" : ""} · 88%
+                    </div>
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
@@ -322,31 +326,29 @@ const SetupScreen = ({
           })}
         </Card>
 
-        {/* Frequent */}
+        {/* Round format */}
         <Card className="p-4 shadow-soft">
-          <div className="text-xs uppercase tracking-wider text-muted-foreground mb-3 font-semibold">Frequently played</div>
-          <div className="flex gap-3 overflow-x-auto pb-1">
-            {frequent.length === 0 ? (
-              <div className="text-sm text-muted-foreground py-1">No frequent players</div>
-            ) : frequent.map((f) => {
-              const added = !!players.find((p) => p.id === f.id);
-              return (
-                <button
-                  key={f.id}
-                  onClick={() => addPlayer(f)}
-                  disabled={added || players.length >= 4}
-                  className={cn("flex flex-col items-center gap-1.5 shrink-0 transition-base", (added || players.length >= 4) && "opacity-40")}
-                >
-                  <Avatar name={f.name} tone="muted" />
-                  <div className="text-xs font-medium">{f.name}</div>
-                </button>
-              );
-            })}
+          <div className="text-xs uppercase tracking-wider text-muted-foreground mb-3 font-semibold">Round</div>
+          <div className="grid grid-cols-3 gap-2">
+            {(["18", "front9", "back9"] as HolesMode[]).map((m) => (
+              <button
+                key={m}
+                onClick={() => setHolesMode(m)}
+                className={cn(
+                  "py-3 rounded-xl border-2 text-sm font-semibold transition-base",
+                  holesMode === m
+                    ? "border-action bg-action/10 text-action"
+                    : "border-border text-muted-foreground hover:border-muted-foreground/30",
+                )}
+              >
+                {m === "18" ? "18 Holes" : m === "front9" ? "Front 9" : "Back 9"}
+              </button>
+            ))}
           </div>
         </Card>
 
         <Button
-          onClick={onStart}
+          onClick={() => onStart(holesMode)}
           size="lg"
           className="h-14 bg-action hover:bg-action/90 text-action-foreground rounded-xl text-base font-semibold shadow-glow transition-spring"
         >
@@ -584,22 +586,28 @@ const scoreLabelColor = (score: number, par: number) => {
 
 const RoundPlayer = ({ onExit, onCancel }: { onExit: () => void; onCancel: () => void }) => {
   const { activeRound, enterScore, finishRound, setRoundPhoto, syncRound, setCurrentHole } = useGolf();
+
+  // Compute play holes before useState so initializer can use them
+  const _course = COURSES.find(c => c.id === activeRound?.courseId) ?? COURSES[0];
+  const _mode = activeRound?.holesMode ?? "18";
+  const playHoles = _mode === "front9"
+    ? _course.holes.filter(h => h.number <= 9)
+    : _mode === "back9"
+    ? _course.holes.filter(h => h.number > 9)
+    : _course.holes;
+
   const [holeIdx, setHoleIdx] = useState(() => {
     if (!activeRound) return 0;
-    const course = COURSES.find(c => c.id === activeRound.courseId);
-    if (!course) return 0;
-    // Restore from store (saved to DB via visibilitychange)
     if (activeRound.currentHoleIndex != null) {
       const idx = activeRound.currentHoleIndex;
-      if (idx >= 0 && idx < course.holes.length) return idx;
+      if (idx >= 0 && idx < playHoles.length) return idx;
     }
-    // Fall back: first hole where not all players have scored
-    const firstUnscored = course.holes.findIndex(h =>
+    const firstUnscored = playHoles.findIndex(h =>
       !activeRound.players.every(p =>
         activeRound.scores[p.id]?.some(s => s.hole === h.number)
       )
     );
-    return firstUnscored >= 0 ? firstUnscored : course.holes.length - 1;
+    return firstUnscored >= 0 ? firstUnscored : playHoles.length - 1;
   });
 
   // Persist current hole to store → saved to DB on visibilitychange (Telegram close)
@@ -616,7 +624,6 @@ const RoundPlayer = ({ onExit, onCancel }: { onExit: () => void; onCancel: () =>
 
   // Экран подтверждения после 18 лунки
   if (showConfirmation && activeRound) {
-    const course = COURSES.find((c) => c.id === activeRound.courseId)!;
     const confirmFinish = () => {
       const snapshot = activeRound;
       finishRound();
@@ -644,10 +651,11 @@ const RoundPlayer = ({ onExit, onCancel }: { onExit: () => void; onCancel: () =>
               const scores = activeRound.scores[p.id] ?? [];
               const total = scores.reduce((a, s) => a + s.score, 0);
               const vsPar = scores.reduce((a, s) => {
-                const h = course.holes.find((h) => h.number === s.hole);
+                const h = _course.holes.find((h) => h.number === s.hole);
                 return a + (s.score - (h?.par ?? 4));
               }, 0);
               const vsParText = vsPar === 0 ? "E" : vsPar > 0 ? `+${vsPar}` : `${vsPar}`;
+              const displayHcp = _mode !== "18" ? Math.round(p.hcp / 2) : p.hcp;
 
               return (
                 <div key={p.id} className="rounded-2xl overflow-hidden" style={{ background: "#1a1a1a" }}>
@@ -656,7 +664,7 @@ const RoundPlayer = ({ onExit, onCancel }: { onExit: () => void; onCancel: () =>
                       <Avatar name={p.name} tone={p.isMe ? "orange" : "muted"} />
                       <div>
                         <div className="text-white font-bold">{p.name}</div>
-                        <div className="text-white/50 text-sm">HCP {p.hcp}</div>
+                        <div className="text-white/50 text-sm">HCP {displayHcp}{_mode !== "18" ? " (9H)" : ""}</div>
                       </div>
                     </div>
                     <div className="text-right">
@@ -670,7 +678,7 @@ const RoundPlayer = ({ onExit, onCancel }: { onExit: () => void; onCancel: () =>
                   {/* All hole scores */}
                   <div className="grid grid-cols-9 gap-1 px-3 pb-3">
                     {scores.slice(0, 18).map((s) => {
-                      const h = course.holes.find((hole) => hole.number === s.hole);
+                      const h = _course.holes.find((hole) => hole.number === s.hole);
                       return (
                         <div
                           key={s.hole}
@@ -812,9 +820,9 @@ const RoundPlayer = ({ onExit, onCancel }: { onExit: () => void; onCancel: () =>
     );
   }
 
-  const course = COURSES.find((c) => c.id === activeRound.courseId)!;
-  const currentHole = course.holes[holeIdx];
-  const totalHoles = course.holes.length;
+  const course = _course;
+  const currentHole = playHoles[holeIdx] ?? playHoles[0];
+  const totalHoles = playHoles.length;
   const mePlayer = activeRound.players.find((p) => p.isMe);
 
   const openSheet = (p: Player) => {
@@ -856,8 +864,8 @@ const RoundPlayer = ({ onExit, onCancel }: { onExit: () => void; onCancel: () =>
         ],
       };
 
-      // Round is complete only when ALL holes have scores for ALL players
-      const allHolesScored = course.holes.every((h) =>
+      // Round is complete only when ALL play holes have scores for ALL players
+      const allHolesScored = playHoles.every((h) =>
         activeRound.players.every((p) => updatedScores[p.id]?.some((s) => s.hole === h.number))
       );
 
@@ -865,7 +873,7 @@ const RoundPlayer = ({ onExit, onCancel }: { onExit: () => void; onCancel: () =>
         setTimeout(() => setShowConfirmation(true), 600);
       } else if (holeIdx === totalHoles - 1) {
         // Last index but not all holes done — wrap to first unscored hole
-        const nextIdx = course.holes.findIndex((h) =>
+        const nextIdx = playHoles.findIndex((h) =>
           !activeRound.players.every((p) => updatedScores[p.id]?.some((s) => s.hole === h.number))
         );
         if (nextIdx >= 0) setTimeout(() => setHoleIdx(nextIdx), 600);
@@ -1018,7 +1026,7 @@ const RoundPlayer = ({ onExit, onCancel }: { onExit: () => void; onCancel: () =>
                 <div className="text-left min-w-0">
                   <div className="text-white font-semibold truncate">
                     {p.name.split(" ")[0]}
-                    <span className="text-white/40 text-sm font-normal ml-1">[{p.hcp}]</span>
+                    <span className="text-white/40 text-sm font-normal ml-1">[{_mode !== "18" ? Math.round(p.hcp / 2) : p.hcp}]</span>
                   </div>
                   <div className="text-white/50 text-sm">{sign} · {t} str.</div>
                 </div>
@@ -1047,7 +1055,7 @@ const RoundPlayer = ({ onExit, onCancel }: { onExit: () => void; onCancel: () =>
 
         {/* Hole progress dots */}
         <div className="flex items-center justify-center gap-1.5 pt-1">
-          {course.holes.map((_, i) => (
+          {playHoles.map((h, i) => (
             <button
               key={i}
               onClick={() => setHoleIdx(i)}
@@ -1058,7 +1066,7 @@ const RoundPlayer = ({ onExit, onCancel }: { onExit: () => void; onCancel: () =>
                 background: i === holeIdx
                   ? "#22c55e"
                   : activeRound.players.some((p) =>
-                      activeRound.scores[p.id]?.find((s) => s.hole === course.holes[i].number)
+                      activeRound.scores[p.id]?.find((s) => s.hole === h.number)
                     )
                   ? "rgba(255,255,255,0.35)"
                   : "rgba(255,255,255,0.12)",

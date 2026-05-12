@@ -24,6 +24,8 @@ export type HoleScore = {
   teeShot?: "fairway" | "left" | "right" | "long" | "short" | "miss";
 };
 
+export type HolesMode = "18" | "front9" | "back9";
+
 export type Round = {
   id: string;
   date: string;
@@ -39,6 +41,7 @@ export type Round = {
   format?: FormatId;
   photoUrl?: string;
   currentHoleIndex?: number;
+  holesMode?: HolesMode;
 };
 
 export type Profile = {
@@ -78,7 +81,7 @@ type State = {
   customTournaments: CustomTournament[];
   updateProfile: (p: Partial<Profile>) => void;
   resetStore: () => void;
-  startRound: (course: Course, players: Player[], tournamentId?: string, format?: FormatId) => void;
+  startRound: (course: Course, players: Player[], tournamentId?: string, format?: FormatId, holesMode?: HolesMode) => void;
   cancelActiveRound: () => void;
   enterScore: (playerId: string, score: HoleScore) => void;
   finishRound: () => void;
@@ -158,7 +161,7 @@ export const useGolf = create<State>()(
       resetStore: () =>
         set({ profile: defaultProfile, frequent: [], rounds: [], activeRound: null, customTournaments: [] }),
 
-      startRound: (course, players, tournamentId, format) => {
+      startRound: (course, players, tournamentId, format, holesMode) => {
         const mePlayer = players.find((p) => p.isMe);
         const teeColor: TeeColor = mePlayer?.tee ?? "yellow";
         const teeInfo = course.tees.find((t) => t.color === teeColor) ?? course.tees[2] ?? course.tees[0];
@@ -175,6 +178,7 @@ export const useGolf = create<State>()(
           completed: false,
           tournamentId,
           format,
+          holesMode: holesMode ?? "18",
         };
         set({ activeRound: round });
         // Save to backend immediately so it survives app restarts
