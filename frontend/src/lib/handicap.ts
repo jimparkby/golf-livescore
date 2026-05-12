@@ -83,11 +83,12 @@ export function getDifferentials(
 
   const result: ScoreDifferential[] = completed.map((r) => {
     const course = COURSES.find((c) => c.id === r.courseId);
-    const isNineHole = r.holesMode === "front9" || r.holesMode === "back9";
+    const holeScores = r.scores[playerId] ?? [];
+    const isNineHole = r.holesMode === "front9" || r.holesMode === "back9"
+      || (r.holesMode === undefined && holeScores.length > 0 && holeScores.length <= 9);
     const par = (course?.totalPar ?? 72) / (isNineHole ? 2 : 1);
     const effectiveRating = r.rating / (isNineHole ? 2 : 1);
     const ch = courseHandicap(storedHcp, r.slope, effectiveRating, par);
-    const holeScores = r.scores[playerId] ?? [];
 
     let gross = 0;
     let adjusted = 0;
