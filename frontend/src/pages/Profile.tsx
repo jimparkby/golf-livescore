@@ -37,9 +37,9 @@ const ProfilePage = () => {
 
   // Auto-apply calculated HCP to profile whenever it changes
   useEffect(() => {
-    if (hcpIndex === null) return;
-    if (Math.abs(hcpIndex - profile.hcp) < 0.1) return;
-    updateProfile({ hcp: hcpIndex });
+    const target = hcpIndex ?? 0;
+    if (Math.abs(target - profile.hcp) < 0.1) return;
+    updateProfile({ hcp: target });
     const token = localStorage.getItem('golf_jwt');
     fetch(`${BASE}/api/profile`, {
       method: "PUT",
@@ -47,7 +47,7 @@ const ProfilePage = () => {
         "Content-Type": "application/json",
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
-      body: JSON.stringify({ hcp: hcpIndex }),
+      body: JSON.stringify({ hcp: target }),
     }).catch(console.error);
   }, [hcpIndex]);
 
