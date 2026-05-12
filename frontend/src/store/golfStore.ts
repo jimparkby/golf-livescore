@@ -133,7 +133,7 @@ const defaultProfile: Profile = {
   hcp: 0,
   homeClub: "Golf Club Minsk",
   email: "",
-  city: "Минск, Беларусь",
+  city: "Minsk, Belarus",
   memberSince: String(new Date().getFullYear()),
   notificationsEnabled: true,
   defaultTee: "yellow",

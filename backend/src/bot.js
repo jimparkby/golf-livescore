@@ -33,7 +33,7 @@ const backendUrl = process.env.BACKEND_URL || process.env.FRONTEND_URL || ''
 
 let bot = null
 
-const webAppBtn = (label = '⛳ Открыть приложение') => ({
+const webAppBtn = (label = '⛳ Open App') => ({
   reply_markup: {
     inline_keyboard: [[{ text: label, web_app: { url: webAppUrl } }]],
   },
@@ -154,20 +154,20 @@ if (!token) {
     bot.onText(/\/start/, async (msg) => {
       console.log('[bot] /start from', msg.from?.id)
       const text = [
-        `GolfMinsk Live — живой скоринг прямо в Telegram`,
+        `GolfMinsk Live — live scoring right in Telegram`,
         ``,
-        `⛳ Веди счёт в реальном времени`,
-        `📊 Следи за статистикой и прогрессом`,
-        `🏆 Участвуй в турнирах Golf Club Minsk`,
+        `⛳ Track your score in real time`,
+        `📊 Follow your stats and progress`,
+        `🏆 Join Golf Club Minsk tournaments`,
         ``,
-        `GolfMinsk Live. Твой гольф-ассистент.`,
+        `GolfMinsk Live. Your golf assistant.`,
       ].join('\n')
       try {
         await bot.sendMessage(msg.chat.id, text, {
           parse_mode: 'HTML',
           reply_markup: {
             inline_keyboard: [
-              [{ text: '⛳ Открыть GolfMinsk Live', web_app: { url: webAppUrl } }],
+              [{ text: '⛳ Open GolfMinsk Live', web_app: { url: webAppUrl } }],
             ],
           },
         })

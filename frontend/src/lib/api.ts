@@ -13,7 +13,7 @@ const authHeaders = (): Record<string, string> => {
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE}${path}`, { ...init, headers: authHeaders() })
   const data = await res.json()
-  if (!res.ok) throw new Error(data.error ?? 'Ошибка запроса')
+  if (!res.ok) throw new Error(data.error ?? 'Request error')
   return data as T
 }
 

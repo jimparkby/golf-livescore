@@ -36,7 +36,7 @@ export class ErrorBoundary extends Component<Props, State> {
         <div style={{ fontSize: 40 }}>⚠️</div>
         <div style={{ textAlign: 'center' }}>
           <div style={{ fontWeight: 700, fontSize: 18, marginBottom: 8 }}>
-            Что-то пошло не так
+            Something went wrong
           </div>
           <div
             style={{
@@ -66,7 +66,7 @@ export class ErrorBoundary extends Component<Props, State> {
             cursor: 'pointer',
           }}
         >
-          Сбросить и перезапустить
+          Reset and restart
         </button>
       </div>
     )

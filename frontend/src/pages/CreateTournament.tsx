@@ -8,7 +8,7 @@ import { useGolf } from "@/store/golfStore";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
-const MONTHS = ["Январь","Февраль","Март","Апрель","Май","Июнь","Июль","Август","Сентябрь","Октябрь","Ноябрь","Декабрь"];
+const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 
 const CreateTournamentPage = () => {
   const navigate = useNavigate();
@@ -25,28 +25,28 @@ const CreateTournamentPage = () => {
   const [notes, setNotes] = useState("");
 
   const handleSave = () => {
-    if (!name.trim()) { toast.error("Введите название турнира"); return; }
+    if (!name.trim()) { toast.error("Enter tournament name"); return; }
     addCustomTournament({ name: name.trim(), date: date || "—", day, month, format, notes: notes || undefined });
-    toast.success("Турнир создан!");
+    toast.success("Tournament created!");
     navigate("/tournaments");
   };
 
   return (
     <div className="space-y-5 animate-in fade-in duration-300">
       <button onClick={() => navigate("/tournaments")} className="flex items-center gap-1 text-action font-bold text-lg">
-        <ChevronLeft className="h-5 w-5" strokeWidth={2.5} /> Создать турнир
+        <ChevronLeft className="h-5 w-5" strokeWidth={2.5} /> Create Tournament
       </button>
 
       {/* Basic info */}
       <Card className="p-4 shadow-soft space-y-4">
         <div>
           <label className="text-xs uppercase tracking-wider text-muted-foreground font-semibold mb-1.5 block">
-            Название *
+            Name *
           </label>
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="Мой турнир 2026"
+            placeholder="My Tournament 2026"
             className="w-full bg-muted rounded-xl px-4 py-3 text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-action text-sm"
           />
         </div>
@@ -54,7 +54,7 @@ const CreateTournamentPage = () => {
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="text-xs uppercase tracking-wider text-muted-foreground font-semibold mb-1.5 block">
-              Дата
+              Date
             </label>
             <input
               value={date}
@@ -65,12 +65,12 @@ const CreateTournamentPage = () => {
           </div>
           <div>
             <label className="text-xs uppercase tracking-wider text-muted-foreground font-semibold mb-1.5 block">
-              День
+              Day
             </label>
             <input
               value={day}
               onChange={(e) => setDay(e.target.value)}
-              placeholder="СБ"
+              placeholder="SAT"
               className="w-full bg-muted rounded-xl px-4 py-3 text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-action text-sm"
             />
           </div>
@@ -78,7 +78,7 @@ const CreateTournamentPage = () => {
 
         <div>
           <label className="text-xs uppercase tracking-wider text-muted-foreground font-semibold mb-1.5 block">
-            Месяц
+            Month
           </label>
           <div className="flex gap-2 overflow-x-auto pb-1">
             {MONTHS.map((m) => (
@@ -98,12 +98,12 @@ const CreateTournamentPage = () => {
 
         <div>
           <label className="text-xs uppercase tracking-wider text-muted-foreground font-semibold mb-1.5 block">
-            Заметки
+            Notes
           </label>
           <textarea
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            placeholder="Дополнительная информация…"
+            placeholder="Additional information…"
             rows={2}
             className="w-full bg-muted rounded-xl px-4 py-3 text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-action text-sm resize-none"
           />
@@ -113,7 +113,7 @@ const CreateTournamentPage = () => {
       {/* Format picker */}
       <div>
         <div className="text-xs uppercase tracking-[0.2em] text-muted-foreground font-semibold mb-3">
-          Формат игры
+          Game Format
         </div>
         <div className="space-y-2">
           {FORMATS.map((f) => (
@@ -157,7 +157,7 @@ const CreateTournamentPage = () => {
         size="lg"
         className="w-full h-14 bg-action hover:bg-action/90 text-action-foreground rounded-xl text-base font-semibold shadow-glow"
       >
-        Создать турнир
+        Create Tournament
       </Button>
     </div>
   );

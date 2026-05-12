@@ -35,7 +35,7 @@ export const COURSES: Course[] = [
     id: "championship",
     name: "Championship",
     club: "Golf Club Minsk",
-    address: "Калодзищи, Минский район, Беларусь",
+    address: "Kalodishchi, Minsk District, Belarus",
     website: "https://golfminsk.com",
     phone: "+375 (44) 700-22-77",
     designer: "Paul Thomas",
@@ -71,7 +71,7 @@ export const COURSES: Course[] = [
     id: "academy",
     name: "Academy",
     club: "Golf Club Minsk",
-    address: "Калодзищи, Минский район, Беларусь",
+    address: "Kalodishchi, Minsk District, Belarus",
     website: "https://golfminsk.com",
     phone: "+375 (44) 700-22-77",
     tees: [

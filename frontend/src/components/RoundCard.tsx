@@ -118,7 +118,7 @@ const RoundCard = ({ round, profilePhoto, playerName, playerHcp, onDelete, onAdd
           <div className="flex items-center justify-end gap-3 pt-2 mt-1 border-t border-white/10">
             {!round.photoUrl && (
               <div className="flex items-center gap-2 mr-auto">
-                <div className="text-white/50 text-xs font-semibold">ИТОГО</div>
+                <div className="text-white/50 text-xs font-semibold">TOTAL</div>
               </div>
             )}
             <div className="text-white/50 text-xs">TOTAL</div>
@@ -138,7 +138,7 @@ const RoundCard = ({ round, profilePhoto, playerName, playerHcp, onDelete, onAdd
               style={{ background: "rgba(34,197,94,0.12)", color: "#22c55e", border: "1px solid rgba(34,197,94,0.3)" }}
             >
               <Camera className="h-3.5 w-3.5" />
-              {round.photoUrl ? "Заменить фото" : "Добавить фото"}
+              {round.photoUrl ? "Replace photo" : "Add photo"}
             </button>
             <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFile} />
           </>

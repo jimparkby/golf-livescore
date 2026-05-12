@@ -34,13 +34,13 @@ const StatsPage = () => {
 
   const playerName = profile.firstName
     ? `${profile.firstName} ${profile.lastName}`.trim()
-    : "Игрок";
+    : "Player";
 
   return (
     <div className="space-y-5 animate-in fade-in duration-300">
       <div>
-        <div className="text-xs uppercase tracking-[0.25em] text-muted-foreground font-semibold">Карточки</div>
-        <h1 className="text-2xl font-bold mt-1">Статистика</h1>
+        <div className="text-xs uppercase tracking-[0.25em] text-muted-foreground font-semibold">Scorecards</div>
+        <h1 className="text-2xl font-bold mt-1">Statistics</h1>
       </div>
 
       {/* ── HCP Index ── */}
@@ -48,26 +48,26 @@ const StatsPage = () => {
         <div className="p-5">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <div className="text-xs uppercase tracking-[0.2em] font-bold text-action mb-1">Гандикап-Индекс</div>
+              <div className="text-xs uppercase tracking-[0.2em] font-bold text-action mb-1">Handicap Index</div>
               {hcpIndex !== null ? (
                 <>
                   <div className="text-5xl font-black tabular-nums text-foreground leading-none">{hcpIndex.toFixed(1)}</div>
                   <div className="text-xs text-muted-foreground mt-1.5">
-                    лучшие {useCount} из {completedCount} раундов
+                    best {useCount} of {completedCount} rounds
                   </div>
                 </>
               ) : (
                 <>
                   <div className="text-4xl font-black text-muted-foreground leading-none">—</div>
                   <div className="text-xs text-muted-foreground mt-1.5">
-                    {needed > 0 ? `Нужно ещё ${needed} завершённых раунда` : "Нет данных"}
+                    {needed > 0 ? `Need ${needed} more completed rounds` : "No data"}
                   </div>
                 </>
               )}
             </div>
             {hcpIndex !== null && (
               <div className="text-right space-y-1.5 shrink-0">
-                <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Гандикап поля</div>
+                <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Course Handicap</div>
                 {COURSE_LIST.map((c) => {
                   const tee = c.tees.find(t => t.color === "yellow") ?? c.tees[0];
                   const ch = Math.round(hcpIndex * (tee.slope / 113) + (tee.rating - c.totalPar));
@@ -87,7 +87,7 @@ const StatsPage = () => {
               className="mt-4 w-full h-11 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-colors"
               style={{ background: "rgba(34,197,94,0.12)", border: "1.5px solid rgba(34,197,94,0.4)", color: "#22c55e" }}
             >
-              Обновить профиль: HCP {profile.hcp} → {hcpIndex!.toFixed(1)}
+              Update profile: HCP {profile.hcp} → {hcpIndex!.toFixed(1)}
             </button>
           )}
         </div>
@@ -97,8 +97,8 @@ const StatsPage = () => {
             <div className="border-t border-border">
               <div className="grid px-4 py-2 text-[10px] uppercase tracking-wider font-bold text-muted-foreground"
                 style={{ gridTemplateColumns: "1.5rem 1fr auto auto auto" }}>
-                <div /><div>Поле · Дата</div>
-                <div className="text-center w-10">Счёт</div>
+                <div /><div>Course · Date</div>
+                <div className="text-center w-10">Score</div>
                 <div className="text-center w-10">Adj.</div>
                 <div className="text-right w-12">Diff.</div>
               </div>
@@ -113,7 +113,7 @@ const StatsPage = () => {
                   <div className="min-w-0 pr-2">
                     <div className="text-sm font-medium truncate">{d.courseName}</div>
                     <div className="text-[10px] text-muted-foreground tabular-nums">
-                      {new Date(d.date).toLocaleDateString("ru-RU", { day: "2-digit", month: "2-digit", year: "2-digit" })}
+                      {new Date(d.date).toLocaleDateString("en-US", { day: "2-digit", month: "2-digit", year: "2-digit" })}
                       <span className="ml-1 opacity-60">{d.courseRating}/{d.slopeRating}</span>
                     </div>
                   </div>
@@ -131,13 +131,13 @@ const StatsPage = () => {
               <button onClick={() => setShowAllDiffs((v) => !v)}
                 className="w-full flex items-center justify-center gap-1 py-3 text-xs font-semibold text-action border-t border-border hover:bg-muted/20 transition-colors">
                 {showAllDiffs
-                  ? <><ChevronUp className="h-3.5 w-3.5" /> Свернуть</>
-                  : <><ChevronDown className="h-3.5 w-3.5" /> Ещё {diffs.length - 5} раундов</>}
+                  ? <><ChevronUp className="h-3.5 w-3.5" /> Collapse</>
+                  : <><ChevronDown className="h-3.5 w-3.5" /> {diffs.length - 5} more rounds</>}
               </button>
             )}
             <div className="px-4 py-3 border-t border-border bg-muted/20 flex items-center gap-4 text-[10px] text-muted-foreground">
-              <div className="flex items-center gap-1.5"><div className="h-2 w-2 rounded-full bg-action" /> Используется в расчёте ({useCount} лучших)</div>
-              <div>Adj. = скор. по Net Double Bogey</div>
+              <div className="flex items-center gap-1.5"><div className="h-2 w-2 rounded-full bg-action" /> Used in calculation ({useCount} best)</div>
+              <div>Adj. = adjusted for Net Double Bogey</div>
             </div>
           </>
         )}
@@ -149,7 +149,7 @@ const StatsPage = () => {
           <div className="flex items-start justify-between mb-4">
             <div>
               <div className="font-bold">Scoring Trend</div>
-              <div className="text-xs text-muted-foreground">Зелёные раунды ≤ 95 ударов</div>
+              <div className="text-xs text-muted-foreground">Green rounds ≤ 95 strokes</div>
             </div>
             <div className="text-center">
               <div className="h-14 w-14 rounded-full bg-muted grid place-items-center font-bold text-sm">{profile.hcp}</div>
@@ -174,8 +174,8 @@ const StatsPage = () => {
       <div>
         <div className="flex items-center justify-between mb-3">
           <div>
-            <div className="font-bold">Раунды</div>
-            <div className="text-xs text-muted-foreground">{rounds.length} сыграно</div>
+            <div className="font-bold">Rounds</div>
+            <div className="text-xs text-muted-foreground">{rounds.length} played</div>
           </div>
           <button className="inline-flex items-center gap-1 text-action text-sm font-semibold">
             <ArrowDownUp className="h-3.5 w-3.5" /> Sort
@@ -184,7 +184,7 @@ const StatsPage = () => {
 
         {rounds.length === 0 && (
           <Card className="p-8 text-center text-muted-foreground shadow-soft">
-            Сыграйте первый раунд — он появится здесь
+            Play your first round — it will appear here
           </Card>
         )}
 

@@ -21,8 +21,8 @@ router.post('/tournament', requireAuth, async (req, res, next) => {
     let scheduled = 0
     for (const u of users) {
       const msgs = [
-        { daysAgo: 3, text: `🏆 Турнир «${name}» через 3 дня!\nГотовься, ${u.first_name}! ⛳` },
-        { daysAgo: 1, text: `🏆 Завтра турнир «${name}»!\nУдачной игры, ${u.first_name}! ⛳` },
+        { daysAgo: 3, text: `🏆 Tournament «${name}» in 3 days!\nGet ready, ${u.first_name}! ⛳` },
+        { daysAgo: 1, text: `🏆 Tournament «${name}» is tomorrow!\nGood luck, ${u.first_name}! ⛳` },
       ]
       for (const { daysAgo, text } of msgs) {
         const sendAt = new Date(tournamentDate)
@@ -59,7 +59,7 @@ router.post('/round-start', requireAuth, async (req, res, next) => {
         await db.query(
           `INSERT INTO scheduled_notifications (telegram_id, user_id, send_at, message, context)
            VALUES ($1, $2, NOW(), $3, 'round-start')`,
-          [requester.telegram_id, req.user.userId, 'Хорошей игры и прямых драйвов!']
+          [requester.telegram_id, req.user.userId, 'Good luck and straight drives!']
         )
       } catch (e) { console.error('[notif] queue error:', e.message) }
     }
@@ -81,7 +81,7 @@ router.post('/round-start', requireAuth, async (req, res, next) => {
         [
           u.telegram_id,
           u.id,
-          `${requester?.first_name ?? 'Игрок'} добавил тебя в раунд!\n${courseName ?? ''}\n\nОткрой приложение чтобы следить за счётом.`,
+          `${requester?.first_name ?? 'Player'} added you to a round!\n${courseName ?? ''}\n\nOpen the app to follow the score.`,
         ]
       )
     }
@@ -101,8 +101,8 @@ router.post('/test', requireAuth, async (req, res, next) => {
 
     await bot.sendMessage(
       user.telegram_id,
-      `✅ Уведомления работают, ${user.first_name}! ⛳`,
-      { reply_markup: { inline_keyboard: [[{ text: '⛳ Открыть приложение', web_app: { url: process.env.FRONTEND_URL } }]] } }
+      `✅ Notifications are working, ${user.first_name}! ⛳`,
+      { reply_markup: { inline_keyboard: [[{ text: '⛳ Open App', web_app: { url: process.env.FRONTEND_URL } }]] } }
     )
     res.json({ ok: true })
   } catch (err) { next(err) }

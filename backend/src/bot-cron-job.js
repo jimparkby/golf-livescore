@@ -25,7 +25,7 @@ const bot = new TelegramBot(token)
 
 const webAppBtn = () => ({
   reply_markup: {
-    inline_keyboard: [[{ text: '⛳ Открыть приложение', web_app: { url: webAppUrl } }]],
+    inline_keyboard: [[{ text: '⛳ Open App', web_app: { url: webAppUrl } }]],
   },
 })
 

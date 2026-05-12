@@ -56,9 +56,9 @@ const TournamentPlayPage = () => {
     return (
       <div className="space-y-4 animate-in fade-in duration-300">
         <button onClick={() => navigate("/tournaments")} className="flex items-center gap-1 text-action font-bold">
-          <ChevronLeft className="h-5 w-5" /> Назад
+          <ChevronLeft className="h-5 w-5" /> Back
         </button>
-        <Card className="p-8 text-center text-muted-foreground">Турнир не найден</Card>
+        <Card className="p-8 text-center text-muted-foreground">Tournament not found</Card>
       </div>
     );
   }
@@ -89,7 +89,7 @@ const TournamentPlayPage = () => {
         onStart={() => {
           startRound(course, players, tournament.id, tournament.format);
           setStep("playing");
-          toast.success(`${tournament.name} — раунд начат!`);
+          toast.success(`${tournament.name} — round started!`);
         }}
       />
     );
@@ -114,7 +114,7 @@ const TournamentInfo = ({
   return (
     <div className="space-y-5 animate-in fade-in duration-300">
       <button onClick={onBack} className="flex items-center gap-1 text-action font-bold text-lg">
-        <ChevronLeft className="h-5 w-5" strokeWidth={2.5} /> Турниры
+        <ChevronLeft className="h-5 w-5" strokeWidth={2.5} /> Tournaments
       </button>
 
       <Card className="overflow-hidden shadow-elevated">
@@ -150,14 +150,14 @@ const TournamentInfo = ({
             )}
             {tournament.fee && (
               <span className="px-2.5 py-1 rounded-full bg-muted text-xs font-semibold">
-                Взнос {tournament.fee} BYN
+                Entry fee {tournament.fee} BYN
               </span>
             )}
           </div>
 
           {/* Format description */}
           <div className="mt-4 p-3 rounded-xl bg-muted/50">
-            <div className="text-xs font-semibold text-foreground mb-1">{fmt.name} — правила</div>
+            <div className="text-xs font-semibold text-foreground mb-1">{fmt.name} — rules</div>
             <div className="text-xs text-muted-foreground">{fmt.description}</div>
             <div className="text-xs text-action mt-1 font-medium">💡 {fmt.tip}</div>
           </div>
@@ -173,7 +173,7 @@ const TournamentInfo = ({
             size="lg"
             className="w-full h-14 text-base font-semibold bg-action hover:bg-action/90 text-action-foreground rounded-xl shadow-glow transition-spring hover:scale-[1.01]"
           >
-            <Flag className="h-5 w-5 mr-2" strokeWidth={2.5} /> Начать лайвскоринг
+            <Flag className="h-5 w-5 mr-2" strokeWidth={2.5} /> Start Live Scoring
           </Button>
         </div>
       </Card>
@@ -210,13 +210,13 @@ const TournamentSetup = ({
       </button>
 
       <Card className="p-3 shadow-soft border-l-4 border-action">
-        <div className="text-xs text-muted-foreground font-semibold uppercase tracking-wider mb-0.5">Турнир</div>
+        <div className="text-xs text-muted-foreground font-semibold uppercase tracking-wider mb-0.5">Tournament</div>
         <div className="text-sm font-bold leading-snug">{tournament.name}</div>
         <div className="text-xs text-action mt-0.5">{fmt.emoji} {fmt.name}</div>
       </Card>
 
       <Card className="p-4 shadow-soft">
-        <div className="text-xs uppercase tracking-wider text-muted-foreground mb-3 font-semibold">Поле</div>
+        <div className="text-xs uppercase tracking-wider text-muted-foreground mb-3 font-semibold">Course</div>
         <div className="grid grid-cols-2 gap-2">
           {COURSES.map((c) => (
             <button
@@ -229,7 +229,7 @@ const TournamentSetup = ({
             >
               <div className="font-semibold text-sm">{c.name}</div>
               <div className="text-[11px] text-muted-foreground mt-0.5">
-                {c.tees.find(t => t.color === "yellow")?.totalMeters ?? c.tees[0]?.totalMeters ?? ""}м · Par {c.totalPar}
+                {c.tees.find(t => t.color === "yellow")?.totalMeters ?? c.tees[0]?.totalMeters ?? ""}m · Par {c.totalPar}
               </div>
             </button>
           ))}
@@ -256,7 +256,7 @@ const TournamentSetup = ({
                   onClick={() => {
                     const next = frequent.find((f) => !players.find((pl) => pl.id === f.id));
                     if (next) addPlayer(next);
-                    else toast.info("Нет доступных друзей — добавьте в Frequently played");
+                    else toast.info("No available players — add to Frequently played");
                   }}
                 >
                   <Plus className="h-4 w-4" /> Add
@@ -316,7 +316,7 @@ const TournamentSetup = ({
         size="lg"
         className="w-full h-14 bg-action hover:bg-action/90 text-action-foreground rounded-xl text-base font-semibold shadow-glow transition-spring"
       >
-        Начать · {course?.name}
+        Start · {course?.name}
       </Button>
     </div>
   );
@@ -325,10 +325,10 @@ const TournamentSetup = ({
 /* ── Scoring helpers ── */
 const scoreLabel = (score: number, par: number) => {
   const d = score - par;
-  if (d <= -2) return "Игл";
-  if (d === -1) return "Бёрди";
-  if (d === 0) return "Пар";
-  if (d === 1) return "Богги";
+  if (d <= -2) return "Eagle";
+  if (d === -1) return "Birdie";
+  if (d === 0) return "Par";
+  if (d === 1) return "Bogey";
   return `+${d}`;
 };
 
@@ -403,9 +403,9 @@ const Leaderboard = ({
           style={{ gridTemplateColumns: "2rem 1fr auto auto", color: "rgba(255,255,255,0.4)", borderBottom: "1px solid rgba(255,255,255,0.07)" }}
         >
           <div>#</div>
-          <div>Игрок</div>
-          <div className="w-12 text-center">{isStableford ? "Очки" : "±"}</div>
-          <div className="w-12 text-center">Итого</div>
+          <div>Player</div>
+          <div className="w-12 text-center">{isStableford ? "Pts" : "±"}</div>
+          <div className="w-12 text-center">Total</div>
         </div>
 
         {sorted.map((e, i) => (
@@ -430,7 +430,7 @@ const Leaderboard = ({
                   {e.player.name.split(" ")[0]}
                   <span className="text-white/40 font-normal ml-1">[{e.player.hcp}]</span>
                 </div>
-                <div className="text-white/40 text-xs">{e.holesPlayed} лун.</div>
+                <div className="text-white/40 text-xs">{e.holesPlayed} holes</div>
               </div>
             </div>
 
@@ -454,7 +454,7 @@ const Leaderboard = ({
 
         {sorted.length === 0 && (
           <div className="py-8 text-center text-white/30 text-sm">
-            Введите счёт, чтобы увидеть лидерборд
+            Enter scores to see the leaderboard
           </div>
         )}
       </div>
@@ -498,7 +498,7 @@ const TournamentRoundPlayer = ({
       const compressed = await compressImage(file);
       setRoundPhoto(completedRound.id, compressed);
       setCompletedRound({ ...completedRound, photoUrl: compressed });
-      toast.success("Фото добавлено!");
+      toast.success("Photo added!");
       e.target.value = "";
     };
 
@@ -518,7 +518,7 @@ const TournamentRoundPlayer = ({
               </svg>
             </div>
             <div className="text-[10px] uppercase tracking-[0.3em] font-bold" style={{ color: "rgba(255,255,255,0.4)" }}>
-              Раунд завершён
+              Round Complete
             </div>
             <div className="text-white font-black text-5xl tabular-nums leading-none mt-2">{cTotal}</div>
             <div className="text-xl font-bold mt-1" style={{ color: vpColor }}>{vpText}</div>
@@ -537,7 +537,7 @@ const TournamentRoundPlayer = ({
                 className="flex items-center justify-center gap-2 w-full mt-2 py-2 text-sm font-semibold"
                 style={{ color: "#22c55e" }}
               >
-                <Camera className="h-4 w-4" /> Заменить фото
+                <Camera className="h-4 w-4" /> Replace Photo
               </button>
             </div>
           ) : (
@@ -548,7 +548,7 @@ const TournamentRoundPlayer = ({
             >
               <Camera className="h-8 w-8" style={{ color: "#22c55e" }} />
               <div className="text-sm font-semibold" style={{ color: "rgba(255,255,255,0.6)" }}>
-                Добавить фото раунда
+                Add Round Photo
               </div>
             </button>
           )}
@@ -561,7 +561,7 @@ const TournamentRoundPlayer = ({
             className="w-full h-14 rounded-2xl font-black text-base uppercase tracking-wider active:scale-[0.98] transition-transform"
             style={{ background: "#22c55e", color: "#000" }}
           >
-            ГОТОВО
+            DONE
           </button>
         </div>
       </div>
@@ -571,8 +571,8 @@ const TournamentRoundPlayer = ({
   if (!activeRound) {
     return (
       <Card className="p-8 text-center">
-        <div className="text-muted-foreground mb-4">Активного раунда нет</div>
-        <Button onClick={onExit}>Назад</Button>
+        <div className="text-muted-foreground mb-4">No active round</div>
+        <Button onClick={onExit}>Back</Button>
       </Card>
     );
   }
@@ -606,7 +606,7 @@ const TournamentRoundPlayer = ({
     if (!sheetPlayer) return;
     enterScore(sheetPlayer.id, { hole: currentHole.number, ...hole });
     setSheetPlayer(null);
-    toast.success(`Лунка ${currentHole.number}: ${hole.score}`);
+    toast.success(`Hole ${currentHole.number}: ${hole.score}`);
     const allOthersScored = activeRound.players
       .filter((p) => p.id !== sheetPlayer.id)
       .every((p) => !!activeRound.scores[p.id]?.find((x) => x.hole === currentHole.number));
@@ -651,14 +651,14 @@ const TournamentRoundPlayer = ({
               <ChevronLeft className="h-6 w-6 text-white" strokeWidth={2.5} />
             </button>
             <span className="text-white font-bold text-base tracking-wider min-w-[90px] text-center">
-              Лунка {currentHole.number}
+              Hole {currentHole.number}
             </span>
             <button onClick={() => setHoleIdx(Math.min(totalHoles - 1, holeIdx + 1))} disabled={holeIdx === totalHoles - 1} className="h-9 w-9 grid place-items-center disabled:opacity-20">
               <ChevronRight className="h-6 w-6 text-white" strokeWidth={2.5} />
             </button>
           </div>
         ) : (
-          <span className="text-white font-bold text-base tracking-wider">Лидерборд</span>
+          <span className="text-white font-bold text-base tracking-wider">Leaderboard</span>
         )}
 
         <button
@@ -666,7 +666,7 @@ const TournamentRoundPlayer = ({
           className="h-9 px-4 rounded-full font-bold text-xs tracking-wider"
           style={{ background: "rgba(255,255,255,0.1)", color: "#4ade80" }}
         >
-          ФИНИШ
+          FINISH
         </button>
       </div>
 
@@ -681,7 +681,7 @@ const TournamentRoundPlayer = ({
               : { color: "rgba(255,255,255,0.5)" }
             }
           >
-            СЧЁТ
+            SCORE
           </button>
           <button
             onClick={() => setView("leaderboard")}
@@ -691,7 +691,7 @@ const TournamentRoundPlayer = ({
               : { color: "rgba(255,255,255,0.5)" }
             }
           >
-            <Trophy className="h-3 w-3" /> ЛИДЕРБОРД
+            <Trophy className="h-3 w-3" /> LEADERBOARD
           </button>
         </div>
       </div>
@@ -711,8 +711,8 @@ const TournamentRoundPlayer = ({
               <span className="text-white/70 font-semibold text-sm tracking-[0.15em] truncate">{tournamentName}</span>
             </div>
             <div className="flex items-baseline gap-6 px-5 pb-4">
-              <span className="text-white font-black text-4xl tracking-tight">ПАР {currentHole.par}</span>
-              <span className="text-white/50 font-bold text-2xl tracking-tight">ГКП {currentHole.hcp}</span>
+              <span className="text-white font-black text-4xl tracking-tight">PAR {currentHole.par}</span>
+              <span className="text-white/50 font-bold text-2xl tracking-tight">HCP {currentHole.hcp}</span>
             </div>
             <div className="px-5 pb-4">
               <button
@@ -720,7 +720,7 @@ const TournamentRoundPlayer = ({
                 className="w-full h-12 rounded-full font-black text-sm tracking-[0.15em] active:scale-[0.97] transition-transform"
                 style={{ background: "#22c55e", color: "#000" }}
               >
-                ВВЕСТИ СЧЁТ
+                ENTER SCORE
               </button>
             </div>
             <div
@@ -729,7 +729,7 @@ const TournamentRoundPlayer = ({
             >
               <div>
                 <div className="text-white/80 text-sm font-semibold">{course.club}</div>
-                <div className="text-white/40 text-xs">{course.name} · {currentHole.meters[mePlayer?.tee ?? "yellow"]} м</div>
+                <div className="text-white/40 text-xs">{course.name} · {currentHole.meters[mePlayer?.tee ?? "yellow"]} m</div>
               </div>
               <div className="flex items-center gap-2">
                 <Flag className="h-5 w-5" style={{ color: "#22c55e" }} />
@@ -758,7 +758,7 @@ const TournamentRoundPlayer = ({
                       <span className="text-white/40 text-sm font-normal ml-1">[{p.hcp}]</span>
                     </div>
                     <div className="text-white/50 text-sm" style={{ color: parSignColor(tp) }}>
-                      {parSignText(tp)} · {t} уд.
+                      {parSignText(tp)} · {t} str.
                     </div>
                   </div>
                 </div>
@@ -820,7 +820,7 @@ const TournamentRoundPlayer = ({
                 <Avatar name={sheetPlayer.name} tone={sheetPlayer.isMe ? "orange" : "muted"} />
                 <div>
                   <div className="text-white font-bold">{sheetPlayer.name.split(" ")[0]}</div>
-                  <div className="text-white/40 text-xs">Лунка {currentHole.number} · Пар {currentHole.par}</div>
+                  <div className="text-white/40 text-xs">Hole {currentHole.number} · Par {currentHole.par}</div>
                 </div>
               </div>
               <button onClick={() => setSheetPlayer(null)} className="h-9 w-9 rounded-full grid place-items-center" style={{ background: "rgba(255,255,255,0.1)" }}>
@@ -829,13 +829,13 @@ const TournamentRoundPlayer = ({
             </div>
             <div className="px-5 pt-5 pb-2">
               <div className="grid grid-cols-2 gap-3 mb-4">
-                <ScoreCounter label="СЧЁТ" value={hole.score} onChange={(v) => setHole({ ...hole, score: v })} sublabel={scoreLabel(hole.score, currentHole.par)} sublabelColor={scoreLabelColor(hole.score, currentHole.par)} />
-                <ScoreCounter label="ПАТТЫ" value={hole.putts} onChange={(v) => setHole({ ...hole, putts: v })} />
+                <ScoreCounter label="SCORE" value={hole.score} onChange={(v) => setHole({ ...hole, score: v })} sublabel={scoreLabel(hole.score, currentHole.par)} sublabelColor={scoreLabelColor(hole.score, currentHole.par)} />
+                <ScoreCounter label="PUTTS" value={hole.putts} onChange={(v) => setHole({ ...hole, putts: v })} />
               </div>
               <div className="grid grid-cols-4 gap-2 mb-5">
-                <PenaltyToggle icon={<Mountain className="h-4 w-4" />} label="Бункер Ф" active={hole.fairwayBunker} onClick={() => setHole({ ...hole, fairwayBunker: !hole.fairwayBunker })} />
-                <PenaltyToggle icon={<Mountain className="h-4 w-4" />} label="Бункер Г" active={hole.greenSideBunker} onClick={() => setHole({ ...hole, greenSideBunker: !hole.greenSideBunker })} />
-                <PenaltyToggle icon={<Waves className="h-4 w-4" />} label="Вода" active={hole.hazard} onClick={() => setHole({ ...hole, hazard: !hole.hazard })} />
+                <PenaltyToggle icon={<Mountain className="h-4 w-4" />} label="F.Bunker" active={hole.fairwayBunker} onClick={() => setHole({ ...hole, fairwayBunker: !hole.fairwayBunker })} />
+                <PenaltyToggle icon={<Mountain className="h-4 w-4" />} label="G.Bunker" active={hole.greenSideBunker} onClick={() => setHole({ ...hole, greenSideBunker: !hole.greenSideBunker })} />
+                <PenaltyToggle icon={<Waves className="h-4 w-4" />} label="Water" active={hole.hazard} onClick={() => setHole({ ...hole, hazard: !hole.hazard })} />
                 <PenaltyToggle icon={<ShieldAlert className="h-4 w-4" />} label="OB" active={hole.outOfBounds} onClick={() => setHole({ ...hole, outOfBounds: !hole.outOfBounds })} />
               </div>
               <button
@@ -843,7 +843,7 @@ const TournamentRoundPlayer = ({
                 className="w-full h-14 rounded-2xl font-black text-base uppercase tracking-wider active:scale-[0.98] transition-transform"
                 style={{ background: "#22c55e", color: "#000" }}
               >
-                СОХРАНИТЬ
+                SAVE
               </button>
             </div>
           </div>

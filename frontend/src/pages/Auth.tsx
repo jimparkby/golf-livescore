@@ -48,10 +48,10 @@ export default function AuthPage() {
       })
       let data: Record<string, string> = {}
       try { data = await res.json() } catch { /* non-json */ }
-      if (!res.ok) throw new Error(data.error ?? `Ошибка сервера (${res.status})`)
+      if (!res.ok) throw new Error(data.error ?? `Server error (${res.status})`)
       await signIn(data.jwt)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Неизвестная ошибка')
+      setError(err instanceof Error ? err.message : 'Unknown error')
       setStatus('error')
     }
   }
@@ -73,8 +73,8 @@ export default function AuthPage() {
         <div className="font-black text-4xl tracking-wider mb-1">GOLFMINSK</div>
         <div className="text-xs opacity-60 uppercase tracking-[0.25em]">Live Scoring</div>
         <div className="mt-6 text-base font-medium opacity-90">
-          Добро пожаловать в golf live scoring Minsk.<br />
-          Хорошей игры!
+          Welcome to Golf Live Scoring Minsk.<br />
+          Good luck out there!
         </div>
       </div>
 
@@ -82,7 +82,7 @@ export default function AuthPage() {
         {status === 'loading' ? (
           <div className="flex flex-col items-center gap-3 text-primary-foreground">
             <div className="h-8 w-8 rounded-full border-2 border-action border-t-transparent animate-spin" />
-            <div className="text-sm opacity-70">Входим через Telegram…</div>
+            <div className="text-sm opacity-70">Logging in via Telegram…</div>
           </div>
         ) : status === 'error' ? (
           <div className="flex flex-col items-center gap-4">
@@ -92,7 +92,7 @@ export default function AuthPage() {
                 onClick={authWithTelegram}
                 className="inline-flex items-center gap-2 bg-[#2AABEE] text-white font-semibold px-6 py-3.5 rounded-2xl text-sm"
               >
-                Попробовать ещё раз
+                Try again
               </button>
             ) : (
               <a
@@ -100,21 +100,21 @@ export default function AuthPage() {
                 className="inline-flex items-center gap-2 bg-[#2AABEE] text-white font-semibold px-6 py-3.5 rounded-2xl text-sm"
               >
                 <TelegramIcon />
-                Открыть в Telegram
+                Open in Telegram
               </a>
             )}
           </div>
         ) : (
           <div className="flex flex-col items-center gap-4">
             <p className="text-primary-foreground/70 text-sm leading-relaxed">
-              Войдите через Telegram — никаких паролей
+              Sign in via Telegram — no passwords needed
             </p>
             <a
               href={`https://t.me/${BOT_USERNAME}?startapp=open`}
               className="inline-flex items-center gap-2 bg-[#2AABEE] hover:bg-[#229ED9] text-white font-bold px-7 py-4 rounded-2xl transition-colors shadow-lg"
             >
               <TelegramIcon />
-              Войти через Telegram
+              Sign in via Telegram
             </a>
           </div>
         )}

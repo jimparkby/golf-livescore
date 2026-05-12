@@ -45,7 +45,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           username: data.username ?? '',
           hcp: Number(data.hcp) || 0,
           homeClub: data.home_club ?? 'Golf Club Minsk',
-          city: data.city ?? 'Минск, Беларусь',
+          city: data.city ?? 'Minsk, Belarus',
           notificationsEnabled: data.notifications_enabled ?? true,
           defaultTee: (data.default_tee as import('@/lib/courses').TeeColor) ?? 'yellow',
         })

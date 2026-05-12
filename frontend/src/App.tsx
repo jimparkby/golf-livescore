@@ -25,7 +25,7 @@ function AppRoutes() {
       <div className="min-h-screen gradient-hero flex items-center justify-center">
         <div className="text-center text-primary-foreground">
           <div className="text-5xl mb-3">⛳</div>
-          <div className="text-sm opacity-70 tracking-widest uppercase">Загрузка…</div>
+          <div className="text-sm opacity-70 tracking-widest uppercase">Loading…</div>
         </div>
       </div>
     );

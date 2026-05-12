@@ -31,15 +31,15 @@ const TournamentsPage = () => {
     <div className="space-y-5 animate-in fade-in duration-300">
       {/* Header */}
       <div>
-        <div className="text-xs uppercase tracking-[0.25em] text-muted-foreground font-semibold">Календарь</div>
-        <h1 className="text-3xl font-bold mt-1">Турниры 2026</h1>
-        <p className="text-sm text-muted-foreground mt-1">Golf Club Minsk · {TOURNAMENTS.length} событий</p>
+        <div className="text-xs uppercase tracking-[0.25em] text-muted-foreground font-semibold">Calendar</div>
+        <h1 className="text-3xl font-bold mt-1">Tournaments 2026</h1>
+        <p className="text-sm text-muted-foreground mt-1">Golf Club Minsk · {TOURNAMENTS.length} events</p>
       </div>
 
       {/* Custom tournaments */}
       {customTournaments.length > 0 && (
         <div>
-          <div className="text-xs uppercase tracking-[0.2em] font-bold text-action mb-2">Мои турниры</div>
+          <div className="text-xs uppercase tracking-[0.2em] font-bold text-action mb-2">My Tournaments</div>
           <Card className="overflow-hidden shadow-soft">
             <div className="divide-y divide-border">
               {customTournaments.map((t) => {
@@ -69,18 +69,18 @@ const TournamentsPage = () => {
                     </div>
                     {deletingId === t.id && (
                       <div className="flex items-center gap-3 px-4 py-3 border-t border-border bg-destructive/5 animate-in slide-in-from-top duration-150">
-                        <div className="flex-1 text-sm text-destructive font-semibold">Удалить турнир?</div>
+                        <div className="flex-1 text-sm text-destructive font-semibold">Delete tournament?</div>
                         <button
                           onClick={() => { deleteCustomTournament(t.id); setDeletingId(null); }}
                           className="px-4 py-1.5 rounded-lg bg-destructive text-destructive-foreground text-sm font-bold"
                         >
-                          Удалить
+                          Delete
                         </button>
                         <button
                           onClick={() => setDeletingId(null)}
                           className="px-4 py-1.5 rounded-lg bg-muted text-foreground text-sm font-bold"
                         >
-                          Отмена
+                          Cancel
                         </button>
                       </div>
                     )}
@@ -128,7 +128,7 @@ const TournamentsPage = () => {
 
       {/* Legend */}
       <Card className="p-4 shadow-soft">
-        <div className="text-xs uppercase tracking-wider font-semibold text-muted-foreground mb-3">Статус турнира</div>
+        <div className="text-xs uppercase tracking-wider font-semibold text-muted-foreground mb-3">Tournament Status</div>
         <div className="grid grid-cols-2 gap-3 text-sm">
           {(Object.keys(TIER_LABELS) as Tier[]).map((tier) => (
             <div key={tier} className="flex items-center gap-2">
@@ -137,7 +137,7 @@ const TournamentsPage = () => {
             </div>
           ))}
         </div>
-        <div className="text-[11px] text-muted-foreground mt-3">*Дата турнира может быть изменена</div>
+        <div className="text-[11px] text-muted-foreground mt-3">*Tournament date is subject to change</div>
       </Card>
     </div>
   );

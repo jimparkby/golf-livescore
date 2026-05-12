@@ -4,10 +4,10 @@ import { cn } from "@/lib/utils";
 import { useTelegram } from "@/hooks/useTelegram";
 
 const tabs = [
-  { to: "/", label: "Играть", icon: Flag, end: true },
-  { to: "/tournaments", label: "Турниры", icon: Trophy },
-  { to: "/stats", label: "Статистика", icon: LineChart },
-  { to: "/profile", label: "Профиль", icon: CircleUserRound },
+  { to: "/", label: "Play", icon: Flag, end: true },
+  { to: "/tournaments", label: "Tournaments", icon: Trophy },
+  { to: "/stats", label: "Stats", icon: LineChart },
+  { to: "/profile", label: "Profile", icon: CircleUserRound },
 ];
 
 export const AppHeader = ({ title }: { title?: string }) => (

@@ -34,7 +34,7 @@ app.get('/api/ping', (_req, res) => res.json({ ok: true }))
 
 app.use((err, _req, res, _next) => {
   console.error(err)
-  res.status(500).json({ error: err.message || 'Внутренняя ошибка сервера' })
+  res.status(500).json({ error: err.message || 'Internal server error' })
 })
 
 // Try to find the built frontend in several possible locations

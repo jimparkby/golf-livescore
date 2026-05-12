@@ -27,7 +27,7 @@ const ProfilePage = () => {
     if (!file) return;
     const compressed = await compressImage(file, 400);
     updateProfile({ photoUrl: compressed });
-    toast.success("Фото профиля обновлено");
+    toast.success("Profile photo updated");
     e.target.value = "";
   };
 
@@ -87,7 +87,7 @@ const ProfilePage = () => {
   const save = () => {
     updateProfile(draft);
     setEditing(false);
-    toast.success("Профиль обновлён");
+    toast.success("Profile updated");
     syncProfile(draft);
   };
 
@@ -134,7 +134,7 @@ const ProfilePage = () => {
             </div>
             <div className="flex-1 min-w-0">
               {isEmpty ? (
-                <div className="text-base opacity-80">Введите ваше имя →</div>
+                <div className="text-base opacity-80">Enter your name →</div>
               ) : (
                 <div className="text-xl font-bold">{profile.firstName} {profile.lastName}</div>
               )}
@@ -177,7 +177,7 @@ const ProfilePage = () => {
       {hcpIndex !== null && (
         <Card className="p-4 shadow-soft">
           <div className="flex items-center justify-between mb-3">
-            <div className="text-xs uppercase tracking-[0.2em] font-bold text-action">Гандикап-Индекс</div>
+            <div className="text-xs uppercase tracking-[0.2em] font-bold text-action">Handicap Index</div>
             <div className="text-2xl font-black text-foreground tabular-nums">{hcpIndex.toFixed(1)}</div>
           </div>
           <div className="grid grid-cols-2 gap-2">
@@ -202,13 +202,13 @@ const ProfilePage = () => {
       {editing ? (
         <Card className="p-5 shadow-soft space-y-4">
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Имя">
+            <Field label="First Name">
               <Input value={draft.firstName} onChange={(e) => setDraft({ ...draft, firstName: e.target.value })} autoFocus />
             </Field>
-            <Field label="Фамилия">
+            <Field label="Last Name">
               <Input value={draft.lastName} onChange={(e) => setDraft({ ...draft, lastName: e.target.value })} />
             </Field>
-            <Field label="HCP (ручной)" className="col-span-2">
+            <Field label="HCP (manual)" className="col-span-2">
               <Input type="number" step="0.1" value={draft.hcp} onChange={(e) => setDraft({ ...draft, hcp: Number(e.target.value) })} />
             </Field>
           </div>
@@ -218,17 +218,17 @@ const ProfilePage = () => {
               className="w-full flex items-center justify-center gap-2 h-10 rounded-xl text-sm font-semibold transition-colors"
               style={{ background: "rgba(239,68,68,0.1)", border: "1.5px solid rgba(239,68,68,0.3)", color: "#ef4444" }}
             >
-              <Trash2 className="h-4 w-4" /> Удалить фото
+              <Trash2 className="h-4 w-4" /> Delete Photo
             </button>
           )}
           <Button onClick={save} className="w-full bg-action hover:bg-action/90 text-action-foreground rounded-xl h-12">
-            Сохранить изменения
+            Save Changes
           </Button>
         </Card>
       ) : (
         <Card className="p-5 shadow-soft space-y-3 text-sm">
-          <Row icon={<Calendar className="h-4 w-4" />} label="Член клуба с" value={profile.memberSince || "—"} />
-          <Row icon={<Trophy className="h-4 w-4" />} label="Сыграно раундов" value={String(rounds.length)} />
+          <Row icon={<Calendar className="h-4 w-4" />} label="Member since" value={profile.memberSince || "—"} />
+          <Row icon={<Trophy className="h-4 w-4" />} label="Rounds played" value={String(rounds.length)} />
         </Card>
       )}
 
@@ -239,8 +239,8 @@ const ProfilePage = () => {
           <div className="flex items-center gap-3">
             <Bell className="h-4 w-4 text-muted-foreground" />
             <div>
-              <div className="text-sm font-medium">Уведомления</div>
-              <div className="text-[10px] text-muted-foreground">Турниры и ежедневные советы</div>
+              <div className="text-sm font-medium">Notifications</div>
+              <div className="text-[10px] text-muted-foreground">Tournaments and daily tips</div>
             </div>
           </div>
           <button
@@ -262,7 +262,7 @@ const ProfilePage = () => {
           onClick={() => setShowTeePicker(true)}
           className="w-full flex items-center justify-between px-5 py-4"
         >
-          <div className="text-sm font-medium">Ти по умолчанию</div>
+          <div className="text-sm font-medium">Default Tee</div>
           <div className="flex items-center gap-2 text-muted-foreground">
             <div
               className="w-4 h-4 rounded-sm border"
@@ -281,18 +281,18 @@ const ProfilePage = () => {
       <button
         onClick={() => {
           signOut();
-          toast.success("Вы вышли из аккаунта");
+          toast.success("Signed out");
         }}
         className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-medium border border-destructive/30 text-destructive hover:bg-destructive/10 transition-colors"
       >
         <LogOut className="h-4 w-4" />
-        Выйти из аккаунта
+        Sign Out
       </button>
 
       {/* Frequent partners */}
       {useGolf.getState().frequent.length > 0 && (
         <Card className="p-5 shadow-soft">
-          <div className="text-xs uppercase tracking-wider font-semibold text-muted-foreground mb-3">Частые партнёры</div>
+          <div className="text-xs uppercase tracking-wider font-semibold text-muted-foreground mb-3">Frequent Partners</div>
           <div className="flex gap-3 overflow-x-auto pb-1">
             {useGolf.getState().frequent.map((f) => (
               <div key={f.id} className="flex flex-col items-center gap-1.5 shrink-0">
@@ -315,7 +315,7 @@ const ProfilePage = () => {
           >
             <div className="mx-auto w-10 h-1 rounded-full mt-3 mb-4" style={{ background: "rgba(255,255,255,0.15)" }} />
             <div className="flex items-center justify-between px-5 pb-4">
-              <div className="text-white font-bold text-lg">Ти по умолчанию</div>
+              <div className="text-white font-bold text-lg">Default Tee</div>
               <button
                 onClick={() => setShowTeePicker(false)}
                 className="h-8 w-8 rounded-full grid place-items-center"
@@ -328,7 +328,7 @@ const ProfilePage = () => {
               {(Object.keys(TEE_CONFIG) as TeeColor[]).map((color) => (
                 <button
                   key={color}
-                  onClick={() => { pushSetting({ defaultTee: color }); setShowTeePicker(false); toast.success(`Ти по умолчанию: ${TEE_CONFIG[color].label}`); }}
+                  onClick={() => { pushSetting({ defaultTee: color }); setShowTeePicker(false); toast.success(`Default Tee: ${TEE_CONFIG[color].label}`); }}
                   className="w-full flex items-center gap-4 px-4 py-3 rounded-2xl active:scale-[0.98] transition-transform"
                   style={{
                     background: profile.defaultTee === color ? "rgba(255,255,255,0.1)" : "rgba(255,255,255,0.05)",
