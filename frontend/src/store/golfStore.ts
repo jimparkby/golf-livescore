@@ -55,7 +55,6 @@ export type Profile = {
   city: string;
   memberSince: string;
   photoUrl?: string;
-  notificationsEnabled: boolean;
   defaultTee: TeeColor;
 };
 
@@ -125,8 +124,6 @@ if (typeof document !== 'undefined') {
   })
 }
 
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const isUUID = (id: string) => UUID_RE.test(id);
 
 const defaultProfile: Profile = {
   firstName: "",
@@ -138,7 +135,6 @@ const defaultProfile: Profile = {
   email: "",
   city: "Minsk, Belarus",
   memberSince: String(new Date().getFullYear()),
-  notificationsEnabled: true,
   defaultTee: "yellow",
 };
 
@@ -184,12 +180,6 @@ export const useGolf = create<State>()(
         // Save to backend immediately so it survives app restarts
         api.post('/api/rounds', { round }).catch(() => {})
 
-        // Always notify: sends tip to current player + notifies any registered participants
-        const registeredParticipants = players.filter((p) => !p.isMe && isUUID(p.id));
-        api.post('/api/notifications/round-start', {
-          playerIds: registeredParticipants.map((p) => p.id),
-          courseName: course.name,
-        }).catch(() => {});
       },
 
       cancelActiveRound: () => {

@@ -16,19 +16,18 @@ router.get('/', requireAuth, async (req, res, next) => {
 })
 
 router.put('/', requireAuth, async (req, res, next) => {
-  const { first_name, last_name, username, hcp, home_club, city, notifications_enabled, default_tee } = req.body
+  const { first_name, last_name, username, hcp, home_club, city, default_tee } = req.body
   try {
     const { rows: [user] } = await db.query(
       `UPDATE users SET
-         first_name           = COALESCE($2, first_name),
-         last_name            = COALESCE($3, last_name),
-         username             = COALESCE($4, username),
-         hcp                  = COALESCE($5, hcp),
-         home_club            = COALESCE($6, home_club),
-         city                 = COALESCE($7, city),
-         notifications_enabled = COALESCE($8, notifications_enabled),
-         default_tee          = COALESCE($9, default_tee),
-         updated_at           = NOW()
+         first_name  = COALESCE($2, first_name),
+         last_name   = COALESCE($3, last_name),
+         username    = COALESCE($4, username),
+         hcp         = COALESCE($5, hcp),
+         home_club   = COALESCE($6, home_club),
+         city        = COALESCE($7, city),
+         default_tee = COALESCE($8, default_tee),
+         updated_at  = NOW()
        WHERE id = $1 RETURNING *`,
       [
         req.user.userId,
@@ -38,7 +37,6 @@ router.put('/', requireAuth, async (req, res, next) => {
         hcp !== undefined ? Number(hcp) : null,
         home_club?.trim() || null,
         city?.trim() || null,
-        notifications_enabled !== undefined ? Boolean(notifications_enabled) : null,
         default_tee?.trim() || null,
       ]
     )

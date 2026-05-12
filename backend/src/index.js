@@ -8,7 +8,6 @@ import authRouter from './routes/auth.js'
 import profileRouter from './routes/profile.js'
 import roundsRouter from './routes/rounds.js'
 import usersRouter from './routes/users.js'
-import notificationsRouter from './routes/notifications.js'
 import { processUpdate } from './bot.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -27,8 +26,7 @@ app.use('/api/auth', authRouter)
 app.use('/api/profile', profileRouter)
 app.use('/api/rounds', roundsRouter)
 app.use('/api/users', usersRouter)
-app.use('/api/notifications', notificationsRouter)
-console.log('[boot] /api/auth, /api/profile, /api/rounds, /api/users, /api/notifications registered')
+console.log('[boot] /api/auth, /api/profile, /api/rounds, /api/users registered')
 
 app.get('/api/ping', (_req, res) => res.json({ ok: true }))
 

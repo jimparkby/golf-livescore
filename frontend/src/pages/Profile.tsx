@@ -7,7 +7,7 @@ import { Avatar } from "@/components/PlayerAvatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Pencil, Check, Trophy, Camera, LogOut, Trash2, Bell, ChevronRight, X, Calendar } from "lucide-react";
+import { Pencil, Check, Trophy, Camera, LogOut, Trash2, ChevronRight, X, Calendar } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { getDifferentials, calcHandicapIndex, playingHandicap } from "@/lib/handicap";
@@ -57,11 +57,7 @@ const ProfilePage = () => {
     fetch(`${BASE}/api/profile`, {
       method: "PUT",
       headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-      body: JSON.stringify(
-        'notificationsEnabled' in patch
-          ? { notifications_enabled: patch.notificationsEnabled }
-          : { default_tee: patch.defaultTee }
-      ),
+      body: JSON.stringify({ default_tee: patch.defaultTee }),
     }).catch(console.error);
   };
 
@@ -234,29 +230,6 @@ const ProfilePage = () => {
 
       {/* Settings */}
       <Card className="overflow-hidden shadow-soft">
-        {/* Notifications toggle */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-border">
-          <div className="flex items-center gap-3">
-            <Bell className="h-4 w-4 text-muted-foreground" />
-            <div>
-              <div className="text-sm font-medium">Notifications</div>
-              <div className="text-[10px] text-muted-foreground">Tournaments and daily tips</div>
-            </div>
-          </div>
-          <button
-            onClick={() => pushSetting({ notificationsEnabled: !profile.notificationsEnabled })}
-            className={cn(
-              "w-12 h-6 rounded-full transition-colors relative shrink-0",
-              profile.notificationsEnabled ? "bg-action" : "bg-muted-foreground/30"
-            )}
-          >
-            <div className={cn(
-              "absolute top-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition-transform",
-              profile.notificationsEnabled ? "translate-x-6" : "translate-x-0.5"
-            )} />
-          </button>
-        </div>
-
         {/* Default tee */}
         <button
           onClick={() => setShowTeePicker(true)}
