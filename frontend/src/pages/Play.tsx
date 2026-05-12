@@ -4,6 +4,7 @@ import { Card } from "@/components/ui/card";
 import { Avatar } from "@/components/PlayerAvatar";
 import { COURSES, TEE_CONFIG, type TeeColor } from "@/lib/courses";
 import { useGolf, type Player, type Round, type HolesMode } from "@/store/golfStore";
+import { calcCourseHcpForMode, holeRankInSet, holeStrokesInSet } from "@/lib/handicap";
 import { compressImage } from "@/lib/imageUtils";
 import { api } from "@/lib/api";
 import { ChevronLeft, ChevronRight, Plus, X, PlayCircle, Flag, Camera, Check, Search } from "lucide-react";
@@ -295,9 +296,11 @@ const SetupScreen = ({
                   <Avatar name={p.name} tone={p.isMe ? "orange" : "muted"} />
                   <div className="min-w-0">
                     <div className="font-semibold truncate">{p.name}</div>
-                    <div className="text-xs text-muted-foreground">
-                      HCP {is9Hole ? Math.round(p.hcp / 2) : p.hcp}{is9Hole ? " (9H)" : ""} · 88%
-                    </div>
+                    {(() => {
+                      const teeInfo = course?.tees.find(t => t.color === (p.tee ?? "yellow")) ?? course?.tees[0]
+                      const ch = teeInfo ? calcCourseHcpForMode(p.hcp, teeInfo.slope, teeInfo.rating, course!.totalPar, holesMode) : p.hcp
+                      return <div className="text-xs text-muted-foreground">HCP {p.hcp} · CH {ch}</div>
+                    })()}
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
@@ -311,9 +314,15 @@ const SetupScreen = ({
                     title={TEE_CONFIG[p.tee ?? "yellow"].label}
                   />
                   <div className="relative">
-                    <div className="h-12 w-12 rounded-full bg-warning grid place-items-center font-bold text-primary">
-                      {p.hcp}
-                    </div>
+                    {(() => {
+                      const teeInfo = course?.tees.find(t => t.color === (p.tee ?? "yellow")) ?? course?.tees[0]
+                      const ch = teeInfo ? calcCourseHcpForMode(p.hcp, teeInfo.slope, teeInfo.rating, course!.totalPar, holesMode) : Math.round(p.hcp)
+                      return (
+                        <div className="h-12 w-12 rounded-full bg-warning grid place-items-center font-bold text-primary">
+                          {ch}
+                        </div>
+                      )
+                    })()}
                   </div>
                   {!p.isMe && (
                     <button onClick={() => removePlayer(p.id)} className="text-muted-foreground hover:text-destructive">
@@ -596,6 +605,26 @@ const RoundPlayer = ({ onExit, onCancel }: { onExit: () => void; onCancel: () =>
     ? _course.holes.filter(h => h.number > 9)
     : _course.holes;
 
+  // Course Handicap for a player (based on their tee and holes mode)
+  const getCh = (p: Player) => {
+    const teeInfo = _course.tees.find(t => t.color === (p.tee ?? "yellow")) ?? _course.tees[0]
+    return calcCourseHcpForMode(p.hcp, teeInfo.slope, teeInfo.rating, _course.totalPar, _mode)
+  }
+
+  // Strokes received/given on a specific hole for a player
+  const getHoleStrokes = (p: Player, h: typeof _course.holes[0]) => {
+    const rank = holeRankInSet(h, playHoles)
+    return holeStrokesInSet(getCh(p), rank, playHoles.length)
+  }
+
+  // Running net vs par (gross - strokes - par per each played hole)
+  const calcNetVsPar = (p: Player) =>
+    (activeRound?.scores[p.id] ?? []).reduce((acc, s) => {
+      const h = playHoles.find(h => h.number === s.hole)
+      if (!h) return acc
+      return acc + s.score - getHoleStrokes(p, h) - h.par
+    }, 0)
+
   const [holeIdx, setHoleIdx] = useState(() => {
     if (!activeRound) return 0;
     if (activeRound.currentHoleIndex != null) {
@@ -655,8 +684,9 @@ const RoundPlayer = ({ onExit, onCancel }: { onExit: () => void; onCancel: () =>
                 return a + (s.score - (h?.par ?? 4));
               }, 0);
               const vsParText = vsPar === 0 ? "E" : vsPar > 0 ? `+${vsPar}` : `${vsPar}`;
-              const displayHcp = _mode !== "18" ? Math.round(p.hcp / 2) : p.hcp;
-
+              const ch = getCh(p);
+              const netVsParVal = vsPar - ch;
+              const netVsParText = netVsParVal === 0 ? "E" : netVsParVal > 0 ? `+${netVsParVal}` : `${netVsParVal}`;
               return (
                 <div key={p.id} className="rounded-2xl overflow-hidden" style={{ background: "#1a1a1a" }}>
                   <div className="flex items-center justify-between px-5 py-4">
@@ -664,13 +694,16 @@ const RoundPlayer = ({ onExit, onCancel }: { onExit: () => void; onCancel: () =>
                       <Avatar name={p.name} tone={p.isMe ? "orange" : "muted"} />
                       <div>
                         <div className="text-white font-bold">{p.name}</div>
-                        <div className="text-white/50 text-sm">HCP {displayHcp}{_mode !== "18" ? " (9H)" : ""}</div>
+                        <div className="text-white/50 text-sm">HCP {p.hcp} · CH {ch}</div>
                       </div>
                     </div>
                     <div className="text-right">
                       <div className="text-3xl font-black text-white tabular-nums">{total}</div>
                       <div className="text-sm font-bold" style={{ color: vsPar < 0 ? "#22c55e" : vsPar === 0 ? "rgba(255,255,255,0.6)" : "#f87171" }}>
                         {vsParText}
+                      </div>
+                      <div className="text-xs font-semibold" style={{ color: netVsParVal < 0 ? "#22c55e" : netVsParVal === 0 ? "rgba(255,255,255,0.4)" : "#fbbf24" }}>
+                        Net {netVsParText}
                       </div>
                     </div>
                   </div>
@@ -1010,9 +1043,11 @@ const RoundPlayer = ({ onExit, onCancel }: { onExit: () => void; onCancel: () =>
 
         {/* Player score cards */}
         {activeRound.players.map((p) => {
-          const t = total(p);
           const tp = totalVsPar(p);
           const sign = tp === 0 ? "E" : tp > 0 ? `+${tp}` : `${tp}`;
+          const np = calcNetVsPar(p);
+          const netSign = np === 0 ? "E" : np > 0 ? `+${np}` : `${np}`;
+          const pCh = getCh(p);
           const has = activeRound.scores[p.id]?.find((x) => x.hole === currentHole.number);
           return (
             <button
@@ -1026,9 +1061,9 @@ const RoundPlayer = ({ onExit, onCancel }: { onExit: () => void; onCancel: () =>
                 <div className="text-left min-w-0">
                   <div className="text-white font-semibold truncate">
                     {p.name.split(" ")[0]}
-                    <span className="text-white/40 text-sm font-normal ml-1">[{_mode !== "18" ? Math.round(p.hcp / 2) : p.hcp}]</span>
+                    <span className="text-white/40 text-sm font-normal ml-1">CH {pCh}</span>
                   </div>
-                  <div className="text-white/50 text-sm">{sign} · {t} str.</div>
+                  <div className="text-white/50 text-sm">{sign} · Net {netSign}</div>
                 </div>
               </div>
               <div
@@ -1125,7 +1160,10 @@ const RoundPlayer = ({ onExit, onCancel }: { onExit: () => void; onCancel: () =>
                 <Avatar name={sheetPlayer.name} tone={sheetPlayer.isMe ? "orange" : "muted"} />
                 <div>
                   <div className="text-white font-bold">{sheetPlayer.name.split(" ")[0]}</div>
-                  <div className="text-white/40 text-xs">Hole {currentHole.number} · Par {currentHole.par}</div>
+                  <div className="text-white/40 text-xs">
+                    Hole {currentHole.number} · Par {currentHole.par}
+                    {(() => { const s = getHoleStrokes(sheetPlayer, currentHole); return s !== 0 ? <span style={{ color: s > 0 ? "#22c55e" : "#f87171" }}> · {s > 0 ? `+${s}` : s} stroke</span> : null })()}
+                  </div>
                 </div>
               </div>
               <button

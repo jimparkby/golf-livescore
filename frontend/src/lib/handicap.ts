@@ -1,5 +1,5 @@
-import { type Round } from "@/store/golfStore";
-import { COURSES } from "@/lib/courses";
+import { type Round, type HolesMode } from "@/store/golfStore";
+import { COURSES, type Hole } from "@/lib/courses";
 
 // Rounds played → how many best differentials to average
 const DIFF_USE_COUNT: Record<number, number> = {
@@ -130,4 +130,33 @@ export function getDifferentials(
 // Playing Handicap for a specific course (used in score card display)
 export function playingHandicap(hi: number, slope: number, courseRating: number, par: number): number {
   return Math.round(hi * (slope / 113) + (courseRating - par));
+}
+
+/** Course Handicap for a given holes mode (9-hole = half of 18-hole CH) */
+export function calcCourseHcpForMode(
+  hi: number, slope: number, cr: number, par: number, holesMode: HolesMode
+): number {
+  const ch18 = courseHandicap(hi, slope, cr, par)
+  return holesMode === "18" ? ch18 : Math.round(ch18 / 2)
+}
+
+/** Rank of a hole within the play set: 1 = hardest (lowest hole hcp) */
+export function holeRankInSet(hole: Hole, holes: Hole[]): number {
+  const sorted = [...holes].sort((a, b) => a.hcp - b.hcp)
+  return sorted.findIndex(h => h.number === hole.number) + 1
+}
+
+/**
+ * Strokes a player receives (+) or gives (-) on a hole.
+ * courseHcp — Course Handicap; holeRank — rank within play set (1-based); totalHoles — 9 or 18
+ */
+export function holeStrokesInSet(courseHcp: number, holeRank: number, totalHoles: number): number {
+  if (courseHcp === 0) return 0
+  if (courseHcp > 0) {
+    const full = Math.floor(courseHcp / totalHoles)
+    const extra = courseHcp % totalHoles
+    return full + (extra > 0 && holeRank <= extra ? 1 : 0)
+  }
+  // Negative HCP: give strokes on easiest holes (highest rank)
+  return -(holeRank > totalHoles + courseHcp ? 1 : 0)
 }
