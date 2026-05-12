@@ -254,7 +254,10 @@ const ProfilePage = () => {
       <button
         onClick={() => {
           signOut();
-          toast.success("Signed out");
+          const tg = (window as any)?.Telegram?.WebApp;
+          if (tg?.close) {
+            tg.close();
+          }
         }}
         className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-medium border border-destructive/30 text-destructive hover:bg-destructive/10 transition-colors"
       >
