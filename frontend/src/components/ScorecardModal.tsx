@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import type { ActiveRound } from "@/types";
 
 interface Props {
@@ -16,12 +16,23 @@ function scoreColor(score: number, par: number): string {
 }
 
 export function ScorecardModal({ round, onClose }: Props) {
-  // закрыть по Escape
   useEffect(() => {
     const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
     document.addEventListener("keydown", handler);
     return () => document.removeEventListener("keydown", handler);
   }, [onClose]);
+
+  // Swipe-down to close
+  const touchStartY = useRef<number | null>(null);
+  const onTouchStart = (e: React.TouchEvent) => {
+    touchStartY.current = e.touches[0].clientY;
+  };
+  const onTouchEnd = (e: React.TouchEvent) => {
+    if (touchStartY.current === null) return;
+    const delta = e.changedTouches[0].clientY - touchStartY.current;
+    if (delta > 60) onClose();
+    touchStartY.current = null;
+  };
 
   const totalPar = round.scorecard?.reduce((a, h) => a + h.par, 0) ?? 0;
   const totalScore = round.scorecard?.reduce((a, h) => a + h.score, 0) ?? round.score;
@@ -42,6 +53,8 @@ export function ScorecardModal({ round, onClose }: Props) {
 
       {/* Sheet */}
       <div
+        onTouchStart={onTouchStart}
+        onTouchEnd={onTouchEnd}
         style={{
           position: "fixed",
           bottom: 0, left: 0, right: 0,
@@ -53,7 +66,7 @@ export function ScorecardModal({ round, onClose }: Props) {
           overflowY: "auto",
         }}
       >
-        {/* Handle — tap to close */}
+        {/* Handle — tap or swipe down to close */}
         <div
           onClick={onClose}
           style={{ display: "flex", justifyContent: "center", padding: "8px 0 16px", cursor: "pointer" }}
