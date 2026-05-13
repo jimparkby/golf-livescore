@@ -3,16 +3,16 @@ import { useEffect, useState } from 'react';
 const tg = (window as any)?.Telegram?.WebApp;
 
 function applyTelegramSafeArea() {
-  const contentTop   = tg?.contentSafeAreaInset?.top ?? 0;
   const deviceTop    = tg?.safeAreaInset?.top ?? 0;
+  const contentTop   = tg?.contentSafeAreaInset?.top ?? 0;
   const isFullscreen = tg?.isFullscreen ?? false;
 
-  // In fullscreen TG mini app the native header (Close + menu) is ~60px
-  const safeTop = contentTop > 0
-    ? contentTop
-    : isFullscreen
-      ? Math.max(deviceTop, 60)
-      : deviceTop;
+  // In fullscreen mode: deviceTop (notch/status bar) + contentTop (TG Close button) must BOTH be added.
+  // contentSafeAreaInset is the EXTRA inset on top of the device inset, not a replacement.
+  // Minimum 100px in fullscreen so the Close button never overlaps even before SDK reports values.
+  const safeTop = isFullscreen
+    ? Math.max(deviceTop + contentTop, 100)
+    : deviceTop;
 
   const bottom = tg?.safeAreaInset?.bottom ?? 0;
   document.documentElement.style.setProperty('--tg-safe-top',    `${safeTop}px`);
