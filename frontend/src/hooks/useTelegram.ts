@@ -31,6 +31,9 @@ export function useTelegram() {
       try { tg.setHeaderColor('#000000'); } catch {}
       try { tg.setBackgroundColor('#000000'); } catch {}
       try { if (typeof tg.setBottomBarColor === 'function') tg.setBottomBarColor('#000000'); } catch {}
+      // Prevent swipe-down from closing the app
+      try { if (typeof tg.disableVerticalSwipes === 'function') tg.disableVerticalSwipes(); } catch {}
+      try { tg.enableClosingConfirmation(); } catch {}
 
       applyTelegramSafeArea();
       const t1 = setTimeout(applyTelegramSafeArea, 100);

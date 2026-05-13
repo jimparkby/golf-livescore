@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { NavLink, Outlet } from "react-router-dom";
+import { NavLink, Outlet, useLocation } from "react-router-dom";
 import { Trophy, CircleUserRound, LineChart, Flag } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTelegram } from "@/hooks/useTelegram";
@@ -20,6 +20,9 @@ const tabs = [
 
 const AppLayout = () => {
   useTelegram();
+
+  const location = useLocation();
+  const isPlayTab = location.pathname === "/";
 
   const { profile, rounds, activeRound } = useGolf();
   const othersRounds = useOthersRounds();
@@ -110,31 +113,36 @@ const AppLayout = () => {
 
   return (
     <div className="flex flex-col" style={{ minHeight: "100dvh" }}>
-      <div
-        className="fixed top-0 inset-x-0 z-40 flex items-center"
-        style={{
-          height: "calc(var(--header-h) + var(--tg-safe-top))",
-          background: "#000000",
-          borderBottom: "1px solid rgba(255,255,255,0.07)",
-          paddingTop: "calc(var(--tg-safe-top) + 10px)",
-          paddingBottom: 10,
-          paddingLeft: 16,
-          paddingRight: 16,
-        }}
-      >
-        <div className="w-full max-w-3xl mx-auto">
-          <HeaderPanel
-            currentUser={currentUser}
-            activeRounds={myActiveRounds}
-            onRoundPress={setModalRound}
-          />
+      {isPlayTab && (
+        <div
+          className="fixed top-0 inset-x-0 z-40 flex items-center"
+          style={{
+            height: "calc(var(--header-h) + var(--tg-safe-top))",
+            background: "#000000",
+            borderBottom: "1px solid rgba(255,255,255,0.07)",
+            paddingTop: "calc(var(--tg-safe-top) + 10px)",
+            paddingBottom: 10,
+            paddingLeft: 16,
+            paddingRight: 16,
+            overflow: "visible",
+          }}
+        >
+          <div className="w-full max-w-3xl mx-auto" style={{ overflow: "visible" }}>
+            <HeaderPanel
+              currentUser={currentUser}
+              activeRounds={myActiveRounds}
+              onRoundPress={setModalRound}
+            />
+          </div>
         </div>
-      </div>
+      )}
 
       <main
         className="flex-1 mx-auto w-full max-w-3xl px-4"
         style={{
-          paddingTop: "calc(var(--header-h) + var(--tg-safe-top) + 16px)",
+          paddingTop: isPlayTab
+            ? "calc(var(--header-h) + var(--tg-safe-top) + 16px)"
+            : "calc(var(--tg-safe-top) + 16px)",
           paddingBottom: "calc(var(--nav-h) + var(--tg-safe-bottom) + 8px)",
         }}
       >
