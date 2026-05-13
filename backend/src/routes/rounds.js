@@ -59,6 +59,25 @@ async function buildRound(round, requesterId) {
   }
 }
 
+// ── GET /api/rounds/active ────────────────────────────────────────────────────
+// Returns active (or recently-completed within 24h) rounds from OTHER users
+
+router.get('/active', requireAuth, async (req, res, next) => {
+  try {
+    const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
+    const { rows } = await db.query(
+      `SELECT r.* FROM rounds r
+       WHERE r.date > $1
+         AND r.user_id != $2
+       ORDER BY r.date DESC
+       LIMIT 50`,
+      [cutoff, req.user.userId]
+    )
+    const roundsWithData = await Promise.all(rows.map(r => buildRound(r, req.user.userId)))
+    res.json(roundsWithData)
+  } catch (err) { next(err) }
+})
+
 // ── GET /api/rounds ───────────────────────────────────────────────────────────
 // Returns own rounds + rounds where user is a registered participant
 

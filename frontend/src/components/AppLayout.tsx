@@ -4,6 +4,7 @@ import { Trophy, CircleUserRound, LineChart, Flag } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTelegram } from "@/hooks/useTelegram";
 import { useGolf, type Round } from "@/store/golfStore";
+import { useOthersRounds } from "@/hooks/useOthersRounds";
 import { HeaderPanel } from "@/components/HeaderPanel";
 import { ScorecardModal } from "@/components/ScorecardModal";
 import { getDifferentials, calcHandicapIndex } from "@/lib/handicap";
@@ -21,6 +22,7 @@ const AppLayout = () => {
   useTelegram();
 
   const { profile, rounds, activeRound } = useGolf();
+  const othersRounds = useOthersRounds();
   const [modalRound, setModalRound] = useState<ActiveRound | null>(null);
 
   const currentUser = useMemo((): CurrentUser => {
@@ -77,23 +79,34 @@ const AppLayout = () => {
     });
   };
 
-  // Строим сторис для всех игроков: активный раунд ИЛИ последний завершённый (24ч после окончания)
+  // Строим сторис: свой раунд + раунды других пользователей (24ч)
   const myActiveRounds = useMemo((): ActiveRound[] => {
-    if (activeRound) {
-      return buildStoriesFromRound(activeRound, activeRound.date);
-    }
+    const result: ActiveRound[] = [];
 
-    const lastCompleted = rounds.find((r) => r.completed && r.players.some((p) => p.isMe));
-    if (lastCompleted) {
-      const anchor = lastCompleted.completedAt ?? lastCompleted.date;
-      if (Date.now() - new Date(anchor).getTime() < STORY_TTL_MS) {
-        return buildStoriesFromRound(lastCompleted, anchor);
+    // Свой активный раунд
+    if (activeRound) {
+      result.push(...buildStoriesFromRound(activeRound, activeRound.date));
+    } else {
+      // Свой недавно завершённый (24ч после окончания)
+      const lastCompleted = rounds.find((r) => r.completed && r.players.some((p) => p.isMe));
+      if (lastCompleted) {
+        const anchor = lastCompleted.completedAt ?? lastCompleted.date;
+        if (Date.now() - new Date(anchor).getTime() < STORY_TTL_MS) {
+          result.push(...buildStoriesFromRound(lastCompleted, anchor));
+        }
       }
     }
 
-    return [];
+    // Раунды других пользователей
+    for (const round of othersRounds) {
+      result.push(...buildStoriesFromRound(round, round.date));
+    }
+
+    // Дедупликация по id
+    const seen = new Set<string>();
+    return result.filter((r) => (seen.has(r.id) ? false : (seen.add(r.id), true)));
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeRound, rounds, profile]);
+  }, [activeRound, rounds, othersRounds, profile]);
 
   return (
     <div className="flex flex-col" style={{ minHeight: "100dvh" }}>
