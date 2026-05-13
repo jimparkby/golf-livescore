@@ -31,28 +31,20 @@ export function HeaderPanel({ currentUser, activeRounds, onRoundPress }: HeaderP
   const hasActiveRounds = visibleRounds.length > 0;
 
   return (
-    <div style={{ position: "relative", display: "flex", alignItems: "center", height: 56 }}>
-      {/* Left: avatar + name + HCP — lower z-index so bubbles slide over */}
-      <div style={{ position: "relative", zIndex: 0, flexShrink: 0 }}>
+    <div style={{ display: "flex", alignItems: "center", gap: 10, overflow: "hidden" }}>
+      {/* Name — always visible, never shrinks */}
+      <div style={{ flexShrink: 0 }}>
         <CurrentUserBlock user={currentUser} />
       </div>
 
       {hasActiveRounds ? (
-        // Bubbles: absolute from right, higher z-index.
-        // gradient mask fades the left edge so bubbles emerge smoothly over the name.
+        // Bubbles take remaining space, fade in from the left edge
         <div
           style={{
-            position: "absolute",
-            right: 0,
-            top: 0,
-            bottom: 0,
-            maxWidth: "100%",
-            display: "flex",
-            alignItems: "center",
-            zIndex: 10,
-            paddingLeft: 44,
-            WebkitMaskImage: "linear-gradient(90deg, transparent 0px, #000 44px)",
-            maskImage: "linear-gradient(90deg, transparent 0px, #000 44px)",
+            flex: 1,
+            minWidth: 0,
+            WebkitMaskImage: "linear-gradient(to right, transparent 0px, #000 14px)",
+            maskImage: "linear-gradient(to right, transparent 0px, #000 14px)",
           }}
         >
           <ActiveRoundsList rounds={visibleRounds} onPress={onRoundPress} />
