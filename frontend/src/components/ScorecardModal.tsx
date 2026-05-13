@@ -56,8 +56,10 @@ export function ScorecardModal({ round, onClose }: Props) {
         {/* Handle — tap to close */}
         <div
           onClick={onClose}
-          style={{ width: 36, height: 4, borderRadius: 2, background: "#444", margin: "0 auto 16px", cursor: "pointer", padding: "12px 0", boxSizing: "content-box" }}
-        />
+          style={{ display: "flex", justifyContent: "center", padding: "8px 0 16px", cursor: "pointer" }}
+        >
+          <div style={{ width: 36, height: 4, borderRadius: 2, background: "#444" }} />
+        </div>
 
         {/* Header */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
