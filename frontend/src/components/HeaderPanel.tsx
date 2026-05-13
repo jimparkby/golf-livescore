@@ -6,6 +6,7 @@ import { ActiveRoundsList } from "./ActiveRoundsList";
 interface HeaderPanelProps {
   currentUser: CurrentUser;
   activeRounds: ActiveRound[];
+  onRoundPress?: (round: ActiveRound) => void;
 }
 
 function StatCircle({ value, label }: { value: number | string; label: string }) {
@@ -25,7 +26,7 @@ function StatCircle({ value, label }: { value: number | string; label: string })
   );
 }
 
-export function HeaderPanel({ currentUser, activeRounds }: HeaderPanelProps) {
+export function HeaderPanel({ currentUser, activeRounds, onRoundPress }: HeaderPanelProps) {
   const visibleRounds = useRoundExpiry(activeRounds);
   const hasActiveRounds = visibleRounds.length > 0;
 
@@ -35,7 +36,7 @@ export function HeaderPanel({ currentUser, activeRounds }: HeaderPanelProps) {
 
       {hasActiveRounds ? (
         <div className="flex-1 min-w-0">
-          <ActiveRoundsList rounds={visibleRounds} />
+          <ActiveRoundsList rounds={visibleRounds} onPress={onRoundPress} />
         </div>
       ) : (
         <div className="flex items-center gap-3 shrink-0">

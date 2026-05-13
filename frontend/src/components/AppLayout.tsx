@@ -1,12 +1,14 @@
+import { useState, useMemo } from "react";
 import { NavLink, Outlet } from "react-router-dom";
 import { Trophy, CircleUserRound, LineChart, Flag } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTelegram } from "@/hooks/useTelegram";
 import { useGolf } from "@/store/golfStore";
-import { useMemo } from "react";
 import { HeaderPanel } from "@/components/HeaderPanel";
+import { ScorecardModal } from "@/components/ScorecardModal";
 import { getDifferentials, calcHandicapIndex } from "@/lib/handicap";
-import type { CurrentUser } from "@/types";
+import { COURSES } from "@/lib/courses";
+import type { CurrentUser, ActiveRound } from "@/types";
 
 const tabs = [
   { to: "/", label: "Play", icon: Flag, end: true },
@@ -18,15 +20,11 @@ const tabs = [
 const AppLayout = () => {
   useTelegram();
 
-  const { profile, rounds } = useGolf();
-
-  // stable empty array — prevents useRoundExpiry from re-running every render
-  const noActiveRounds = useMemo(() => [], []);
+  const { profile, rounds, activeRound } = useGolf();
+  const [modalRound, setModalRound] = useState<ActiveRound | null>(null);
 
   const currentUser = useMemo((): CurrentUser => {
     const name = [profile.firstName, profile.lastName].filter(Boolean).join(" ") || "Player";
-
-    // same calculation as Stats page
     const diffs = getDifferentials(rounds, "me", profile.hcp);
     const calcHcp = calcHandicapIndex(diffs.map((d) => d.differential));
     const hcp = calcHcp ?? (profile.hcp > 0 ? profile.hcp : null);
@@ -50,6 +48,36 @@ const AppLayout = () => {
     };
   }, [profile, rounds]);
 
+  // Строим сторис из активного раунда пользователя
+  const myActiveRounds = useMemo((): ActiveRound[] => {
+    if (!activeRound) return [];
+
+    const me = activeRound.players.find((p) => p.isMe);
+    if (!me) return [];
+
+    const myScores = activeRound.scores[me.id] ?? [];
+    const played = myScores.filter((s) => s.score > 0);
+    const totalScore = played.reduce((a, s) => a + s.score, 0);
+
+    const course = COURSES.find((c) => c.id === activeRound.courseId);
+    const scorecard = played.map((s) => {
+      const hole = course?.holes.find((h) => h.number === s.hole);
+      return { hole: s.hole, par: hole?.par ?? 4, score: s.score };
+    }).sort((a, b) => a.hole - b.hole);
+
+    return [{
+      id: activeRound.id,
+      playerId: me.id,
+      playerName: [profile.firstName, profile.lastName].filter(Boolean).join(" ") || "Player",
+      avatarUrl: profile.photoUrl ?? "",
+      holesPlayed: played.length,
+      score: totalScore,
+      startedAt: activeRound.date,
+      courseName: activeRound.courseName.split(" · ")[0],
+      scorecard,
+    }];
+  }, [activeRound, profile]);
+
   return (
     <div className="flex flex-col" style={{ minHeight: "100dvh" }}>
       <div
@@ -65,7 +93,11 @@ const AppLayout = () => {
         }}
       >
         <div className="w-full max-w-3xl mx-auto">
-          <HeaderPanel currentUser={currentUser} activeRounds={noActiveRounds} />
+          <HeaderPanel
+            currentUser={currentUser}
+            activeRounds={myActiveRounds}
+            onRoundPress={setModalRound}
+          />
         </div>
       </div>
 
@@ -119,6 +151,10 @@ const AppLayout = () => {
           ))}
         </div>
       </nav>
+
+      {modalRound && (
+        <ScorecardModal round={modalRound} onClose={() => setModalRound(null)} />
+      )}
     </div>
   );
 };
