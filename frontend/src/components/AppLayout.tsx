@@ -50,43 +50,44 @@ const AppLayout = () => {
 
   const STORY_TTL_MS = 24 * 60 * 60 * 1000;
 
-  const buildStoryFromRound = (round: Round, ttlAnchor: string): ActiveRound | null => {
-    const me = round.players.find((p) => p.isMe);
-    if (!me) return null;
-    const myScores = round.scores[me.id] ?? [];
-    const played = myScores.filter((s) => s.score > 0);
-    const totalScore = played.reduce((a, s) => a + s.score, 0);
+  const buildStoriesFromRound = (round: Round, ttlAnchor: string): ActiveRound[] => {
     const course = COURSES.find((c) => c.id === round.courseId);
-    const scorecard = played.map((s) => {
-      const hole = course?.holes.find((h) => h.number === s.hole);
-      return { hole: s.hole, par: hole?.par ?? 4, score: s.score };
-    }).sort((a, b) => a.hole - b.hole);
-    return {
-      id: round.id,
-      playerId: me.id,
-      playerName: [profile.firstName, profile.lastName].filter(Boolean).join(" ") || "Player",
-      avatarUrl: profile.photoUrl ?? "",
-      holesPlayed: played.length,
-      score: totalScore,
-      startedAt: ttlAnchor,
-      courseName: round.courseName.split(" · ")[0],
-      scorecard,
-    };
+    const myName = [profile.firstName, profile.lastName].filter(Boolean).join(" ") || "Player";
+
+    return round.players.map((player) => {
+      const scores = round.scores[player.id] ?? [];
+      const played = scores.filter((s) => s.score > 0);
+      const totalScore = played.reduce((a, s) => a + s.score, 0);
+      const scorecard = played.map((s) => {
+        const hole = course?.holes.find((h) => h.number === s.hole);
+        return { hole: s.hole, par: hole?.par ?? 4, score: s.score };
+      }).sort((a, b) => a.hole - b.hole);
+
+      return {
+        id: `${round.id}-${player.id}`,
+        playerId: player.id,
+        playerName: player.isMe ? myName : player.name,
+        avatarUrl: player.isMe ? (profile.photoUrl ?? "") : "",
+        holesPlayed: played.length,
+        score: totalScore,
+        startedAt: ttlAnchor,
+        courseName: round.courseName.split(" · ")[0],
+        scorecard,
+      };
+    });
   };
 
-  // Строим сторис: активный раунд ИЛИ последний завершённый (24ч после окончания)
+  // Строим сторис для всех игроков: активный раунд ИЛИ последний завершённый (24ч после окончания)
   const myActiveRounds = useMemo((): ActiveRound[] => {
     if (activeRound) {
-      const story = buildStoryFromRound(activeRound, activeRound.date);
-      return story ? [story] : [];
+      return buildStoriesFromRound(activeRound, activeRound.date);
     }
 
     const lastCompleted = rounds.find((r) => r.completed && r.players.some((p) => p.isMe));
     if (lastCompleted) {
       const anchor = lastCompleted.completedAt ?? lastCompleted.date;
       if (Date.now() - new Date(anchor).getTime() < STORY_TTL_MS) {
-        const story = buildStoryFromRound(lastCompleted, anchor);
-        return story ? [story] : [];
+        return buildStoriesFromRound(lastCompleted, anchor);
       }
     }
 
