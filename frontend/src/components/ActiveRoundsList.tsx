@@ -5,10 +5,22 @@ interface Props {
   onPress?: (round: ActiveRound) => void;
 }
 
-function scoreToBadge(score: number, holesPlayed: number): string {
-  if (holesPlayed === 0) return "–";
-  // показываем суммарный счёт
-  return String(score);
+function scoreToBadge(r: ActiveRound): string {
+  if (r.holesPlayed === 0) return "–";
+  if (r.scorecard && r.scorecard.length > 0) {
+    const diff = r.scorecard.reduce((a, h) => a + h.score - h.par, 0);
+    if (diff === 0) return "E";
+    return diff > 0 ? `+${diff}` : String(diff);
+  }
+  return String(r.score);
+}
+
+function badgeColor(r: ActiveRound): string {
+  if (!r.scorecard || r.scorecard.length === 0 || r.holesPlayed === 0) return "#22c55e";
+  const diff = r.scorecard.reduce((a, h) => a + h.score - h.par, 0);
+  if (diff < 0) return "#22c55e";
+  if (diff === 0) return "#888";
+  return "#f87171";
 }
 
 function initials(name: string): string {
@@ -86,7 +98,7 @@ export function ActiveRoundsList({ rounds, onPress }: Props) {
                 position: "absolute",
                 bottom: -4,
                 right: -6,
-                background: "#22c55e",
+                background: badgeColor(r),
                 color: "#000",
                 borderRadius: 6,
                 padding: "1px 5px",
@@ -96,7 +108,7 @@ export function ActiveRoundsList({ rounds, onPress }: Props) {
                 border: "1.5px solid #000",
               }}
             >
-              {scoreToBadge(r.score, r.holesPlayed)}
+              {scoreToBadge(r)}
             </span>
           </div>
 

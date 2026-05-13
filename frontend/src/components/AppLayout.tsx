@@ -3,7 +3,7 @@ import { NavLink, Outlet } from "react-router-dom";
 import { Trophy, CircleUserRound, LineChart, Flag } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTelegram } from "@/hooks/useTelegram";
-import { useGolf } from "@/store/golfStore";
+import { useGolf, type Round } from "@/store/golfStore";
 import { HeaderPanel } from "@/components/HeaderPanel";
 import { ScorecardModal } from "@/components/ScorecardModal";
 import { getDifferentials, calcHandicapIndex } from "@/lib/handicap";
@@ -48,35 +48,51 @@ const AppLayout = () => {
     };
   }, [profile, rounds]);
 
-  // Строим сторис из активного раунда пользователя
-  const myActiveRounds = useMemo((): ActiveRound[] => {
-    if (!activeRound) return [];
+  const STORY_TTL_MS = 24 * 60 * 60 * 1000;
 
-    const me = activeRound.players.find((p) => p.isMe);
-    if (!me) return [];
-
-    const myScores = activeRound.scores[me.id] ?? [];
+  const buildStoryFromRound = (round: Round, ttlAnchor: string): ActiveRound | null => {
+    const me = round.players.find((p) => p.isMe);
+    if (!me) return null;
+    const myScores = round.scores[me.id] ?? [];
     const played = myScores.filter((s) => s.score > 0);
     const totalScore = played.reduce((a, s) => a + s.score, 0);
-
-    const course = COURSES.find((c) => c.id === activeRound.courseId);
+    const course = COURSES.find((c) => c.id === round.courseId);
     const scorecard = played.map((s) => {
       const hole = course?.holes.find((h) => h.number === s.hole);
       return { hole: s.hole, par: hole?.par ?? 4, score: s.score };
     }).sort((a, b) => a.hole - b.hole);
-
-    return [{
-      id: activeRound.id,
+    return {
+      id: round.id,
       playerId: me.id,
       playerName: [profile.firstName, profile.lastName].filter(Boolean).join(" ") || "Player",
       avatarUrl: profile.photoUrl ?? "",
       holesPlayed: played.length,
       score: totalScore,
-      startedAt: activeRound.date,
-      courseName: activeRound.courseName.split(" · ")[0],
+      startedAt: ttlAnchor,
+      courseName: round.courseName.split(" · ")[0],
       scorecard,
-    }];
-  }, [activeRound, profile]);
+    };
+  };
+
+  // Строим сторис: активный раунд ИЛИ последний завершённый (24ч после окончания)
+  const myActiveRounds = useMemo((): ActiveRound[] => {
+    if (activeRound) {
+      const story = buildStoryFromRound(activeRound, activeRound.date);
+      return story ? [story] : [];
+    }
+
+    const lastCompleted = rounds.find((r) => r.completed && r.players.some((p) => p.isMe));
+    if (lastCompleted) {
+      const anchor = lastCompleted.completedAt ?? lastCompleted.date;
+      if (Date.now() - new Date(anchor).getTime() < STORY_TTL_MS) {
+        const story = buildStoryFromRound(lastCompleted, anchor);
+        return story ? [story] : [];
+      }
+    }
+
+    return [];
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeRound, rounds, profile]);
 
   return (
     <div className="flex flex-col" style={{ minHeight: "100dvh" }}>

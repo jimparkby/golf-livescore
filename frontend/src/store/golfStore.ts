@@ -37,6 +37,7 @@ export type Round = {
   players: Player[];
   scores: Record<string, HoleScore[]>;
   completed: boolean;
+  completedAt?: string;
   tournamentId?: string;
   format?: FormatId;
   photoUrl?: string;
@@ -209,7 +210,7 @@ export const useGolf = create<State>()(
       finishRound: async () => {
         const a = get().activeRound;
         if (!a) return;
-        const completedRound = { ...a, completed: true };
+        const completedRound = { ...a, completed: true, completedAt: new Date().toISOString() };
         set((s) => ({ rounds: [completedRound, ...s.rounds], activeRound: null }));
 
         // Синхронизируем с сервером
