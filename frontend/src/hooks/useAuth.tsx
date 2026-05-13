@@ -63,6 +63,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   const signOut = () => {
+    if (import.meta.env.DEV) return
     localStorage.removeItem('golf_jwt')
     localStorage.removeItem('golfminsk-store')
     useGolf.getState().resetStore()
@@ -70,6 +71,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   useEffect(() => {
+    // Dev mode: skip auth entirely, auto-login with mock user
+    if (import.meta.env.DEV) {
+      updateProfile({ firstName: 'Timofey', lastName: '', initials: 'T', hcp: 13 })
+      setUserId('dev')
+      setLoading(false)
+      return
+    }
+
     const token = localStorage.getItem('golf_jwt')
     if (!token) {
       setLoading(false)

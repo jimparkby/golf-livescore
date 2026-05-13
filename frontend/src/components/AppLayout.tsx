@@ -2,6 +2,11 @@ import { NavLink, Outlet } from "react-router-dom";
 import { Trophy, CircleUserRound, LineChart, Flag } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTelegram } from "@/hooks/useTelegram";
+import { useGolf } from "@/store/golfStore";
+import { useMemo } from "react";
+import { HeaderPanel } from "@/components/HeaderPanel";
+import { getDifferentials, calcHandicapIndex } from "@/lib/handicap";
+import type { CurrentUser } from "@/types";
 
 const tabs = [
   { to: "/", label: "Play", icon: Flag, end: true },
@@ -10,28 +15,59 @@ const tabs = [
   { to: "/profile", label: "Profile", icon: CircleUserRound },
 ];
 
-export const AppHeader = ({ title }: { title?: string }) => (
-  <div
-    className="fixed top-0 inset-x-0 z-40 flex items-end justify-center"
-    style={{
-      height: "calc(var(--header-h) + var(--tg-safe-top))",
-      background: "#000000",
-      borderBottom: "1px solid rgba(255,255,255,0.07)",
-      paddingBottom: "10px",
-    }}
-  >
-    <span className="text-white font-bold tracking-[0.18em] text-base">
-      {title ?? "GOLF"}
-    </span>
-  </div>
-);
-
 const AppLayout = () => {
   useTelegram();
 
+  const { profile, rounds } = useGolf();
+
+  // stable empty array — prevents useRoundExpiry from re-running every render
+  const noActiveRounds = useMemo(() => [], []);
+
+  const currentUser = useMemo((): CurrentUser => {
+    const name = [profile.firstName, profile.lastName].filter(Boolean).join(" ") || "Player";
+
+    // same calculation as Stats page
+    const diffs = getDifferentials(rounds, "me", profile.hcp);
+    const calcHcp = calcHandicapIndex(diffs.map((d) => d.differential));
+    const hcp = calcHcp ?? (profile.hcp > 0 ? profile.hcp : null);
+    const handicapIndex = hcp !== null ? hcp.toFixed(1) : "~";
+
+    const allScores = rounds.flatMap((r) => {
+      const me = r.players.find((p) => p.isMe);
+      return me ? r.scores[me.id] ?? [] : [];
+    });
+    const accuracy = allScores.length
+      ? Math.round((allScores.filter((s) => s.gir).length / allScores.length) * 100)
+      : 0;
+
+    return {
+      id: "me",
+      name,
+      avatarUrl: profile.photoUrl ?? "",
+      handicapIndex,
+      accuracy,
+      totalRounds: rounds.filter(r => r.players.some(p => p.isMe)).length,
+    };
+  }, [profile, rounds]);
+
   return (
     <div className="flex flex-col" style={{ minHeight: "100dvh" }}>
-      <AppHeader />
+      <div
+        className="fixed top-0 inset-x-0 z-40 flex items-center"
+        style={{
+          height: "calc(var(--header-h) + var(--tg-safe-top))",
+          background: "#000000",
+          borderBottom: "1px solid rgba(255,255,255,0.07)",
+          paddingTop: "calc(var(--tg-safe-top) + 10px)",
+          paddingBottom: 10,
+          paddingLeft: 16,
+          paddingRight: 16,
+        }}
+      >
+        <div className="w-full max-w-3xl mx-auto">
+          <HeaderPanel currentUser={currentUser} activeRounds={noActiveRounds} />
+        </div>
+      </div>
 
       <main
         className="flex-1 mx-auto w-full max-w-3xl px-4"

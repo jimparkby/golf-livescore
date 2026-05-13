@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import AppLayout from "@/components/AppLayout";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import DemoPage from "./pages/Demo";
 import AuthPage from "./pages/Auth";
 import PlayPage from "./pages/Play";
 import TournamentsPage from "./pages/Tournaments";
@@ -57,9 +58,17 @@ const App = () => (
         <Toaster />
         <Sonner position="top-center" offset="calc(var(--header-h) + var(--tg-safe-top) + 8px)" />
         <BrowserRouter>
-          <AuthProvider>
-            <AppRoutes />
-          </AuthProvider>
+          <Routes>
+            <Route path="/demo" element={<DemoPage />} />
+            <Route
+              path="/*"
+              element={
+                <AuthProvider>
+                  <AppRoutes />
+                </AuthProvider>
+              }
+            />
+          </Routes>
         </BrowserRouter>
       </TooltipProvider>
     </QueryClientProvider>

@@ -23,13 +23,13 @@ export function useTelegram() {
 
   useEffect(() => {
     if (tg) {
-      tg.ready();
-      tg.expand();
-      if (typeof tg.requestFullscreen === 'function') tg.requestFullscreen();
+      try { tg.ready(); } catch {}
+      try { tg.expand(); } catch {}
+      try { if (typeof tg.requestFullscreen === 'function') tg.requestFullscreen(); } catch {}
 
-      tg.setHeaderColor('#000000');
-      tg.setBackgroundColor('#000000');
-      if (typeof tg.setBottomBarColor === 'function') tg.setBottomBarColor('#000000');
+      try { tg.setHeaderColor('#000000'); } catch {}
+      try { tg.setBackgroundColor('#000000'); } catch {}
+      try { if (typeof tg.setBottomBarColor === 'function') tg.setBottomBarColor('#000000'); } catch {}
 
       applyTelegramSafeArea();
       const t1 = setTimeout(applyTelegramSafeArea, 150);

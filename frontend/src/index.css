@@ -55,7 +55,7 @@ All colors MUST be HSL.
     --radius: 0.875rem;
 
     /* Layout heights */
-    --header-h: 52px;
+    --header-h: 76px;
     --nav-h: 60px;
 
     /* Set by useTelegram hook — Telegram's top/bottom bar heights in fullscreen */
