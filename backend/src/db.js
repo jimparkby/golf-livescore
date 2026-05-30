@@ -13,3 +13,14 @@ export const db = new Pool({
 // Add current_hole column if it doesn't exist yet
 db.query(`ALTER TABLE rounds ADD COLUMN IF NOT EXISTS current_hole INTEGER`)
   .catch((err) => console.error('[db] migration error:', err.message))
+
+db.query(`CREATE TABLE IF NOT EXISTS pending_scorecards (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  scores JSONB NOT NULL,
+  course_name TEXT,
+  holes_count INTEGER DEFAULT 18,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  expires_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() + INTERVAL '24 hours',
+  status TEXT DEFAULT 'pending'
+)`).catch((err) => console.error('[db] pending_scorecards migration error:', err.message))

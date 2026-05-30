@@ -17,9 +17,21 @@ import photo2 from "@/assets/golfminsk/photo2.jpg";
 type Step = "home" | "setup" | "playing";
 
 const PlayPage = () => {
-  const { profile, frequent, activeRound, startRound, cancelActiveRound } = useGolf();
+  // ── All hooks must come before any conditional returns ────────────────────
+  const [confirmId, setConfirmId] = useState<string | null>(
+    () => new URLSearchParams(window.location.search).get('confirm')
+  );
+  const { profile, frequent, activeRound, startRound, cancelActiveRound, loadRounds } = useGolf();
   const [step, setStep] = useState<Step>(activeRound ? "playing" : "home");
   const initialHadRound = useRef(!!activeRound);
+  const [courseId, setCourseId] = useState<string>(COURSES[0].id);
+  const [players, setPlayers] = useState<Player[]>([
+    { id: "me", name: `${profile.firstName} ${profile.lastName}`, initials: profile.initials, hcp: profile.hcp, tee: profile.defaultTee ?? "yellow", isMe: true },
+  ]);
+
+  useEffect(() => {
+    if (confirmId) window.history.replaceState({}, '', window.location.pathname);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // When activeRound loads from DB (localStorage was cleared by Telegram), auto-navigate
   useEffect(() => {
@@ -28,12 +40,18 @@ const PlayPage = () => {
     }
   }, [activeRound]);
 
-  const [courseId, setCourseId] = useState<string>(COURSES[0].id);
-  const [players, setPlayers] = useState<Player[]>([
-    { id: "me", name: `${profile.firstName} ${profile.lastName}`, initials: profile.initials, hcp: profile.hcp, tee: profile.defaultTee ?? "yellow", isMe: true },
-  ]);
-
   const course = COURSES.find((c) => c.id === courseId)!;
+
+  // ── Conditional renders (after all hooks) ────────────────────────────────
+  if (confirmId) {
+    return (
+      <ScorecardConfirmModal
+        pendingId={confirmId}
+        onDone={() => { loadRounds(); setConfirmId(null); }}
+        onCancel={() => setConfirmId(null)}
+      />
+    );
+  }
 
   if (step === "playing") return <RoundPlayer onExit={() => { cancelActiveRound(); setStep("home"); }} onCancel={() => setStep("home")} />;
   if (activeRound && step === "home") return (
@@ -1248,6 +1266,287 @@ const ScoreCounter = ({
     </button>
   </div>
 );
+
+/* ────────── SCORECARD CONFIRM MODAL ────────── */
+type PendingScore = { hole: number; score: number };
+
+const ScorecardConfirmModal = ({
+  pendingId,
+  onDone,
+  onCancel,
+}: {
+  pendingId: string;
+  onDone: () => void;
+  onCancel: () => void;
+}) => {
+  const { profile } = useGolf();
+  const [loading, setLoading] = useState(true);
+  const [confirming, setConfirming] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [scores, setScores] = useState<PendingScore[]>([]);
+  const [courseId, setCourseId] = useState<string>(COURSES[0].id);
+  const [tee, setTee] = useState<TeeColor>("yellow");
+  const [date, setDate] = useState(() => new Date().toISOString().split("T")[0]);
+
+  useEffect(() => {
+    api
+      .get<{ id: string; scores: PendingScore[]; courseName: string | null; holesCount: number }>(
+        `/api/scorecards/${pendingId}`
+      )
+      .then((data) => {
+        const sorted = [...data.scores].sort((a, b) => a.hole - b.hole);
+        setScores(sorted);
+        if (data.courseName) {
+          const match = COURSES.find(
+            (c) =>
+              c.name.toLowerCase().includes(data.courseName!.toLowerCase()) ||
+              data.courseName!.toLowerCase().includes(c.name.toLowerCase())
+          );
+          if (match) setCourseId(match.id);
+        }
+        setLoading(false);
+      })
+      .catch((err) => {
+        setError(err.message ?? "Scorecard not found");
+        setLoading(false);
+      });
+  }, [pendingId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const updateScore = (hole: number, val: number) =>
+    setScores((prev) => prev.map((s) => (s.hole === hole ? { ...s, score: val } : s)));
+
+  const course = COURSES.find((c) => c.id === courseId)!;
+  const teeInfo = course.tees.find((t) => t.color === tee) ?? course.tees[0];
+  const totalScore = scores.reduce((sum, s) => sum + s.score, 0);
+
+  const determineHolesMode = (): HolesMode => {
+    if (scores.length > 9) return "18";
+    const max = Math.max(...scores.map((s) => s.hole));
+    return max <= 9 ? "front9" : "back9";
+  };
+
+  const confirm = async () => {
+    if (!scores.length) return;
+    setConfirming(true);
+    try {
+      const playerName =
+        `${profile.firstName} ${profile.lastName}`.trim() || profile.username || "Me";
+      const round: Round = {
+        id: `r-${Date.now()}`,
+        date: new Date(date + "T12:00:00").toISOString(),
+        courseId,
+        courseName: `${course.name} · ${course.club}`,
+        tee: teeInfo.label,
+        rating: teeInfo.rating,
+        slope: teeInfo.slope,
+        players: [
+          {
+            id: "me",
+            name: playerName,
+            initials: profile.initials || playerName.split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2),
+            hcp: profile.hcp,
+            isMe: true,
+          },
+        ],
+        scores: {
+          me: scores.map((s) => ({
+            hole: s.hole,
+            score: s.score,
+            putts: 0,
+            driving: false,
+            gir: false,
+            bunker: 0,
+            penalties: 0,
+          })),
+        },
+        completed: true,
+        holesMode: determineHolesMode(),
+      };
+
+      await api.post("/api/rounds", { round });
+      await api.delete(`/api/scorecards/${pendingId}`);
+      toast.success("Round added!");
+      onDone();
+    } catch (err: unknown) {
+      toast.error((err as Error).message ?? "Save error");
+      setConfirming(false);
+    }
+  };
+
+  const discard = async () => {
+    try { await api.delete(`/api/scorecards/${pendingId}`); } catch { /* ignore */ }
+    onCancel();
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-[60vh] flex items-center justify-center">
+        <div className="text-center text-muted-foreground">
+          <div className="text-4xl mb-3">📋</div>
+          <div className="text-sm">Loading scorecard…</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="space-y-4 animate-in fade-in">
+        <Card className="p-6 text-center">
+          <div className="text-3xl mb-3">❌</div>
+          <div className="font-semibold mb-1">Scorecard not found</div>
+          <div className="text-sm text-muted-foreground mb-4">{error}</div>
+          <Button onClick={onCancel} variant="outline" className="w-full">Back</Button>
+        </Card>
+      </div>
+    );
+  }
+
+  const front9 = scores.filter((s) => s.hole <= 9);
+  const back9 = scores.filter((s) => s.hole >= 10);
+
+  return (
+    <div className="space-y-4 animate-in fade-in duration-300 pb-6">
+      <div>
+        <div className="text-xs uppercase tracking-wider font-semibold mb-1" style={{ color: "#22c55e" }}>
+          Scorecard Import
+        </div>
+        <h2 className="text-xl font-bold">Confirm Scores</h2>
+        <p className="text-sm text-muted-foreground">Review and edit if needed</p>
+      </div>
+
+      {/* Date */}
+      <Card className="p-4 shadow-soft">
+        <div className="text-xs uppercase tracking-wider text-muted-foreground font-semibold mb-2">Date</div>
+        <input
+          type="date"
+          value={date}
+          onChange={(e) => setDate(e.target.value)}
+          className="w-full bg-transparent text-foreground text-sm font-medium focus:outline-none"
+        />
+      </Card>
+
+      {/* Course */}
+      <Card className="p-4 shadow-soft">
+        <div className="text-xs uppercase tracking-wider text-muted-foreground font-semibold mb-2">Course</div>
+        <div className="grid grid-cols-2 gap-2">
+          {COURSES.map((c) => (
+            <button
+              key={c.id}
+              onClick={() => setCourseId(c.id)}
+              className={cn(
+                "p-3 rounded-xl border-2 text-left transition-base",
+                courseId === c.id ? "border-action bg-action/5" : "border-border hover:border-muted-foreground/30"
+              )}
+            >
+              <div className="font-semibold text-sm">{c.name}</div>
+              <div className="text-[11px] text-muted-foreground mt-0.5">Par {c.totalPar}</div>
+            </button>
+          ))}
+        </div>
+      </Card>
+
+      {/* Tee */}
+      <Card className="p-4 shadow-soft">
+        <div className="text-xs uppercase tracking-wider text-muted-foreground font-semibold mb-2">Tee</div>
+        <div className="flex gap-2">
+          {course.tees.map((t) => (
+            <button
+              key={t.color}
+              onClick={() => setTee(t.color)}
+              className={cn(
+                "flex-1 py-2 rounded-xl border-2 text-sm font-semibold transition-base",
+                tee === t.color ? "border-action bg-action/5" : "border-border"
+              )}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+      </Card>
+
+      {/* Scores grid */}
+      <Card className="p-4 shadow-soft">
+        <div className="text-xs uppercase tracking-wider text-muted-foreground font-semibold mb-3">Scores</div>
+
+        {front9.length > 0 && (
+          <div className="mb-3">
+            <div className="grid gap-1" style={{ gridTemplateColumns: `repeat(${front9.length}, 1fr)` }}>
+              {front9.map((s) => (
+                <div key={s.hole} className="text-center text-[10px] text-muted-foreground font-semibold">{s.hole}</div>
+              ))}
+            </div>
+            <div className="grid gap-1 mt-1" style={{ gridTemplateColumns: `repeat(${front9.length}, 1fr)` }}>
+              {front9.map((s) => (
+                <input
+                  key={s.hole}
+                  type="number"
+                  min={1}
+                  max={15}
+                  value={s.score}
+                  onChange={(e) => {
+                    const v = Math.max(1, Math.min(15, parseInt(e.target.value) || 1));
+                    updateScore(s.hole, v);
+                  }}
+                  className="w-full h-10 rounded-lg border border-border bg-transparent text-center text-sm font-bold focus:outline-none focus:border-action"
+                />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {back9.length > 0 && (
+          <div>
+            <div className="grid gap-1" style={{ gridTemplateColumns: `repeat(${back9.length}, 1fr)` }}>
+              {back9.map((s) => (
+                <div key={s.hole} className="text-center text-[10px] text-muted-foreground font-semibold">{s.hole}</div>
+              ))}
+            </div>
+            <div className="grid gap-1 mt-1" style={{ gridTemplateColumns: `repeat(${back9.length}, 1fr)` }}>
+              {back9.map((s) => (
+                <input
+                  key={s.hole}
+                  type="number"
+                  min={1}
+                  max={15}
+                  value={s.score}
+                  onChange={(e) => {
+                    const v = Math.max(1, Math.min(15, parseInt(e.target.value) || 1));
+                    updateScore(s.hole, v);
+                  }}
+                  className="w-full h-10 rounded-lg border border-border bg-transparent text-center text-sm font-bold focus:outline-none focus:border-action"
+                />
+              ))}
+            </div>
+          </div>
+        )}
+
+        <div className="mt-4 pt-3 border-t border-border flex justify-between items-center">
+          <span className="text-sm text-muted-foreground">{scores.length} holes · Total</span>
+          <span className="text-2xl font-bold tabular-nums">{totalScore}</span>
+        </div>
+      </Card>
+
+      {/* Actions */}
+      <div className="flex gap-3">
+        <button
+          onClick={discard}
+          className="flex-1 h-12 rounded-xl border-2 border-border text-sm font-semibold text-muted-foreground active:scale-[0.98] transition-transform"
+        >
+          Discard
+        </button>
+        <button
+          onClick={confirm}
+          disabled={confirming || !scores.length}
+          className="flex-[2] h-12 rounded-xl font-bold text-sm active:scale-[0.98] transition-transform disabled:opacity-50"
+          style={{ background: "#22c55e", color: "#000" }}
+        >
+          {confirming ? "Saving…" : "Confirm Round"}
+        </button>
+      </div>
+    </div>
+  );
+};
 
 const StatToggle = ({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) => (
   <button
