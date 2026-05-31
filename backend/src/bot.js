@@ -68,6 +68,18 @@ if (!token) {
 } else {
   bot = new TelegramBot(token, botOptions(enablePolling ? { polling: true } : {}))
 
+  // ── Register webhook on startup ───────────────────────────────────────────
+  if (!enablePolling) {
+    const backendUrl = process.env.BACKEND_URL
+    if (backendUrl) {
+      bot.setWebHook(`${backendUrl}/bot-webhook`)
+        .then(() => console.log('[bot] Webhook set:', `${backendUrl}/bot-webhook`))
+        .catch((err) => console.error('[bot] setWebhook error:', err.message))
+    } else {
+      console.warn('[bot] BACKEND_URL not set — webhook not registered')
+    }
+  }
+
   // ── /start ────────────────────────────────────────────────────────────────
   bot.onText(/\/start/, async (msg) => {
     console.log('[bot] /start from', msg.from?.id)
