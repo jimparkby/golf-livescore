@@ -1,7 +1,9 @@
 import 'dotenv/config'
 import TelegramBot from 'node-telegram-bot-api'
+import https from 'https'
 import pg from 'pg'
 import { createRequire } from 'module'
+import { parseScorecardPhoto } from './services/scoreParser.js'
 
 const require = createRequire(import.meta.url)
 
@@ -34,9 +36,37 @@ function createProxyAgent() {
     const { HttpsProxyAgent } = require('https-proxy-agent')
     return new HttpsProxyAgent(proxyUrl)
   } catch (err) {
-    console.warn('[bot] Proxy agent not created (install package):', err.message)
+    console.warn('[bot] Proxy agent not created:', err.message)
     return null
   }
+}
+
+async function downloadPhoto(fileId) {
+  const agent = createProxyAgent()
+  const MAX_ATTEMPTS = 3
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    try {
+      const fileLink = await bot.getFileLink(fileId)
+      const buffer = await new Promise((resolve, reject) => {
+        const url = new URL(fileLink)
+        const options = { hostname: url.hostname, port: 443, path: url.pathname + url.search, method: 'GET' }
+        if (agent) options.agent = agent
+        const req = https.request(options, (res) => {
+          const chunks = []
+          res.on('data', (c) => chunks.push(c))
+          res.on('end', () => resolve(Buffer.concat(chunks)))
+        })
+        req.setTimeout(30000, () => req.destroy(new Error('timeout')))
+        req.on('error', reject)
+        req.end()
+      })
+      return buffer
+    } catch (err) {
+      console.warn(`[bot] download attempt ${attempt}:`, err.message)
+      if (attempt < MAX_ATTEMPTS) await new Promise(r => setTimeout(r, 2000 * attempt))
+    }
+  }
+  return null
 }
 
 const proxyAgent = createProxyAgent()
@@ -69,14 +99,69 @@ bot.onText(/\/start/, async (msg) => {
   }
 })
 
+bot.on('photo', async (msg) => {
+  const telegramId = msg.from?.id
+  if (!telegramId) return
+
+  let user
+  try {
+    const { rows } = await db.query('SELECT id FROM users WHERE telegram_id = $1', [telegramId])
+    user = rows[0]
+  } catch (err) {
+    console.error('[bot] db lookup error:', err.message)
+    return
+  }
+
+  if (!user) {
+    await bot.sendMessage(msg.chat.id, 'Сначала откройте GolfMinsk Live, чтобы зарегистрироваться.')
+    return
+  }
+
+  const statusMsg = await bot.sendMessage(msg.chat.id, '⏳ Обработка...')
+
+  try {
+    const photo = msg.photo[msg.photo.length - 1]
+    const buffer = await downloadPhoto(photo.file_id)
+
+    if (!buffer) {
+      await bot.editMessageText('❌ Не удалось загрузить фото. Попробуйте ещё раз.', {
+        chat_id: msg.chat.id, message_id: statusMsg.message_id,
+      })
+      return
+    }
+
+    const result = await parseScorecardPhoto(buffer)
+
+    if (!result.holes.length) {
+      await bot.editMessageText('❌ Не удалось распознать скор-карту. Убедитесь, что фото чёткое.', {
+        chat_id: msg.chat.id, message_id: statusMsg.message_id,
+      })
+      return
+    }
+
+    const { rows: [sc] } = await db.query(
+      `INSERT INTO pending_scorecards (user_id, scores, course_name, holes_count)
+       VALUES ($1, $2, $3, $4) RETURNING id`,
+      [user.id, JSON.stringify(result.holes), result.courseName, result.holes.length]
+    )
+
+    await bot.editMessageText('✅ Карта добавлена. Подтвердите счёт в приложении.', {
+      chat_id: msg.chat.id,
+      message_id: statusMsg.message_id,
+      reply_markup: {
+        inline_keyboard: [[
+          { text: '✅ Подтвердить счёт', web_app: { url: `${webAppUrl}?confirm=${sc.id}` } },
+        ]],
+      },
+    })
+  } catch (err) {
+    console.error('[bot] photo error:', err.message)
+    await bot.editMessageText('❌ Ошибка обработки. Попробуйте ещё раз.', {
+      chat_id: msg.chat.id, message_id: statusMsg.message_id,
+    })
+  }
+})
+
 bot.on('polling_error', (err) => console.error('[bot] Polling error:', err.message))
 
-// Exit after 4h 55min — next cron fires at 5h, so no overlap/conflict
-setTimeout(async () => {
-  console.log('[bot] Scheduled shutdown for restart')
-  await bot.stopPolling()
-  await db.end()
-  process.exit(0)
-}, (4 * 60 + 55) * 60 * 1000)
-
-console.log('[bot] Standalone bot started (will restart every 5h via cron)')
+console.log('[bot] Standalone bot started (polling)')
