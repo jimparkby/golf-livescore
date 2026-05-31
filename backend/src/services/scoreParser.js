@@ -49,15 +49,15 @@ Rules:
 
   const parsed = JSON.parse(match[0])
 
-  if (!Array.isArray(parsed.holes) || parsed.holes.length === 0) {
-    throw new Error('No holes found in scorecard')
-  }
+  const holes = Array.isArray(parsed.holes)
+    ? parsed.holes.filter(h =>
+        Number.isInteger(h.hole) && h.hole >= 1 && h.hole <= 18 &&
+        Number.isInteger(h.score) && h.score >= 1 && h.score <= 15
+      )
+    : []
 
   return {
-    holes: parsed.holes.filter(h =>
-      Number.isInteger(h.hole) && h.hole >= 1 && h.hole <= 18 &&
-      Number.isInteger(h.score) && h.score >= 1 && h.score <= 15
-    ),
+    holes,
     courseName: parsed.courseName || null,
     totalScore: parsed.totalScore || null,
   }
