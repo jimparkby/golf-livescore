@@ -66,7 +66,21 @@ const enablePolling = process.env.BOT_POLLING === 'true'
 if (!token) {
   console.warn('[bot] TELEGRAM_BOT_TOKEN not set — bot disabled')
 } else {
-  bot = new TelegramBot(token, botOptions(enablePolling ? { polling: true } : {}))
+  if (enablePolling) {
+    // TWC1 blocks incoming Telegram connections — use polling instead of webhook.
+    // Initialize without autoStart, delete any existing webhook, then begin polling.
+    bot = new TelegramBot(token, botOptions({
+      polling: { interval: 300, autoStart: false, params: { timeout: 10 } },
+    }))
+    bot.deleteWebHook()
+      .then(() => bot.startPolling())
+      .catch((err) => {
+        console.warn('[bot] deleteWebHook failed, starting polling anyway:', err.message)
+        bot.startPolling()
+      })
+  } else {
+    bot = new TelegramBot(token, botOptions())
+  }
 
   // ── /start ────────────────────────────────────────────────────────────────
   bot.onText(/\/start/, async (msg) => {
