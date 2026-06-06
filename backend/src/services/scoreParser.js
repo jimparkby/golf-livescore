@@ -1,4 +1,4 @@
-import Anthropic from '@anthropic-ai/sdk'
+import { GoogleGenerativeAI } from '@google/generative-ai'
 
 function detectMediaType(buffer) {
   if (buffer[0] === 0xFF && buffer[1] === 0xD8) return 'image/jpeg'
@@ -8,24 +8,19 @@ function detectMediaType(buffer) {
 }
 
 export async function parseScorecardPhoto(imageBuffer) {
-  if (!process.env.ANTHROPIC_API_KEY) {
-    throw new Error('ANTHROPIC_API_KEY not set')
+  if (!process.env.GOOGLE_API_KEY) {
+    throw new Error('GOOGLE_API_KEY not set')
   }
 
-  const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY, timeout: 30000 })
+  const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY)
+  const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' })
+
   const base64 = imageBuffer.toString('base64')
   const mediaType = detectMediaType(imageBuffer)
 
-  const response = await client.messages.create({
-    model: 'claude-haiku-4-5-20251001',
-    max_tokens: 1024,
-    messages: [{
-      role: 'user',
-      content: [
-        { type: 'image', source: { type: 'base64', media_type: mediaType, data: base64 } },
-        {
-          type: 'text',
-          text: `This is a golf scorecard photo. Extract the scores for each hole that has been played.
+  const result = await model.generateContent([
+    { inlineData: { data: base64, mimeType: mediaType } },
+    `This is a golf scorecard photo. Extract the scores for each hole that has been played.
 
 Return ONLY a JSON object with no markdown or extra text:
 {"holes":[{"hole":1,"score":4},{"hole":2,"score":5}],"courseName":"course name or null","totalScore":85}
@@ -38,14 +33,11 @@ Rules:
 - courseName: the name of the golf course if visible on the card, otherwise null
 - totalScore: sum of all hole scores
 - If you cannot read any scores, return {"holes":[],"courseName":null,"totalScore":null}`,
-        },
-      ],
-    }],
-  })
+  ])
 
-  const raw = response.content[0].text.trim()
+  const raw = result.response.text().trim()
   const match = raw.match(/\{[\s\S]*\}/)
-  if (!match) throw new Error('No JSON in Claude response')
+  if (!match) throw new Error('No JSON in Gemini response')
 
   const parsed = JSON.parse(match[0])
 
