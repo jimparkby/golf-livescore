@@ -31,7 +31,7 @@ export async function parseScorecardPhoto(imageBuffer) {
   const dataUrl = `data:${mimeType};base64,${base64}`
 
   const body = JSON.stringify({
-    model: 'qwen/qwen2.5-vl-72b-instruct:free',
+    model: 'google/gemini-flash-1.5',
     messages: [{
       role: 'user',
       content: [
