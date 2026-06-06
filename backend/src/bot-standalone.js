@@ -8,14 +8,28 @@ import { parseScorecardPhoto } from './services/scoreParser.js'
 const require = createRequire(import.meta.url)
 
 const { Pool } = pg
-const db = new Pool({
-  host: process.env.DB_HOST,
-  port: Number(process.env.DB_PORT) || 5432,
-  database: process.env.DB_NAME,
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
-  ssl: { rejectUnauthorized: false },
-})
+const db = process.env.DATABASE_URL
+  ? new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } })
+  : new Pool({
+      host: process.env.DB_HOST,
+      port: Number(process.env.DB_PORT) || 5432,
+      database: process.env.DB_NAME,
+      user: process.env.DB_USER,
+      password: process.env.DB_PASSWORD,
+      ssl: { rejectUnauthorized: false },
+    })
+
+// Create pending_scorecards table if it doesn't exist
+db.query(`CREATE TABLE IF NOT EXISTS pending_scorecards (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id     UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  scores      JSONB NOT NULL,
+  course_name TEXT,
+  holes_count INTEGER DEFAULT 18,
+  status      TEXT DEFAULT 'pending',
+  created_at  TIMESTAMPTZ DEFAULT NOW(),
+  expires_at  TIMESTAMPTZ DEFAULT NOW() + INTERVAL '24 hours'
+)`).catch(err => console.error('[bot] pending_scorecards migration error:', err.message))
 
 const token = process.env.TELEGRAM_BOT_TOKEN
 const webAppUrl = process.env.FRONTEND_URL || 'https://your-app-url.com'
@@ -109,6 +123,7 @@ bot.on('photo', async (msg) => {
     user = rows[0]
   } catch (err) {
     console.error('[bot] db lookup error:', err.message)
+    await bot.sendMessage(msg.chat.id, '❌ Ошибка подключения к базе данных. Попробуйте позже.')
     return
   }
 
