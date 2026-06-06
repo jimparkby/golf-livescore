@@ -12,8 +12,8 @@ export async function parseScorecardPhoto(imageBuffer) {
     throw new Error('GOOGLE_API_KEY not set')
   }
 
-  const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY)
-  const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' })
+  const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY, { apiVersion: 'v1' })
+  const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' })
 
   const base64 = imageBuffer.toString('base64')
   const mediaType = detectMediaType(imageBuffer)
