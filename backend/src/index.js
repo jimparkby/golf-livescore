@@ -39,12 +39,18 @@ app.use((err, _req, res, _next) => {
 
 // Try to find the built frontend in several possible locations
 const distCandidates = [
-  path.join(__dirname, '../../../frontend/dist'),  // /home/app/frontend/dist
-  path.join(__dirname, '../../dist'),               // /home/app/dist
-  path.join(__dirname, '../../../../dist'),         // one level higher
+  path.join(__dirname, '../../dist'),               // Docker: /app/dist  (vite outDir: ../dist from frontend/)
+  path.join(__dirname, '../../../dist'),             // Nixpacks from /app/backend/src → /app/dist
+  path.join(__dirname, '../../../frontend/dist'),   // vite default outDir
+  path.join(__dirname, '../../../../dist'),          // one level higher
+  path.join(process.cwd(), '../dist'),              // relative to cwd
+  path.join(process.cwd(), 'dist'),                 // cwd/dist
 ]
 const distPath = distCandidates.find(p => existsSync(p)) ?? null
 console.log('[boot] distPath:', distPath ?? 'NOT FOUND — api-only mode')
+if (!distPath) {
+  console.log('[boot] Searched:', distCandidates)
+}
 
 if (distPath) {
   app.use(express.static(distPath))
