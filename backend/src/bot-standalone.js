@@ -177,6 +177,20 @@ bot.on('photo', async (msg) => {
   }
 })
 
-bot.on('polling_error', (err) => console.error('[bot] Polling error:', err.message))
+let consecutiveErrors = 0
+bot.on('polling_error', (err) => {
+  consecutiveErrors++
+  console.error(`[bot] Polling error (${consecutiveErrors}):`, err.message)
+  if (consecutiveErrors >= 10) {
+    console.warn('[bot] Too many polling errors — pausing 60s before retry')
+    bot.stopPolling().catch(() => {})
+    consecutiveErrors = 0
+    setTimeout(() => {
+      console.log('[bot] Restarting polling...')
+      bot.startPolling().catch((e) => console.error('[bot] Restart failed:', e.message))
+    }, 60000)
+  }
+})
+bot.on('message', () => { consecutiveErrors = 0 })
 
 console.log('[bot] Standalone bot started (polling)')
