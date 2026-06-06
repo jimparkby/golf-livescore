@@ -4,6 +4,7 @@
   "type": "module",
   "main": "src/index.js",
   "scripts": {
+    "prestart": "test -d ../frontend && (cd ../frontend && npm ci --prefer-offline && npm run build) && echo '[boot] frontend built' || echo '[boot] frontend skip'",
     "start": "node src/index.js",
     "start:bot": "node src/bot-standalone.js",
     "dev": "node --watch src/index.js"
