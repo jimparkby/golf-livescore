@@ -31,7 +31,7 @@ export async function parseScorecardPhoto(imageBuffer) {
   const dataUrl = `data:${mimeType};base64,${base64}`
 
   const body = JSON.stringify({
-    model: 'meta-llama/llama-4-scout:free',
+    model: 'meta-llama/llama-3.2-11b-vision-instruct:free',
     messages: [{
       role: 'user',
       content: [
