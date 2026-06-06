@@ -37,6 +37,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const res = await fetch(`${BASE}/api/profile`, {
         headers: { Authorization: `Bearer ${token}` },
       })
+      if (res.status === 401) {
+        // JWT rejected server-side — clear it and force re-auth via AuthPage
+        localStorage.removeItem('golf_jwt')
+        setUserId(null)
+        return
+      }
       if (res.ok) {
         const data = await res.json()
         updateProfile({
