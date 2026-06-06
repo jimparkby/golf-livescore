@@ -31,7 +31,7 @@ export async function parseScorecardPhoto(imageBuffer) {
   const dataUrl = `data:${mimeType};base64,${base64}`
 
   const body = JSON.stringify({
-    model: 'anthropic/claude-3-5-haiku',
+    model: 'openai/gpt-4o-mini',
     messages: [{
       role: 'user',
       content: [
