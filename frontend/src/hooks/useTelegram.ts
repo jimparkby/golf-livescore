@@ -7,12 +7,13 @@ function applyTelegramSafeArea() {
   const contentTop   = tg?.contentSafeAreaInset?.top ?? 0;
   const isFullscreen = tg?.isFullscreen ?? false;
 
-  // In fullscreen mode: deviceTop (notch/status bar) + contentTop (TG Close button) must BOTH be added.
-  // contentSafeAreaInset is the EXTRA inset on top of the device inset, not a replacement.
-  // Minimum 100px in fullscreen so the Close button never overlaps even before SDK reports values.
-  const safeTop = isFullscreen
-    ? Math.max(deviceTop + contentTop, 100)
-    : deviceTop;
+  // contentSafeAreaInset.top already includes the device status bar in fullscreen,
+  // so use it alone when available. Fall back to deviceTop + minimum if not yet populated.
+  const safeTop = contentTop > 0
+    ? contentTop
+    : isFullscreen
+      ? Math.max(deviceTop, 52)
+      : deviceTop;
 
   const bottom = tg?.safeAreaInset?.bottom ?? 0;
   document.documentElement.style.setProperty('--tg-safe-top',    `${safeTop}px`);
