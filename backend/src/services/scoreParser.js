@@ -22,45 +22,57 @@ Rules:
 - If you cannot read any scores, return {"holes":[],"courseName":null,"totalScore":null}`
 
 export async function parseScorecardPhoto(imageBuffer) {
-  if (!process.env.GOOGLE_API_KEY) {
-    throw new Error('GOOGLE_API_KEY not set')
+  if (!process.env.GROQ_API_KEY) {
+    throw new Error('GROQ_API_KEY not set')
   }
 
-  const base64 = imageBuffer.toString('base64')
   const mimeType = detectMediaType(imageBuffer)
+  const base64 = imageBuffer.toString('base64')
+  const dataUrl = `data:${mimeType};base64,${base64}`
+
   const body = JSON.stringify({
-    contents: [{ parts: [
-      { inlineData: { data: base64, mimeType } },
-      { text: PROMPT },
-    ]}],
+    model: 'meta-llama/llama-4-scout-17b-16e-instruct',
+    messages: [{
+      role: 'user',
+      content: [
+        { type: 'image_url', image_url: { url: dataUrl } },
+        { type: 'text', text: PROMPT },
+      ],
+    }],
+    max_tokens: 1024,
+    temperature: 0,
   })
 
   const data = await new Promise((resolve, reject) => {
     const req = https.request({
-      hostname: 'generativelanguage.googleapis.com',
-      path: `/v1/models/gemini-2.0-flash:generateContent?key=${process.env.GOOGLE_API_KEY}`,
+      hostname: 'api.groq.com',
+      path: '/openai/v1/chat/completions',
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) },
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${process.env.GROQ_API_KEY}`,
+        'Content-Length': Buffer.byteLength(body),
+      },
     }, (res) => {
       let raw = ''
       res.on('data', c => { raw += c })
       res.on('end', () => {
-        if (res.statusCode !== 200) return reject(new Error(`Gemini ${res.statusCode}: ${raw.slice(0, 300)}`))
-        try { resolve(JSON.parse(raw)) } catch { reject(new Error('Gemini: invalid JSON')) }
+        if (res.statusCode !== 200) return reject(new Error(`Groq ${res.statusCode}: ${raw.slice(0, 300)}`))
+        try { resolve(JSON.parse(raw)) } catch { reject(new Error('Groq: invalid JSON')) }
       })
       res.on('error', reject)
     })
-    req.setTimeout(30000, () => req.destroy(new Error('Gemini timeout')))
+    req.setTimeout(30000, () => req.destroy(new Error('Groq timeout')))
     req.on('error', reject)
     req.write(body)
     req.end()
   })
 
-  const text = data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim()
-  if (!text) throw new Error('Gemini: empty response')
+  const text = data?.choices?.[0]?.message?.content?.trim()
+  if (!text) throw new Error('Groq: empty response')
 
   const match = text.match(/\{[\s\S]*\}/)
-  if (!match) throw new Error('Gemini: no JSON in response')
+  if (!match) throw new Error('Groq: no JSON in response')
 
   const parsed = JSON.parse(match[0])
   const holes = Array.isArray(parsed.holes)
