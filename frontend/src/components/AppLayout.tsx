@@ -142,7 +142,7 @@ const AppLayout = () => {
         style={{
           paddingTop: isPlayTab
             ? "calc(var(--header-h) + var(--tg-safe-top) + var(--tg-close-btn) + 16px)"
-            : "calc(var(--tg-safe-top) + 16px)",
+            : "calc(var(--tg-safe-top) + var(--tg-close-btn) + 16px)",
           paddingBottom: "calc(var(--nav-h) + var(--tg-safe-bottom) + 8px)",
         }}
       >
