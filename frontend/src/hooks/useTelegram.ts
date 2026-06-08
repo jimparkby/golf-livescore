@@ -16,8 +16,11 @@ function applyTelegramSafeArea() {
       : deviceTop;
 
   const bottom = tg?.safeAreaInset?.bottom ?? 0;
+  // Telegram's floating close button height in fullscreen — not reported in contentSafeAreaInset
+  const closeBtnH = isFullscreen ? 52 : 0;
   document.documentElement.style.setProperty('--tg-safe-top',    `${safeTop}px`);
   document.documentElement.style.setProperty('--tg-safe-bottom', `${bottom}px`);
+  document.documentElement.style.setProperty('--tg-close-btn',   `${closeBtnH}px`);
 }
 
 export function useTelegram() {

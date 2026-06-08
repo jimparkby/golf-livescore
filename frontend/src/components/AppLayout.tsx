@@ -117,10 +117,10 @@ const AppLayout = () => {
         <div
           className="fixed top-0 inset-x-0 z-40 flex items-center"
           style={{
-            height: "calc(var(--header-h) + var(--tg-safe-top))",
+            height: "calc(var(--header-h) + var(--tg-safe-top) + var(--tg-close-btn))",
             background: "#000000",
             borderBottom: "1px solid rgba(255,255,255,0.07)",
-            paddingTop: "calc(var(--tg-safe-top) + 10px)",
+            paddingTop: "calc(var(--tg-safe-top) + var(--tg-close-btn) + 10px)",
             paddingBottom: 10,
             paddingLeft: 16,
             paddingRight: 16,
@@ -141,7 +141,7 @@ const AppLayout = () => {
         className="flex-1 mx-auto w-full max-w-3xl px-4"
         style={{
           paddingTop: isPlayTab
-            ? "calc(var(--header-h) + var(--tg-safe-top) + 16px)"
+            ? "calc(var(--header-h) + var(--tg-safe-top) + var(--tg-close-btn) + 16px)"
             : "calc(var(--tg-safe-top) + 16px)",
           paddingBottom: "calc(var(--nav-h) + var(--tg-safe-bottom) + 8px)",
         }}
