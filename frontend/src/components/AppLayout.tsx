@@ -90,10 +90,12 @@ const AppLayout = () => {
     if (activeRound) {
       result.push(...buildStoriesFromRound(activeRound, activeRound.date));
     } else {
-      // Свой недавно завершённый (24ч после окончания)
+      // Свой недавно завершённый (24ч после сохранения)
       const lastCompleted = rounds.find((r) => r.completed && r.players.some((p) => p.isMe));
       if (lastCompleted) {
-        const anchor = lastCompleted.completedAt ?? lastCompleted.date;
+        // updatedAt = when the round was saved/confirmed (bot import gets current time)
+        // falls back to completedAt or date for rounds saved before updatedAt was added
+        const anchor = lastCompleted.updatedAt ?? lastCompleted.completedAt ?? lastCompleted.date;
         if (Date.now() - new Date(anchor).getTime() < STORY_TTL_MS) {
           result.push(...buildStoriesFromRound(lastCompleted, anchor));
         }
@@ -117,10 +119,10 @@ const AppLayout = () => {
         <div
           className="fixed top-0 inset-x-0 z-40 flex items-center"
           style={{
-            height: "calc(var(--header-h) + var(--tg-safe-top) + var(--tg-close-btn))",
+            height: "calc(var(--header-h) + var(--tg-safe-top))",
             background: "#000000",
             borderBottom: "1px solid rgba(255,255,255,0.07)",
-            paddingTop: "calc(var(--tg-safe-top) + var(--tg-close-btn) + 10px)",
+            paddingTop: "calc(var(--tg-safe-top) + 10px)",
             paddingBottom: 10,
             paddingLeft: 16,
             paddingRight: 16,
@@ -141,8 +143,8 @@ const AppLayout = () => {
         className="flex-1 mx-auto w-full max-w-3xl px-4"
         style={{
           paddingTop: isPlayTab
-            ? "calc(var(--header-h) + var(--tg-safe-top) + var(--tg-close-btn) + 16px)"
-            : "calc(var(--tg-safe-top) + var(--tg-close-btn) + 16px)",
+            ? "calc(var(--header-h) + var(--tg-safe-top) + 16px)"
+            : "calc(var(--tg-safe-top) + 16px)",
           paddingBottom: "calc(var(--nav-h) + var(--tg-safe-bottom) + 8px)",
         }}
       >

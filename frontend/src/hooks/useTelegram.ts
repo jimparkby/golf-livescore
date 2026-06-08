@@ -3,24 +3,18 @@ import { useEffect, useState } from 'react';
 const tg = (window as any)?.Telegram?.WebApp;
 
 function applyTelegramSafeArea() {
-  const deviceTop    = tg?.safeAreaInset?.top ?? 0;
-  const contentTop   = tg?.contentSafeAreaInset?.top ?? 0;
-  const isFullscreen = tg?.isFullscreen ?? false;
+  const deviceTop  = tg?.safeAreaInset?.top ?? 0;
+  const contentTop = tg?.contentSafeAreaInset?.top ?? 0;
 
-  // contentSafeAreaInset.top already includes the device status bar in fullscreen,
-  // so use it alone when available. Fall back to deviceTop + minimum if not yet populated.
-  const safeTop = contentTop > 0
-    ? contentTop
-    : isFullscreen
-      ? Math.max(deviceTop, 52)
-      : deviceTop;
+  // Add 52px for Telegram's floating close button — it overlays content and
+  // is never included in any safe-area API value.
+  const CLOSE_BTN_H = 52;
+  const base = contentTop > 0 ? contentTop : Math.max(deviceTop, 0);
+  const safeTop = base + CLOSE_BTN_H;
 
   const bottom = tg?.safeAreaInset?.bottom ?? 0;
-  // Telegram's floating close button height in fullscreen — not reported in contentSafeAreaInset
-  const closeBtnH = isFullscreen ? 52 : 0;
   document.documentElement.style.setProperty('--tg-safe-top',    `${safeTop}px`);
   document.documentElement.style.setProperty('--tg-safe-bottom', `${bottom}px`);
-  document.documentElement.style.setProperty('--tg-close-btn',   `${closeBtnH}px`);
 }
 
 export function useTelegram() {
@@ -65,7 +59,7 @@ export function useTelegram() {
     } else {
       document.documentElement.style.setProperty('--tg-safe-top',    '0px');
       document.documentElement.style.setProperty('--tg-safe-bottom', '0px');
-      setReady(true);
+      setReady(true); // Not in Telegram — no close button, no safe area
     }
   }, []);
 

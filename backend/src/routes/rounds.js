@@ -35,6 +35,7 @@ async function buildRound(round, requesterId) {
   return {
     id: round.id,
     date: round.date,
+    updatedAt: round.updated_at,
     courseId: round.course_id,
     courseName: round.course_name,
     tee: round.tee,

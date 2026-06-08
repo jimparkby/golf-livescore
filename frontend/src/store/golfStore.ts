@@ -38,6 +38,7 @@ export type Round = {
   scores: Record<string, HoleScore[]>;
   completed: boolean;
   completedAt?: string;
+  updatedAt?: string;
   tournamentId?: string;
   format?: FormatId;
   photoUrl?: string;
@@ -91,6 +92,7 @@ type State = {
   addCustomTournament: (t: Omit<CustomTournament, "id" | "createdAt">) => void;
   deleteCustomTournament: (id: string) => void;
   setCurrentHole: (idx: number) => void;
+  addRound: (round: Round) => void;
   loadRounds: () => Promise<void>;
   syncRound: (round: Round) => Promise<void>;
 };
@@ -219,6 +221,10 @@ export const useGolf = create<State>()(
         } catch (err) {
           console.error('Failed to sync round:', err);
         }
+      },
+
+      addRound: (round) => {
+        set((s) => ({ rounds: [round, ...s.rounds.filter((r) => r.id !== round.id)] }));
       },
 
       deleteRound: async (id) => {
