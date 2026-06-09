@@ -98,12 +98,10 @@ const HomeScreen = ({ onStart, activeRound, onResume, onAbandon }: {
   const last = rounds[0];
   const completedRounds = rounds.filter(r => r.completed);
 
-  // Send AI pre-game insight via Telegram bot once per day
+  // Send AI pre-game insight via Telegram bot on every app open
   useEffect(() => {
     const token = localStorage.getItem("golf_jwt");
     if (!token) return;
-    const today = new Date().toDateString();
-    if (localStorage.getItem("golf_pregame_sent") === today) return;
     const trimmedRounds = completedRounds.slice(0, 10).map(r => ({
       date: r.date, scores: r.scores, tee: r.tee, rating: r.rating, slope: r.slope, holesMode: r.holesMode,
     }));
@@ -111,9 +109,7 @@ const HomeScreen = ({ onStart, activeRound, onResume, onAbandon }: {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
       body: JSON.stringify({ rounds: trimmedRounds, profile: { hcp: profile.hcp, firstName: profile.firstName } }),
-    })
-      .then(() => localStorage.setItem("golf_pregame_sent", today))
-      .catch(() => {});
+    }).catch(() => {});
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
   return (
     <div className="space-y-5 animate-in fade-in duration-300">
@@ -702,13 +698,13 @@ const RoundPlayer = ({ onExit, onCancel }: { onExit: () => void; onCancel: () =>
         className="fixed inset-0 z-50 flex flex-col"
         style={{ background: "#0a0a0a" }}
       >
-        <div className="shrink-0 flex items-end justify-center" style={{ height: "calc(var(--header-h) + var(--tg-safe-top))", borderBottom: "1px solid rgba(255,255,255,0.07)", paddingBottom: "10px" }}>
+        <div className="shrink-0 flex items-center justify-center" style={{ paddingTop: "calc(var(--tg-safe-top) + 10px)", paddingBottom: 10, borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
           <span className="text-white font-bold tracking-[0.18em] text-base">GOLF</span>
         </div>
         <div className="flex-1 overflow-y-auto px-5 py-6">
           <div className="text-center mb-6">
-            <div className="text-white/60 text-sm uppercase tracking-wider mb-2">Confirm Score</div>
-            <div className="text-white font-black text-3xl">Round Complete</div>
+            <div className="text-white/60 text-sm uppercase tracking-wider mb-2">Подтверждение</div>
+            <div className="text-white font-black text-3xl">Раунд завершён</div>
           </div>
 
           {/* Players scorecard summary */}
@@ -776,14 +772,14 @@ const RoundPlayer = ({ onExit, onCancel }: { onExit: () => void; onCancel: () =>
             style={{ background: "#22c55e", color: "#000" }}
           >
             <Check className="h-5 w-5" strokeWidth={3} />
-            FINISH ROUND
+            ЗАВЕРШИТЬ РАУНД
           </button>
           <button
             onClick={() => setShowConfirmation(false)}
             className="w-full h-12 rounded-2xl font-semibold text-sm"
             style={{ background: "rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.7)" }}
           >
-            Edit Score
+            Изменить счёт
           </button>
         </div>
       </div>
@@ -817,7 +813,7 @@ const RoundPlayer = ({ onExit, onCancel }: { onExit: () => void; onCancel: () =>
         className="fixed inset-0 z-50 flex flex-col"
         style={{ background: "#0a0a0a" }}
       >
-        <div className="shrink-0 flex items-end justify-center" style={{ height: "calc(var(--header-h) + var(--tg-safe-top))", borderBottom: "1px solid rgba(255,255,255,0.07)", paddingBottom: "10px" }}>
+        <div className="shrink-0 flex items-center justify-center" style={{ paddingTop: "calc(var(--tg-safe-top) + 10px)", paddingBottom: 10, borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
           <span className="text-white font-bold tracking-[0.18em] text-base">GOLF</span>
         </div>
         <div className="flex-1 flex flex-col items-center justify-center px-5 gap-6 overflow-y-auto">
@@ -831,7 +827,7 @@ const RoundPlayer = ({ onExit, onCancel }: { onExit: () => void; onCancel: () =>
               </svg>
             </div>
             <div className="text-[10px] uppercase tracking-[0.3em] font-bold" style={{ color: "rgba(255,255,255,0.4)" }}>
-              Round Complete
+              Раунд завершён
             </div>
             <div className="text-white font-black text-5xl tabular-nums leading-none mt-2">{cTotal}</div>
             <div className="text-xl font-bold mt-1" style={{ color: vpColor }}>{vpText}</div>
@@ -850,7 +846,7 @@ const RoundPlayer = ({ onExit, onCancel }: { onExit: () => void; onCancel: () =>
                 className="flex items-center justify-center gap-2 w-full mt-2 py-2 text-sm font-semibold"
                 style={{ color: "#22c55e" }}
               >
-                <Camera className="h-4 w-4" /> Replace Photo
+                <Camera className="h-4 w-4" /> Заменить фото
               </button>
             </div>
           ) : (
@@ -861,7 +857,7 @@ const RoundPlayer = ({ onExit, onCancel }: { onExit: () => void; onCancel: () =>
             >
               <Camera className="h-8 w-8" style={{ color: "#22c55e" }} />
               <div className="text-sm font-semibold" style={{ color: "rgba(255,255,255,0.6)" }}>
-                Add Round Photo
+                Добавить фото раунда
               </div>
             </button>
           )}
@@ -874,7 +870,7 @@ const RoundPlayer = ({ onExit, onCancel }: { onExit: () => void; onCancel: () =>
             className="w-full h-14 rounded-2xl font-black text-base uppercase tracking-wider active:scale-[0.98] transition-transform"
             style={{ background: "#22c55e", color: "#000" }}
           >
-            DONE
+            ГОТОВО
           </button>
         </div>
       </div>
@@ -972,22 +968,14 @@ const RoundPlayer = ({ onExit, onCancel }: { onExit: () => void; onCancel: () =>
   return (
     <div className="fixed inset-0 z-50 flex flex-col" style={{ background: "#0a0a0a" }}>
 
-      {/* ── GILDA-style header ── */}
+      {/* ── Header + hole navigation in one row ── */}
       <div
-        className="shrink-0 flex items-end justify-center"
+        className="shrink-0 flex items-center justify-between px-5"
         style={{
-          height: "calc(var(--header-h) + var(--tg-safe-top))",
+          paddingTop: "calc(var(--tg-safe-top) + 10px)",
+          paddingBottom: 10,
           borderBottom: "1px solid rgba(255,255,255,0.07)",
-          paddingBottom: "10px",
         }}
-      >
-        <span className="text-white font-bold tracking-[0.18em] text-base">GOLF</span>
-      </div>
-
-      {/* ── Hole navigation (fully below Telegram bar) ── */}
-      <div
-        className="flex items-center justify-between px-5 shrink-0"
-        style={{ paddingTop: 14, paddingBottom: 10 }}
       >
         <button
           onClick={() => setShowExitConfirm(true)}
@@ -1006,7 +994,7 @@ const RoundPlayer = ({ onExit, onCancel }: { onExit: () => void; onCancel: () =>
             <ChevronLeft className="h-6 w-6 text-white" strokeWidth={2.5} />
           </button>
           <span className="text-white font-bold text-base tracking-wider min-w-[90px] text-center">
-            Hole {currentHole.number}
+            Лунка {currentHole.number}
           </span>
           <button
             onClick={() => setHoleIdx(Math.min(totalHoles - 1, holeIdx + 1))}
@@ -1022,7 +1010,7 @@ const RoundPlayer = ({ onExit, onCancel }: { onExit: () => void; onCancel: () =>
           className="h-9 px-4 rounded-full font-bold text-xs tracking-wider"
           style={{ background: "rgba(255,255,255,0.1)", color: "#4ade80" }}
         >
-          FINISH
+          ФИНИШ
         </button>
       </div>
 
@@ -1058,7 +1046,7 @@ const RoundPlayer = ({ onExit, onCancel }: { onExit: () => void; onCancel: () =>
               className="w-full h-12 rounded-full font-black text-sm tracking-[0.15em] active:scale-[0.97] transition-transform"
               style={{ background: "#22c55e", color: "#000" }}
             >
-              ENTER SCORE
+              ВВЕСТИ СЧЁТ
             </button>
           </div>
 
