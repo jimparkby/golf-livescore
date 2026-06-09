@@ -6,8 +6,8 @@ import { COURSES, TEE_CONFIG, type TeeColor } from "@/lib/courses";
 import { useGolf, type Player, type Round, type HolesMode } from "@/store/golfStore";
 import { calcCourseHcpForMode, holeRankInSet, holeStrokesInSet } from "@/lib/handicap";
 import { compressImage } from "@/lib/imageUtils";
-import { api } from "@/lib/api";
-import { ChevronLeft, ChevronRight, Plus, X, PlayCircle, Flag, Camera, Check, Search } from "lucide-react";
+import { api, BASE } from "@/lib/api";
+import { ChevronLeft, ChevronRight, Plus, X, PlayCircle, Flag, Camera, Check, Search, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import heroImg from "@/assets/golfminsk/hero.jpg";
@@ -87,6 +87,55 @@ const PlayPage = () => {
 
 };
 
+/* ────────── AI INSIGHT ────────── */
+const AiInsight = ({ rounds, profile }: { rounds: Round[]; profile: { hcp: number; firstName: string } }) => {
+  const [comment, setComment] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const token = localStorage.getItem("golf_jwt");
+    if (!token) { setLoading(false); return; }
+
+    const trimmedRounds = rounds.slice(0, 10).map(r => ({
+      date: r.date,
+      scores: r.scores,
+      tee: r.tee,
+      rating: r.rating,
+      slope: r.slope,
+      holesMode: r.holesMode,
+    }));
+
+    fetch(`${BASE}/api/ai/pregame`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ rounds: trimmedRounds, profile }),
+    })
+      .then(r => r.json())
+      .then(d => { setComment(d.comment || null); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  if (loading) {
+    return (
+      <div className="flex items-center gap-2 px-1 py-2">
+        <Sparkles className="h-3.5 w-3.5 shrink-0 animate-pulse" style={{ color: "#a78bfa" }} />
+        <div className="h-3 w-48 rounded bg-white/10 animate-pulse" />
+      </div>
+    );
+  }
+
+  if (!comment) return null;
+
+  return (
+    <Card className="p-4 shadow-soft" style={{ border: "1px solid rgba(167,139,250,0.2)", background: "rgba(167,139,250,0.05)" }}>
+      <div className="flex gap-3 items-start">
+        <Sparkles className="h-4 w-4 shrink-0 mt-0.5" style={{ color: "#a78bfa" }} />
+        <p className="text-sm leading-relaxed text-foreground/90">{comment}</p>
+      </div>
+    </Card>
+  );
+};
+
 /* ────────── HOME ────────── */
 const HomeScreen = ({ onStart, activeRound, onResume, onAbandon }: {
   onStart: (courseId?: string) => void;
@@ -96,6 +145,7 @@ const HomeScreen = ({ onStart, activeRound, onResume, onAbandon }: {
 }) => {
   const { rounds, profile } = useGolf();
   const last = rounds[0];
+  const completedRounds = rounds.filter(r => r.completed);
   return (
     <div className="space-y-5 animate-in fade-in duration-300">
 
@@ -148,6 +198,8 @@ const HomeScreen = ({ onStart, activeRound, onResume, onAbandon }: {
           </Button>
         </div>
       </Card>
+
+      <AiInsight rounds={completedRounds} profile={{ hcp: profile.hcp, firstName: profile.firstName }} />
 
       <div className="grid grid-cols-3 gap-3">
         <StatTile label="HCP" value={String(profile.hcp)} />
