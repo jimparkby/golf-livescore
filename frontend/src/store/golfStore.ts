@@ -110,9 +110,15 @@ function scheduleAutoSave(round: Round) {
 }
 
 // Flush active round to backend when app is hidden (Telegram close, tab switch, etc.)
+// Reload rounds when app regains visibility (handles Telegram cached WebView resume)
 if (typeof document !== 'undefined') {
   document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState !== 'hidden') return
+    if (document.visibilityState === 'visible') {
+      if (localStorage.getItem('golf_jwt')) {
+        useGolf.getState().loadRounds().catch(() => {})
+      }
+      return
+    }
     const round = useGolf.getState().activeRound
     if (!round) return
     if (autoSaveTimer) { clearTimeout(autoSaveTimer); autoSaveTimer = null }
@@ -275,7 +281,10 @@ export const useGolf = create<State>()(
               const dbScores = Object.values(incomplete.scores).flat().length;
               activeRound = dbScores >= localScores ? incomplete : local;
             }
-            return { rounds: completed, activeRound };
+            // Keep locally-added rounds not yet in this server response (race condition guard)
+            const serverIds = new Set(completed.map(r => r.id));
+            const notYetSynced = s.rounds.filter(r => r.completed && !serverIds.has(r.id));
+            return { rounds: [...completed, ...notYetSynced], activeRound };
           });
         } catch (err) {
           console.error('Failed to load rounds:', err);
