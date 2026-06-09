@@ -67,8 +67,7 @@ if (!token) {
   console.warn('[bot] TELEGRAM_BOT_TOKEN not set — bot disabled')
 } else {
   if (enablePolling) {
-    // TWC1 blocks incoming Telegram connections — use polling instead of webhook.
-    // Initialize without autoStart, delete any existing webhook, then begin polling.
+    // Local dev / Timeweb: incoming connections blocked — use polling.
     bot = new TelegramBot(token, botOptions({
       polling: { interval: 300, autoStart: false, params: { timeout: 10 } },
     }))
@@ -79,7 +78,17 @@ if (!token) {
         bot.startPolling()
       })
   } else {
+    // Railway / production: use webhook so multiple restarts don't cause 409 conflicts.
     bot = new TelegramBot(token, botOptions())
+    const backendUrl = (process.env.BACKEND_URL || process.env.FRONTEND_URL || '').replace(/\/$/, '')
+    if (backendUrl) {
+      const webhookUrl = `${backendUrl}/bot-webhook`
+      bot.setWebHook(webhookUrl)
+        .then(() => console.log('[bot] Webhook registered:', webhookUrl))
+        .catch((err) => console.error('[bot] setWebHook failed:', err.message))
+    } else {
+      console.warn('[bot] BACKEND_URL not set — webhook not registered, bot will not receive updates')
+    }
   }
 
   // ── /start ────────────────────────────────────────────────────────────────
@@ -193,6 +202,7 @@ if (!token) {
     console.log('[bot] Bot initialized (polling)')
   } else {
     console.log('[bot] Bot initialized (webhook mode)')
+    console.log('[bot] Webhook endpoint: POST /bot-webhook')
   }
 }
 
