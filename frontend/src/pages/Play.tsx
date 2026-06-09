@@ -1371,12 +1371,15 @@ const ScorecardConfirmModal = ({
       };
 
       await api.post("/api/rounds", { round });
-      await api.delete(`/api/scorecards/${pendingId}`);
+      // Delete scorecard separately — don't block round save on delete failure
+      api.delete(`/api/scorecards/${pendingId}`).catch(() => {});
       addRound({ ...round, updatedAt: new Date().toISOString() });
       await loadRounds();
       onDone();
     } catch (err: unknown) {
-      toast.error((err as Error).message ?? "Save error");
+      const msg = (err as Error).message ?? "Save error";
+      // Show error as alert (always visible regardless of toast positioning)
+      alert(`Ошибка сохранения раунда:\n${msg}\n\nURL: ${window.location.origin}`);
       setConfirming(false);
     }
   };
