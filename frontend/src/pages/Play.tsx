@@ -21,7 +21,7 @@ const PlayPage = () => {
   const [confirmId, setConfirmId] = useState<string | null>(
     () => new URLSearchParams(window.location.search).get('confirm')
   );
-  const { profile, frequent, activeRound, startRound, cancelActiveRound, loadRounds } = useGolf();
+  const { profile, frequent, activeRound, startRound, cancelActiveRound } = useGolf();
   const [step, setStep] = useState<Step>(activeRound ? "playing" : "home");
   const initialHadRound = useRef(!!activeRound);
   const [courseId, setCourseId] = useState<string>(COURSES[0].id);
@@ -47,7 +47,7 @@ const PlayPage = () => {
     return (
       <ScorecardConfirmModal
         pendingId={confirmId}
-        onDone={() => { loadRounds(); setConfirmId(null); }}
+        onDone={() => setConfirmId(null)}
         onCancel={() => setConfirmId(null)}
       />
     );
@@ -1279,7 +1279,7 @@ const ScorecardConfirmModal = ({
   onDone: () => void;
   onCancel: () => void;
 }) => {
-  const { profile, addRound } = useGolf();
+  const { profile, addRound, loadRounds } = useGolf();
   const [loading, setLoading] = useState(true);
   const [confirming, setConfirming] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -1366,7 +1366,7 @@ const ScorecardConfirmModal = ({
       await api.post("/api/rounds", { round });
       await api.delete(`/api/scorecards/${pendingId}`);
       addRound({ ...round, updatedAt: new Date().toISOString() });
-      toast.success("Round added!");
+      await loadRounds();
       onDone();
     } catch (err: unknown) {
       toast.error((err as Error).message ?? "Save error");
