@@ -170,23 +170,25 @@ const HomeScreen = ({ onStart, activeRound, onResume, onAbandon }: {
         <StatTile label="Best" value={rounds.length === 0 ? "—" : String(Math.min(...rounds.map((r) => r.players[0] ? (r.scores[r.players[0].id] ?? []).reduce((a, s) => a + s.score, 0) : 999)))} />
       </div>
 
-      {last && (
-        <Card className="p-5 shadow-soft">
-          <div className="text-xs uppercase tracking-wider text-muted-foreground font-semibold mb-3">Last Round</div>
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="font-semibold">{last.courseName}</div>
-              <div className="text-sm text-muted-foreground">{last.tee} · {last.rating} / {last.slope}%</div>
-            </div>
-            <div className="text-right">
-              <div className="text-3xl font-bold text-action tabular-nums">
-                {last.players[0] ? (last.scores[last.players[0].id] ?? []).reduce((a, s) => a + s.score, 0) : "—"}
+      {last && (() => {
+        const me = last.players.find(p => p.isMe) ?? last.players[0];
+        const lastScore = me ? (last.scores[me.id] ?? []).reduce((a, s) => a + s.score, 0) : null;
+        return (
+          <Card className="p-5 shadow-soft">
+            <div className="text-xs uppercase tracking-wider text-muted-foreground font-semibold mb-3">Последний раунд</div>
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="font-semibold">{last.courseName}</div>
+                <div className="text-sm text-muted-foreground">{last.tee} · CR {last.rating} / {last.slope}</div>
               </div>
-              <div className="text-[11px] text-muted-foreground">{new Date(last.date).toLocaleDateString("en-US")}</div>
+              <div className="text-right">
+                <div className="text-3xl font-bold text-action tabular-nums">{lastScore ?? "—"}</div>
+                <div className="text-[11px] text-muted-foreground">{new Date(last.date).toLocaleDateString("ru-RU")}</div>
+              </div>
             </div>
-          </div>
-        </Card>
-      )}
+          </Card>
+        );
+      })()}
 
       <div className="grid grid-cols-2 gap-3">
         <button

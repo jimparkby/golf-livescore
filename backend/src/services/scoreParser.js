@@ -7,19 +7,28 @@ function detectMediaType(buffer) {
   return 'image/jpeg'
 }
 
-const PROMPT = `This is a golf scorecard photo. Extract the scores for each hole that has been played.
+const PROMPT = `This is a golf scorecard photo. Extract the individual hole-by-hole scores for ONE player.
 
-Return ONLY a JSON object with no markdown or extra text:
+A golf scorecard has:
+- A HOLE row (numbers 1-9 for front 9, 10-18 for back 9)
+- A PAR row (values like 3, 4, or 5 — these are NOT player scores, ignore them)
+- A STROKE INDEX / HCP row (values 1-18 — these are NOT player scores, ignore them)
+- Player rows (Player A, Player B, etc.) with handwritten scores per hole
+- An OUT total column (sum of holes 1-9) and IN total column (sum of holes 10-18)
+- A TOTAL column at the end
+
+IMPORTANT: Extract ONLY the individual hole scores from the player rows — NOT the PAR row, NOT the HCP row, NOT the OUT/IN totals, NOT the TOTAL. Each individual hole score for a single player should be a small integer (typically 3-10, rarely more than 12).
+
+If there are multiple player rows, extract the scores for Player A (the first filled-in player row).
+
+Return ONLY a JSON object with no markdown:
 {"holes":[{"hole":1,"score":4},{"hole":2,"score":5}],"courseName":"course name or null","totalScore":85}
 
 Rules:
-- hole: hole number (integer 1-18)
-- score: number of strokes on that hole (integer 1-15)
-- Only include holes that have actual scores filled in (skip empty/blank holes)
-- If there are multiple players on the scorecard, extract the scores for the FIRST player
-- courseName: the name of the golf course if visible on the card, otherwise null
-- totalScore: sum of all hole scores
-- If you cannot read any scores, return {"holes":[],"courseName":null,"totalScore":null}`
+- hole: integer 1-18
+- score: strokes on that hole (integer 2-12). If a cell is empty or illegible, skip that hole.
+- totalScore: sum of the extracted hole scores
+- If you cannot find any player scores, return {"holes":[],"courseName":null,"totalScore":null}`
 
 export async function parseScorecardPhoto(imageBuffer) {
   if (!process.env.OPENROUTER_API_KEY) {
