@@ -98,8 +98,7 @@ const HomeScreen = ({ onStart, activeRound, onResume, onAbandon }: {
   const last = rounds[0];
   const completedRounds = rounds.filter(r => r.completed);
 
-  // Send AI pre-game insight via Telegram bot on every app open
-  useEffect(() => {
+  const sendPregameInsight = () => {
     const token = localStorage.getItem("golf_jwt");
     if (!token) return;
     const trimmedRounds = completedRounds.slice(0, 10).map(r => ({
@@ -110,7 +109,8 @@ const HomeScreen = ({ onStart, activeRound, onResume, onAbandon }: {
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
       body: JSON.stringify({ rounds: trimmedRounds, profile: { hcp: profile.hcp, firstName: profile.firstName } }),
     }).catch(() => {});
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  };
+
   return (
     <div className="space-y-5 animate-in fade-in duration-300">
 
@@ -155,7 +155,7 @@ const HomeScreen = ({ onStart, activeRound, onResume, onAbandon }: {
         </div>
         <div className="p-5 bg-card">
           <Button
-            onClick={() => onStart()}
+            onClick={() => { sendPregameInsight(); onStart(); }}
             size="lg"
             className="w-full h-14 text-base font-semibold bg-action hover:bg-action/90 text-action-foreground rounded-xl shadow-glow transition-spring hover:scale-[1.01]"
           >
