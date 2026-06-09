@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useGolf } from '@/store/golfStore';
 
 const tg = (window as any)?.Telegram?.WebApp;
 
@@ -44,6 +45,13 @@ export function useTelegram() {
       tg.onEvent?.('contentSafeAreaChanged', applyTelegramSafeArea);
       tg.onEvent?.('fullscreenChanged',      applyTelegramSafeArea);
 
+      const onActivated = () => {
+        if (localStorage.getItem('golf_jwt')) {
+          useGolf.getState().loadRounds().catch(() => {});
+        }
+      };
+      tg.onEvent?.('activated', onActivated);
+
       setReady(true);
 
       return () => {
@@ -55,6 +63,7 @@ export function useTelegram() {
         tg.offEvent?.('safeAreaChanged',        applyTelegramSafeArea);
         tg.offEvent?.('contentSafeAreaChanged', applyTelegramSafeArea);
         tg.offEvent?.('fullscreenChanged',      applyTelegramSafeArea);
+        tg.offEvent?.('activated',              onActivated);
       };
     } else {
       document.documentElement.style.setProperty('--tg-safe-top',    '0px');

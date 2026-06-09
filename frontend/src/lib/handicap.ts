@@ -49,7 +49,7 @@ export function calcDifferential(adjustedGross: number, courseRating: number, sl
   return Math.round(((adjustedGross - courseRating) * (113 / slope)) * 10) / 10;
 }
 
-// Handicap Index: average of best N differentials from last 20 rounds, rounded to 1 decimal
+// Handicap Index: average of best N differentials × 0.96 (WHS adjustment factor), capped at 54.0
 export function calcHandicapIndex(diffs: number[]): number | null {
   const n = diffs.length;
   if (n < 3) return null;
@@ -57,7 +57,7 @@ export function calcHandicapIndex(diffs: number[]): number | null {
   const sorted = [...diffs].sort((a, b) => a - b);
   const best = sorted.slice(0, useCount);
   const avg = best.reduce((s, d) => s + d, 0) / best.length;
-  return Math.min(54.0, Math.round(avg * 10) / 10);
+  return Math.min(54.0, Math.round(avg * 0.96 * 10) / 10);
 }
 
 // How many differentials are used in calculation
