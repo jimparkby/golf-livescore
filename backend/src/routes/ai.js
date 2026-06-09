@@ -1,6 +1,8 @@
 import { Router } from 'express'
 import https from 'https'
 import { requireAuth } from '../middleware/auth.js'
+import { db } from '../db.js'
+import { bot } from '../bot.js'
 
 const router = Router()
 
@@ -48,76 +50,75 @@ async function callOpenRouter(prompt) {
 
 // POST /api/ai/pregame
 // Body: { rounds: Round[], profile: { hcp, firstName } }
+// Sends AI analysis as a Telegram message to the user
 router.post('/pregame', requireAuth, async (req, res, next) => {
   try {
     const { rounds = [], profile = {} } = req.body
-    const name = profile.firstName || 'Golfer'
+    const name = profile.firstName || 'Игрок'
     const hcp = profile.hcp ?? null
 
+    // Get user's telegram_id to send the message
+    const { rows } = await db.query('SELECT telegram_id FROM users WHERE id = $1', [req.user.userId])
+    const telegramId = rows[0]?.telegram_id
+    if (!telegramId || !bot) return res.json({ ok: true })
+
+    let comment
     if (rounds.length === 0) {
-      return res.json({ comment: `Good luck on your first round, ${name}! Every great golfer starts somewhere.` })
-    }
+      comment = `⛳ Удачи в первом раунде, ${name}! С чего-то нужно начинать.`
+    } else {
+      const recent = rounds.slice(0, 10)
 
-    // Build concise stats for the prompt
-    const recent = rounds.slice(0, 10)
+      const roundStats = recent.map((r, i) => {
+        const playerScores = Object.values(r.scores || {})[0] ?? []
+        const total = playerScores.reduce((s, h) => s + (h.score || 0), 0)
+        const holes = playerScores.filter(h => h.score > 0).length
+        const holePar = {1:4,2:5,3:3,4:4,5:4,6:4,7:3,8:4,9:5,10:4,11:3,12:4,13:5,14:4,15:4,16:3,17:5,18:4}
+        const pars = playerScores.filter(h => h.score <= (holePar[h.hole] ?? 4)).length
+        const girs = playerScores.filter(h => h.gir).length
+        const putts = playerScores.reduce((s, h) => s + (h.putts || 0), 0)
+        const date = r.date ? new Date(r.date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' }) : ''
+        return `Раунд ${i + 1} (${date}): ${holes} лунок, счёт ${total}, паров ${pars}${girs > 0 ? `, GIR ${girs}/${holes}` : ''}${putts > 0 ? `, патты ${putts}` : ''}`
+      }).join('\n')
 
-    const roundStats = recent.map((r, i) => {
-      const playerScores = Object.values(r.scores || {})[0] ?? []
-      const total = playerScores.reduce((s, h) => s + (h.score || 0), 0)
-      const holes = playerScores.filter(h => h.score > 0).length
-      const pars = playerScores.filter(h => {
-        const courseHoles = [
-          {n:1,p:4},{n:2,p:5},{n:3,p:3},{n:4,p:4},{n:5,p:4},{n:6,p:4},
-          {n:7,p:3},{n:8,p:4},{n:9,p:5},{n:10,p:4},{n:11,p:3},{n:12,p:4},
-          {n:13,p:5},{n:14,p:4},{n:15,p:4},{n:16,p:3},{n:17,p:5},{n:18,p:4},
-        ]
-        const par = courseHoles.find(c => c.n === h.hole)?.p ?? 4
-        return h.score <= par
-      }).length
-
-      const girs = playerScores.filter(h => h.gir).length
-      const putts = playerScores.reduce((s, h) => s + (h.putts || 0), 0)
-      const date = r.date ? new Date(r.date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' }) : ''
-
-      return `Round ${i + 1} (${date}): ${holes} holes, score ${total}, pars/birdies ${pars}/${holes}${girs > 0 ? `, GIR ${girs}/${holes}` : ''}${putts > 0 ? `, putts ${putts}` : ''}`
-    }).join('\n')
-
-    // Hole-level pattern analysis: find weakest holes
-    const holeAverages = {}
-    const holePar = {1:4,2:5,3:3,4:4,5:4,6:4,7:3,8:4,9:5,10:4,11:3,12:4,13:5,14:4,15:4,16:3,17:5,18:4}
-    for (const r of recent) {
-      for (const scores of Object.values(r.scores || {})) {
-        for (const s of scores) {
-          if (s.score > 0) {
-            if (!holeAverages[s.hole]) holeAverages[s.hole] = []
-            holeAverages[s.hole].push(s.score - (holePar[s.hole] ?? 4))
+      const holePar = {1:4,2:5,3:3,4:4,5:4,6:4,7:3,8:4,9:5,10:4,11:3,12:4,13:5,14:4,15:4,16:3,17:5,18:4}
+      const holeAverages = {}
+      for (const r of recent) {
+        for (const scores of Object.values(r.scores || {})) {
+          for (const s of scores) {
+            if (s.score > 0) {
+              if (!holeAverages[s.hole]) holeAverages[s.hole] = []
+              holeAverages[s.hole].push(s.score - (holePar[s.hole] ?? 4))
+            }
           }
         }
       }
-    }
-    const weakHoles = Object.entries(holeAverages)
-      .map(([hole, diffs]) => ({ hole: Number(hole), avg: diffs.reduce((a, b) => a + b, 0) / diffs.length }))
-      .filter(h => h.avg > 0.5)
-      .sort((a, b) => b.avg - a.avg)
-      .slice(0, 3)
-      .map(h => `hole ${h.hole} (+${h.avg.toFixed(1)} avg vs par)`)
+      const weakHoles = Object.entries(holeAverages)
+        .map(([hole, diffs]) => ({ hole: Number(hole), avg: diffs.reduce((a, b) => a + b, 0) / diffs.length }))
+        .filter(h => h.avg > 0.5)
+        .sort((a, b) => b.avg - a.avg)
+        .slice(0, 3)
+        .map(h => `лунка ${h.hole} (+${h.avg.toFixed(1)} к пару)`)
 
-    const prompt = `You are a sharp, experienced golf coach giving a pre-round briefing to a club member.
+      const prompt = `Ты опытный гольф-тренер. Игрок ${name} сейчас собирается на поле, напиши ему короткое сообщение в Telegram.
 
-Player: ${name}
-Handicap Index: ${hcp !== null ? hcp : 'not yet calculated'}
-Recent rounds (newest first):
+Гандикап: ${hcp !== null ? hcp : 'ещё не рассчитан'}
+Последние раунды (от нового к старому):
 ${roundStats}
-${weakHoles.length > 0 ? `\nWeakest holes based on history: ${weakHoles.join(', ')}` : ''}
+${weakHoles.length > 0 ? `\nПроблемные лунки по истории: ${weakHoles.join(', ')}` : ''}
 
-Write a short pre-game message (2-3 sentences max). Be specific — reference actual numbers from their stats (scores, trends, specific holes). Sound like a real coach who has watched them play, not a generic motivational bot. Be direct, a bit casual. Can mention something to focus on today based on the patterns. Language: match the player name — if it looks Russian/Slavic use Russian, otherwise English.`
+Напиши 2-3 предложения максимум. Используй конкретные числа из статистики — тренд счётов, слабые лунки, прогресс. Говори как реальный тренер который следит за игрой, не как бот по скрипту. Можно добавить один конкретный совет на сегодня. Отвечай на русском. Без приветствия типа "Привет!" — сразу к делу.`
 
-    const comment = await callOpenRouter(prompt)
-    res.json({ comment })
+      comment = await callOpenRouter(prompt)
+    }
+
+    if (comment) {
+      await bot.sendMessage(telegramId, `🏌️ ${comment}`)
+    }
+
+    res.json({ ok: true })
   } catch (err) {
     console.error('[ai/pregame]', err.message)
-    // Graceful fallback — don't fail the whole page
-    res.json({ comment: null })
+    res.json({ ok: true }) // never fail the client
   }
 })
 
