@@ -77,16 +77,11 @@ const CreateTournamentPage = () => {
   const movePlayer = (playerId: string) => {
     const idx = players.findIndex((p) => p.id === playerId);
     if (idx < 0) return;
-    const cur = teamAssignment[idx];
-    const other = 1 - cur;
-    const otherCount = teamAssignment.filter((t) => t === other).length;
-    if (otherCount < 2) {
-      setTeamAssignment((prev) => {
-        const next = [...prev];
-        next[idx] = other;
-        return next;
-      });
-    }
+    setTeamAssignment((prev) => {
+      const next = [...prev];
+      next[idx] = 1 - prev[idx];
+      return next;
+    });
   };
 
   const canNextFromPlayers = isTeamFormat
