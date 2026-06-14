@@ -641,7 +641,16 @@ const scoreLabelColor = (score: number, par: number) => {
 };
 
 const RoundPlayer = ({ onExit, onCancel }: { onExit: () => void; onCancel: () => void }) => {
-  const { activeRound, enterScore, finishRound, setRoundPhoto, syncRound, setCurrentHole } = useGolf();
+  const { activeRound, enterScore, finishRound, setRoundPhoto, syncRound, setCurrentHole, refreshActiveRound } = useGolf();
+
+  // Poll partner scores every 15s when there are other registered players
+  useEffect(() => {
+    if (!activeRound) return;
+    const hasPartners = activeRound.players.some(p => !p.isMe);
+    if (!hasPartners) return;
+    const id = setInterval(() => refreshActiveRound(), 15000);
+    return () => clearInterval(id);
+  }, [activeRound?.id]);
 
   // Compute play holes before useState so initializer can use them
   const _course = COURSES.find(c => c.id === activeRound?.courseId) ?? COURSES[0];

@@ -1,11 +1,9 @@
-import { useState, useMemo } from "react";
+import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { TOURNAMENTS, TIER_LABELS, type Tier } from "@/lib/tournaments";
-import { FORMATS } from "@/lib/formats";
-import { useGolf } from "@/store/golfStore";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus } from "lucide-react";
 
 const tierColor: Record<Tier, string> = {
   gold:     "bg-tier-gold",
@@ -16,8 +14,6 @@ const tierColor: Record<Tier, string> = {
 
 const TournamentsPage = () => {
   const navigate = useNavigate();
-  const { customTournaments, deleteCustomTournament } = useGolf();
-  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const grouped = useMemo(() => {
     const map = new Map<string, typeof TOURNAMENTS>();
@@ -47,61 +43,6 @@ const TournamentsPage = () => {
         </button>
       </div>
 
-      {/* Custom tournaments */}
-      {customTournaments.length > 0 && (
-        <div>
-          <div className="text-xs uppercase tracking-[0.2em] font-bold text-action mb-2">My Tournaments</div>
-          <Card className="overflow-hidden shadow-soft">
-            <div className="divide-y divide-border">
-              {customTournaments.map((t) => {
-                const fmt = FORMATS.find((f) => f.id === t.format);
-                return (
-                  <div key={t.id}>
-                    <div className="w-full px-4 py-3 flex items-center gap-3 text-left">
-                      <div className="w-16 shrink-0">
-                        <div className="font-bold tabular-nums text-foreground text-lg leading-none">{t.date}</div>
-                        <div className="text-[10px] uppercase tracking-wider text-muted-foreground mt-0.5">{t.day}</div>
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="text-sm font-medium leading-snug">{t.name}</div>
-                        <div className="text-xs text-muted-foreground mt-0.5">
-                          {fmt?.emoji} {fmt?.name} · {t.month}
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => setDeletingId(deletingId === t.id ? null : t.id)}
-                        className={cn(
-                          "h-8 w-8 rounded-full grid place-items-center transition-colors shrink-0",
-                          deletingId === t.id ? "bg-destructive text-destructive-foreground" : "bg-muted text-muted-foreground hover:text-destructive",
-                        )}
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
-                    {deletingId === t.id && (
-                      <div className="flex items-center gap-3 px-4 py-3 border-t border-border bg-destructive/5 animate-in slide-in-from-top duration-150">
-                        <div className="flex-1 text-sm text-destructive font-semibold">Delete tournament?</div>
-                        <button
-                          onClick={() => { deleteCustomTournament(t.id); setDeletingId(null); }}
-                          className="px-4 py-1.5 rounded-lg bg-destructive text-destructive-foreground text-sm font-bold"
-                        >
-                          Delete
-                        </button>
-                        <button
-                          onClick={() => setDeletingId(null)}
-                          className="px-4 py-1.5 rounded-lg bg-muted text-foreground text-sm font-bold"
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </Card>
-        </div>
-      )}
 
       {/* Calendar */}
       {grouped.map(([month, items]) => (

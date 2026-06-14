@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -357,7 +357,15 @@ const TournamentRoundPlayer = ({
   format: FormatId;
   onExit: () => void;
 }) => {
-  const { activeRound, enterScore, finishRound, setRoundPhoto } = useGolf();
+  const { activeRound, enterScore, finishRound, setRoundPhoto, refreshActiveRound } = useGolf();
+
+  useEffect(() => {
+    if (!activeRound) return;
+    const hasPartners = activeRound.players.length > 1;
+    if (!hasPartners) return;
+    const id = setInterval(() => refreshActiveRound(), 15000);
+    return () => clearInterval(id);
+  }, [activeRound?.id]);
   const [view, setView] = useState<"scoring" | "leaderboard">("scoring");
   const [holeIdx, setHoleIdx] = useState(0);
   const [sheetPlayer, setSheetPlayer] = useState<Player | null>(null);

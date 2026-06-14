@@ -100,10 +100,15 @@ type State = {
   addRound: (round: Round) => void;
   loadRounds: () => Promise<void>;
   syncRound: (round: Round) => Promise<void>;
+  refreshActiveRound: () => Promise<void>;
+  notifyPlayers: (roundId: string) => Promise<void>;
 };
 
 const mkInitials = (name: string) =>
   name.split(" ").map((p) => p[0]).filter(Boolean).slice(0, 2).join("").toUpperCase();
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const isUUID = (id: string) => UUID_RE.test(id);
 
 let autoSaveTimer: ReturnType<typeof setTimeout> | null = null
 function scheduleAutoSave(round: Round) {
@@ -193,7 +198,12 @@ export const useGolf = create<State>()(
         };
         set({ activeRound: round });
         // Save to backend immediately so it survives app restarts
-        api.post('/api/rounds', { round }).catch(() => {})
+        api.post('/api/rounds', { round }).then(() => {
+          // Notify other players after round is saved
+          if (players.some(p => !p.isMe && isUUID(p.id))) {
+            api.post(`/api/rounds/${round.id}/notify`, {}).catch(() => {})
+          }
+        }).catch(() => {})
 
       },
 
@@ -303,6 +313,34 @@ export const useGolf = create<State>()(
         } catch (err) {
           console.error('Failed to sync round:', err);
           throw err;
+        }
+      },
+
+      refreshActiveRound: async () => {
+        const round = get().activeRound;
+        if (!round) return;
+        try {
+          const fresh = await api.get<Round>(`/api/rounds/${round.id}`);
+          // Merge: keep our scores for "me" player, take DB scores for others
+          const meId = round.players.find(p => p.isMe)?.id;
+          const mergedScores: Record<string, typeof round.scores[string]> = { ...fresh.scores };
+          if (meId && round.scores[meId]) {
+            mergedScores[meId] = round.scores[meId];
+          }
+          set((s) => s.activeRound?.id === round.id
+            ? { activeRound: { ...fresh, scores: mergedScores, players: s.activeRound.players } }
+            : s
+          );
+        } catch {
+          // silently ignore — we still have local state
+        }
+      },
+
+      notifyPlayers: async (roundId: string) => {
+        try {
+          await api.post(`/api/rounds/${roundId}/notify`, {});
+        } catch {
+          // non-critical — don't throw
         }
       },
     }),
