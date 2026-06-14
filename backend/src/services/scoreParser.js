@@ -7,28 +7,49 @@ function detectMediaType(buffer) {
   return 'image/jpeg'
 }
 
-const PROMPT = `This is a golf scorecard photo. Extract the individual hole-by-hole scores for ONE player.
+const PROMPT = `This is a golf scorecard photo. Extract hole-by-hole scores for ALL players.
 
-A golf scorecard has:
-- A HOLE row (numbers 1-9 for front 9, 10-18 for back 9)
-- A PAR row (values like 3, 4, or 5 — these are NOT player scores, ignore them)
-- A STROKE INDEX / HCP row (values 1-18 — these are NOT player scores, ignore them)
-- Player rows (Player A, Player B, etc.) with handwritten scores per hole
-- An OUT total column (sum of holes 1-9) and IN total column (sum of holes 10-18)
-- A TOTAL column at the end
+A golf scorecard structure:
+- HOLE row: numbers 1–18
+- PAR row: values 3, 4, or 5 — these are course pars, NOT player scores — SKIP this row
+- STROKE INDEX / HCP row: values 1–18 — NOT scores — SKIP this row
+- PLAYER rows: labeled A, B, C, D (sometimes with player names in the header)
+  Each player row has handwritten scores per hole
+- OUT column: printed sum of holes 1–9 for each player
+- IN column: printed sum of holes 10–18 for each player
+- TOTAL column: overall total
 
-IMPORTANT: Extract ONLY the individual hole scores from the player rows — NOT the PAR row, NOT the HCP row, NOT the OUT/IN totals, NOT the TOTAL. Each individual hole score for a single player should be a small integer (typically 3-10, rarely more than 12).
+YOUR TASK: For EACH player row that has scores filled in, extract:
+1. label — player letter (A, B, C, D)
+2. name — player name if visible in header section (or null)
+3. holes — array of {hole, score} for each hole that has a score
+4. outTotal — the OUT subtotal written for that player (sum of holes 1–9)
+5. inTotal — the IN subtotal written for that player (sum of holes 10–18)
 
-If there are multiple player rows, extract the scores for Player A (the first filled-in player row).
+CRITICAL reading rules:
+- PAR values (3,4,5) printed on the card are NOT player scores — never include them
+- Player scores are handwritten; each hole score is typically 3–10 strokes
+- handwritten 1 and 7 can look similar — check context (a score of 1 is impossible, 17 is very high)
+- handwritten 4 and 9, 6 and 0 can look similar — verify against OUT/IN totals
+- If a player row appears empty or blank, skip it
+- Read the OUT and IN totals from the card to cross-check your extracted scores
+  (sum of holes 1–9 should roughly match the OUT total; holes 10–18 should match IN)
 
-Return ONLY a JSON object with no markdown:
-{"holes":[{"hole":1,"score":4},{"hole":2,"score":5}],"courseName":"course name or null","totalScore":85}
+Return ONLY valid JSON with no markdown fences:
+{
+  "players": [
+    {
+      "label": "A",
+      "name": "John Smith",
+      "holes": [{"hole": 1, "score": 5}, {"hole": 2, "score": 4}],
+      "outTotal": 42,
+      "inTotal": 43
+    }
+  ],
+  "courseName": "course name or null"
+}
 
-Rules:
-- hole: integer 1-18
-- score: strokes on that hole (integer 2-12). If a cell is empty or illegible, skip that hole.
-- totalScore: sum of the extracted hole scores
-- If you cannot find any player scores, return {"holes":[],"courseName":null,"totalScore":null}`
+If you cannot find any player scores at all, return: {"players":[],"courseName":null}`
 
 export async function parseScorecardPhoto(imageBuffer) {
   if (!process.env.OPENROUTER_API_KEY) {
@@ -40,15 +61,15 @@ export async function parseScorecardPhoto(imageBuffer) {
   const dataUrl = `data:${mimeType};base64,${base64}`
 
   const body = JSON.stringify({
-    model: 'openai/gpt-4o-mini',
+    model: 'openai/gpt-4o',
     messages: [{
       role: 'user',
       content: [
-        { type: 'image_url', image_url: { url: dataUrl } },
+        { type: 'image_url', image_url: { url: dataUrl, detail: 'high' } },
         { type: 'text', text: PROMPT },
       ],
     }],
-    max_tokens: 1024,
+    max_tokens: 2048,
   })
 
   const data = await new Promise((resolve, reject) => {
@@ -70,7 +91,7 @@ export async function parseScorecardPhoto(imageBuffer) {
       })
       res.on('error', reject)
     })
-    req.setTimeout(30000, () => req.destroy(new Error('OpenRouter timeout')))
+    req.setTimeout(45000, () => req.destroy(new Error('OpenRouter timeout')))
     req.on('error', reject)
     req.write(body)
     req.end()
@@ -83,16 +104,25 @@ export async function parseScorecardPhoto(imageBuffer) {
   if (!match) throw new Error('OpenRouter: no JSON in response')
 
   const parsed = JSON.parse(match[0])
-  const holes = Array.isArray(parsed.holes)
-    ? parsed.holes.filter(h =>
-        Number.isInteger(h.hole) && h.hole >= 1 && h.hole <= 18 &&
-        Number.isInteger(h.score) && h.score >= 1 && h.score <= 15
-      )
+
+  const players = Array.isArray(parsed.players)
+    ? parsed.players
+        .filter(p => Array.isArray(p.holes) && p.holes.length > 0)
+        .map(p => ({
+          label: String(p.label ?? '?').toUpperCase(),
+          name: p.name || null,
+          holes: p.holes.filter(h =>
+            Number.isInteger(h.hole) && h.hole >= 1 && h.hole <= 18 &&
+            Number.isInteger(h.score) && h.score >= 1 && h.score <= 15
+          ),
+          outTotal: p.outTotal ?? null,
+          inTotal: p.inTotal ?? null,
+        }))
+        .filter(p => p.holes.length > 0)
     : []
 
   return {
-    holes,
+    players,
     courseName: parsed.courseName || null,
-    totalScore: parsed.totalScore || null,
   }
 }

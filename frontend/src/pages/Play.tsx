@@ -1299,6 +1299,8 @@ const ScoreCounter = ({
 
 /* ────────── SCORECARD CONFIRM MODAL ────────── */
 type PendingScore = { hole: number; score: number };
+type PendingPlayer = { label: string; name: string | null; holes: PendingScore[]; outTotal: number | null; inTotal: number | null };
+type ScorecardData = { id: string; scores: { players: PendingPlayer[] } | PendingScore[]; courseName: string | null; holesCount: number };
 
 const ScorecardConfirmModal = ({
   pendingId,
@@ -1313,19 +1315,32 @@ const ScorecardConfirmModal = ({
   const [loading, setLoading] = useState(true);
   const [confirming, setConfirming] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [scores, setScores] = useState<PendingScore[]>([]);
+  const [players, setPlayers] = useState<PendingPlayer[]>([]);
+  const [selectedLabel, setSelectedLabel] = useState<string>("");
   const [courseId, setCourseId] = useState<string>(COURSES[0].id);
   const [tee, setTee] = useState<TeeColor>("yellow");
   const [date, setDate] = useState(() => new Date().toISOString().split("T")[0]);
 
   useEffect(() => {
     api
-      .get<{ id: string; scores: PendingScore[]; courseName: string | null; holesCount: number }>(
-        `/api/scorecards/${pendingId}`
-      )
+      .get<ScorecardData>(`/api/scorecards/${pendingId}`)
       .then((data) => {
-        const sorted = [...data.scores].sort((a, b) => a.hole - b.hole);
-        setScores(sorted);
+        // Support both new {players:[]} format and legacy flat array
+        let parsedPlayers: PendingPlayer[];
+        const raw = data.scores;
+        if (Array.isArray(raw)) {
+          // Legacy format — single player
+          parsedPlayers = [{ label: "A", name: null, holes: [...raw].sort((a, b) => a.hole - b.hole), outTotal: null, inTotal: null }];
+        } else if (raw && typeof raw === "object" && Array.isArray((raw as { players: PendingPlayer[] }).players)) {
+          parsedPlayers = (raw as { players: PendingPlayer[] }).players.map(p => ({
+            ...p,
+            holes: [...p.holes].sort((a, b) => a.hole - b.hole),
+          }));
+        } else {
+          parsedPlayers = [];
+        }
+        setPlayers(parsedPlayers);
+        setSelectedLabel(parsedPlayers[0]?.label ?? "");
         if (data.courseName) {
           const match = COURSES.find(
             (c) =>
@@ -1342,12 +1357,24 @@ const ScorecardConfirmModal = ({
       });
   }, [pendingId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const updateScore = (hole: number, val: number) =>
-    setScores((prev) => prev.map((s) => (s.hole === hole ? { ...s, score: val } : s)));
+  const selectedPlayer = players.find(p => p.label === selectedLabel) ?? players[0];
+  const scores = selectedPlayer?.holes ?? [];
+
+  const updateScore = (hole: number, val: number) => {
+    setPlayers(prev => prev.map(p =>
+      p.label === selectedLabel
+        ? { ...p, holes: p.holes.map(s => s.hole === hole ? { ...s, score: val } : s) }
+        : p
+    ));
+  };
 
   const course = COURSES.find((c) => c.id === courseId)!;
   const teeInfo = course.tees.find((t) => t.color === tee) ?? course.tees[0];
   const totalScore = scores.reduce((sum, s) => sum + s.score, 0);
+  const outSum = scores.filter(s => s.hole <= 9).reduce((a, s) => a + s.score, 0);
+  const inSum = scores.filter(s => s.hole >= 10).reduce((a, s) => a + s.score, 0);
+  const outMismatch = selectedPlayer?.outTotal != null && Math.abs(outSum - selectedPlayer.outTotal) > 1;
+  const inMismatch = selectedPlayer?.inTotal != null && Math.abs(inSum - selectedPlayer.inTotal) > 1;
 
   const determineHolesMode = (): HolesMode => {
     if (scores.length > 9) return "18";
@@ -1394,14 +1421,12 @@ const ScorecardConfirmModal = ({
       };
 
       await api.post("/api/rounds", { round });
-      // Delete scorecard separately — don't block round save on delete failure
       api.delete(`/api/scorecards/${pendingId}`).catch(() => {});
       addRound({ ...round, updatedAt: new Date().toISOString() });
       await loadRounds();
       onDone();
     } catch (err: unknown) {
       const msg = (err as Error).message ?? "Save error";
-      // Show error as alert (always visible regardless of toast positioning)
       alert(`Ошибка сохранения раунда:\n${msg}\n\nURL: ${window.location.origin}`);
       setConfirming(false);
     }
@@ -1446,8 +1471,41 @@ const ScorecardConfirmModal = ({
           Scorecard Import
         </div>
         <h2 className="text-xl font-bold">Confirm Scores</h2>
-        <p className="text-sm text-muted-foreground">Review and edit if needed</p>
+        <p className="text-sm text-muted-foreground">Выберите свой ряд и проверьте счёт</p>
       </div>
+
+      {/* Player selector — shown when multiple players detected */}
+      {players.length > 1 && (
+        <Card className="p-4 shadow-soft">
+          <div className="text-xs uppercase tracking-wider text-muted-foreground font-semibold mb-2">Это мой ряд</div>
+          <div className="flex gap-2 flex-wrap">
+            {players.map((p) => (
+              <button
+                key={p.label}
+                onClick={() => setSelectedLabel(p.label)}
+                className={cn(
+                  "flex-1 min-w-0 py-2.5 px-3 rounded-xl border-2 text-sm font-bold transition-all text-left",
+                  selectedLabel === p.label ? "border-action bg-action/10 text-action" : "border-border text-muted-foreground"
+                )}
+              >
+                <div>Игрок {p.label}</div>
+                {p.name && <div className="text-[11px] font-normal truncate mt-0.5 opacity-70">{p.name}</div>}
+              </button>
+            ))}
+          </div>
+        </Card>
+      )}
+
+      {/* Cross-validation warning */}
+      {(outMismatch || inMismatch) && (
+        <div className="rounded-xl px-4 py-3 text-sm font-medium" style={{ background: "rgba(251,146,60,0.12)", border: "1px solid rgba(251,146,60,0.3)", color: "#fb923c" }}>
+          ⚠️ Сумма не совпадает с карточкой:{" "}
+          {outMismatch && `OUT: найдено ${outSum}, на карте ${selectedPlayer?.outTotal}`}
+          {outMismatch && inMismatch && " · "}
+          {inMismatch && `IN: найдено ${inSum}, на карте ${selectedPlayer?.inTotal}`}
+          <div className="text-xs mt-1 opacity-80">Проверьте и поправьте лунки вручную</div>
+        </div>
+      )}
 
       {/* Date */}
       <Card className="p-4 shadow-soft">
@@ -1526,6 +1584,11 @@ const ScorecardConfirmModal = ({
                 />
               ))}
             </div>
+            {front9.length === 9 && (
+              <div className={cn("text-right text-xs font-semibold mt-1", outMismatch ? "text-orange-400" : "text-muted-foreground")}>
+                OUT: {outSum}{selectedPlayer?.outTotal != null ? ` (карта: ${selectedPlayer.outTotal})` : ""}
+              </div>
+            )}
           </div>
         )}
 
@@ -1552,6 +1615,11 @@ const ScorecardConfirmModal = ({
                 />
               ))}
             </div>
+            {back9.length === 9 && (
+              <div className={cn("text-right text-xs font-semibold mt-1", inMismatch ? "text-orange-400" : "text-muted-foreground")}>
+                IN: {inSum}{selectedPlayer?.inTotal != null ? ` (карта: ${selectedPlayer.inTotal})` : ""}
+              </div>
+            )}
           </div>
         )}
 

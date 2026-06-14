@@ -153,17 +153,21 @@ if (!token) {
 
       const result = await parseScorecardPhoto(buffer)
 
-      if (!result.holes.length) {
-        await bot.editMessageText('❌ Не удалось распознать скор-карту. Убедитесь, что фото чёткое.', {
+      if (!result.players.length) {
+        await bot.editMessageText('❌ Не удалось распознать скор-карту. Убедитесь, что фото чёткое и все лунки видны.', {
           chat_id: msg.chat.id, message_id: statusMsg.message_id,
         })
         return
       }
 
+      // Use the player with the most holes recognised
+      const bestPlayer = result.players.reduce((a, b) => a.holes.length >= b.holes.length ? a : b)
+      const holesCount = Math.max(...result.players.map(p => p.holes.length))
+
       const { rows: [sc] } = await db.query(
         `INSERT INTO pending_scorecards (user_id, scores, course_name, holes_count)
          VALUES ($1, $2, $3, $4) RETURNING id`,
-        [user.id, JSON.stringify(result.holes), result.courseName, result.holes.length]
+        [user.id, JSON.stringify({ players: result.players }), result.courseName, holesCount]
       )
 
       await bot.editMessageText('✅ Карта добавлена. Подтвердите счёт в приложении.', {
