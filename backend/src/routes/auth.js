@@ -6,7 +6,7 @@ const router = Router()
 
 // Auth via Telegram Mini App initDataUnsafe — no HMAC needed for this use case
 router.post('/telegram', async (req, res, next) => {
-  const { telegram_id, username, first_name, last_name } = req.body
+  const { telegram_id, username, first_name, last_name, photo_url } = req.body
 
   if (!telegram_id) {
     return res.status(400).json({ error: 'telegram_id required' })
@@ -14,12 +14,13 @@ router.post('/telegram', async (req, res, next) => {
 
   try {
     const { rows: [user] } = await db.query(
-      `INSERT INTO users (telegram_id, username, first_name, last_name)
-       VALUES ($1, $2, $3, $4)
+      `INSERT INTO users (telegram_id, username, first_name, last_name, photo_url)
+       VALUES ($1, $2, $3, $4, $5)
        ON CONFLICT (telegram_id) DO UPDATE SET
          username   = EXCLUDED.username,
          first_name = CASE WHEN users.first_name = '' THEN EXCLUDED.first_name ELSE users.first_name END,
          last_name  = CASE WHEN users.last_name  = '' THEN EXCLUDED.last_name  ELSE users.last_name  END,
+         photo_url  = COALESCE(EXCLUDED.photo_url, users.photo_url),
          updated_at = NOW()
        RETURNING *`,
       [
@@ -27,6 +28,7 @@ router.post('/telegram', async (req, res, next) => {
         username ?? null,
         first_name ?? '',
         last_name ?? '',
+        photo_url ?? null,
       ]
     )
 

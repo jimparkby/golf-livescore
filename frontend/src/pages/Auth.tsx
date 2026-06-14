@@ -13,6 +13,7 @@ declare global {
             username?: string
             first_name?: string
             last_name?: string
+            photo_url?: string
           }
         }
         ready: () => void
@@ -44,6 +45,7 @@ export default function AuthPage() {
           username: tgUser.username ?? null,
           first_name: tgUser.first_name ?? '',
           last_name: tgUser.last_name ?? '',
+          photo_url: tgUser.photo_url ?? null,
         }),
       })
       let data: Record<string, string> = {}

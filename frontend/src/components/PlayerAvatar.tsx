@@ -1,8 +1,8 @@
 import { cn } from "@/lib/utils";
 
-type Props = { name: string; size?: "sm" | "md" | "lg"; tone?: "orange" | "muted"; className?: string };
+type Props = { name: string; size?: "sm" | "md" | "lg"; tone?: "orange" | "muted"; className?: string; photoUrl?: string };
 
-export const Avatar = ({ name, size = "md", tone = "orange", className }: Props) => {
+export const Avatar = ({ name, size = "md", tone = "orange", className, photoUrl }: Props) => {
   const initials = name
     .split(" ")
     .map((p) => p[0])
@@ -19,6 +19,17 @@ export const Avatar = ({ name, size = "md", tone = "orange", className }: Props)
     orange: "bg-warning text-primary-foreground",
     muted: "bg-muted text-muted-foreground",
   } as const;
+
+  if (photoUrl) {
+    return (
+      <img
+        src={photoUrl}
+        alt={name}
+        className={cn("rounded-full object-cover shrink-0 shadow-soft", sizes[size], className)}
+      />
+    );
+  }
+
   return (
     <div
       className={cn(

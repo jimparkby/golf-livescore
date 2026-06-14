@@ -11,6 +11,7 @@ export type Player = {
   hcp: number;
   tee?: TeeColor;
   isMe?: boolean;
+  photoUrl?: string;
 };
 
 export type HoleScore = {

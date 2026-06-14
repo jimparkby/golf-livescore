@@ -10,9 +10,11 @@ export const db = new Pool({
   ssl: { rejectUnauthorized: false },
 })
 
-// Add current_hole column if it doesn't exist yet
 db.query(`ALTER TABLE rounds ADD COLUMN IF NOT EXISTS current_hole INTEGER`)
   .catch((err) => console.error('[db] migration error:', err.message))
+
+db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS photo_url TEXT`)
+  .catch((err) => console.error('[db] photo_url migration error:', err.message))
 
 db.query(`CREATE TABLE IF NOT EXISTS pending_scorecards (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

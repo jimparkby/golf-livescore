@@ -21,9 +21,23 @@ const PlayPage = () => {
   const [confirmId, setConfirmId] = useState<string | null>(
     () => new URLSearchParams(window.location.search).get('confirm')
   );
-  const { profile, frequent, activeRound, startRound, cancelActiveRound } = useGolf();
+  const { profile, frequent, activeRound, startRound, cancelActiveRound, rounds } = useGolf();
   const [step, setStep] = useState<Step>(activeRound ? "playing" : "home");
   const initialHadRound = useRef(!!activeRound);
+
+  const sendPregameInsight = () => {
+    const token = localStorage.getItem("golf_jwt");
+    if (!token) return;
+    const completedRounds = rounds.filter(r => r.completed);
+    const trimmedRounds = completedRounds.slice(0, 10).map(r => ({
+      date: r.date, scores: r.scores, tee: r.tee, rating: r.rating, slope: r.slope, holesMode: r.holesMode,
+    }));
+    fetch(`${BASE}/api/ai/pregame`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ rounds: trimmedRounds, profile: { hcp: profile.hcp, firstName: profile.firstName } }),
+    }).catch(() => {});
+  };
   const [courseId, setCourseId] = useState<string>(COURSES[0].id);
   const [players, setPlayers] = useState<Player[]>([
     { id: "me", name: `${profile.firstName} ${profile.lastName}`, initials: profile.initials, hcp: profile.hcp, tee: profile.defaultTee ?? "yellow", isMe: true },
@@ -68,6 +82,7 @@ const PlayPage = () => {
         setPlayers={setPlayers}
         frequent={frequent}
         onBack={() => setStep("home")}
+        onPregame={sendPregameInsight}
         onStart={(mode) => {
           startRound(course, players, undefined, undefined, mode);
           setStep("playing");
@@ -95,21 +110,8 @@ const HomeScreen = ({ onStart, activeRound, onResume, onAbandon }: {
   onAbandon?: () => void;
 }) => {
   const { rounds, profile } = useGolf();
-  const last = rounds[0];
   const completedRounds = rounds.filter(r => r.completed);
-
-  const sendPregameInsight = () => {
-    const token = localStorage.getItem("golf_jwt");
-    if (!token) return;
-    const trimmedRounds = completedRounds.slice(0, 10).map(r => ({
-      date: r.date, scores: r.scores, tee: r.tee, rating: r.rating, slope: r.slope, holesMode: r.holesMode,
-    }));
-    fetch(`${BASE}/api/ai/pregame`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ rounds: trimmedRounds, profile: { hcp: profile.hcp, firstName: profile.firstName } }),
-    }).catch(() => {});
-  };
+  const last = completedRounds.find(r => r.players.some(p => p.isMe)) ?? null;
 
   return (
     <div className="space-y-5 animate-in fade-in duration-300">
@@ -155,7 +157,7 @@ const HomeScreen = ({ onStart, activeRound, onResume, onAbandon }: {
         </div>
         <div className="p-5 bg-card">
           <Button
-            onClick={() => { sendPregameInsight(); onStart(); }}
+            onClick={() => onStart()}
             size="lg"
             className="w-full h-14 text-base font-semibold bg-action hover:bg-action/90 text-action-foreground rounded-xl shadow-glow transition-spring hover:scale-[1.01]"
           >
@@ -241,7 +243,7 @@ const StatTile = ({ label, value }: { label: string; value: string }) => (
 
 /* ────────── SETUP ────────── */
 const SetupScreen = ({
-  course, courseId, setCourseId, players, setPlayers, frequent, onBack, onStart,
+  course, courseId, setCourseId, players, setPlayers, frequent, onBack, onPregame, onStart,
 }: {
   course: ReturnType<typeof COURSES.find> & object;
   courseId: string;
@@ -250,6 +252,7 @@ const SetupScreen = ({
   setPlayers: (p: Player[]) => void;
   frequent: Player[];
   onBack: () => void;
+  onPregame: () => void;
   onStart: (mode: HolesMode) => void;
 }) => {
   const { addFrequent } = useGolf();
@@ -328,7 +331,7 @@ const SetupScreen = ({
             return (
               <div key={p.id} className="flex items-center justify-between px-4 py-3 border-t border-border">
                 <div className="flex items-center gap-3 min-w-0">
-                  <Avatar name={p.name} tone={p.isMe ? "orange" : "muted"} />
+                  <Avatar name={p.name} tone={p.isMe ? "orange" : "muted"} photoUrl={p.photoUrl} />
                   <div className="min-w-0">
                     <div className="font-semibold truncate">{p.name}</div>
                     {(() => {
@@ -392,7 +395,7 @@ const SetupScreen = ({
         </Card>
 
         <Button
-          onClick={() => onStart(holesMode)}
+          onClick={() => { onPregame(); onStart(holesMode); }}
           size="lg"
           className="h-14 bg-action hover:bg-action/90 text-action-foreground rounded-xl text-base font-semibold shadow-glow transition-spring"
         >
@@ -486,6 +489,7 @@ type UserResult = {
   last_name: string | null;
   username: string | null;
   hcp: number | null;
+  photo_url: string | null;
 };
 
 const mkPlayerName = (u: UserResult) =>
@@ -496,7 +500,6 @@ const mkInitials = (name: string) =>
 
 const AddPlayerSheet = ({
   players,
-  frequent,
   onAdd,
   onClose,
 }: {
@@ -506,40 +509,33 @@ const AddPlayerSheet = ({
   onClose: () => void;
 }) => {
   const [query, setQuery] = useState("");
-  const [results, setResults] = useState<Player[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [allUsers, setAllUsers] = useState<UserResult[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (query.trim().length < 2) { setResults([]); return; }
-    const timer = setTimeout(async () => {
-      setLoading(true);
-      try {
-        const data = await api.get<UserResult[]>(`/api/users/search?q=${encodeURIComponent(query.trim())}`);
-        setResults(data.map((u) => ({
-          id: u.id,
-          name: mkPlayerName(u),
-          initials: mkInitials(mkPlayerName(u)),
-          hcp: u.hcp ?? 0,
-        })));
-      } catch {
-        setResults([]);
-      } finally {
-        setLoading(false);
-      }
-    }, 350);
-    return () => clearTimeout(timer);
-  }, [query]);
+    api.get<UserResult[]>("/api/users/all")
+      .then(setAllUsers)
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
 
   const alreadyAdded = (id: string) => !!players.find((p) => p.id === id);
-  const isSearching = query.trim().length >= 2;
-  const list = isSearching ? results : frequent.filter((f) => !alreadyAdded(f.id));
+
+  const q = query.trim().toLowerCase();
+  const filtered = q.length === 0
+    ? allUsers
+    : allUsers.filter((u) => {
+        const name = mkPlayerName(u).toLowerCase();
+        const uname = (u.username ?? "").toLowerCase();
+        return name.includes(q) || uname.includes(q);
+      });
 
   return (
     <div className="fixed inset-0 z-50 flex items-end animate-in fade-in duration-150">
       <button className="absolute inset-0 bg-black/70" onClick={onClose} />
       <div
         className="relative w-full rounded-t-3xl animate-in slide-in-from-bottom duration-250 flex flex-col"
-        style={{ background: "#1c1c1e", maxHeight: "80vh", paddingBottom: "max(env(safe-area-inset-bottom), 24px)" }}
+        style={{ background: "#1c1c1e", maxHeight: "85vh", paddingBottom: "max(env(safe-area-inset-bottom), 24px)" }}
       >
         <div className="mx-auto w-10 h-1 rounded-full mt-3 mb-4" style={{ background: "rgba(255,255,255,0.15)" }} />
 
@@ -554,13 +550,13 @@ const AddPlayerSheet = ({
           </button>
         </div>
 
-        <div className="px-5 pb-4">
+        <div className="px-5 pb-3">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4" style={{ color: "rgba(255,255,255,0.4)" }} />
             <input
               type="text"
               autoFocus
-              placeholder="Search by name..."
+              placeholder="Имя или @username..."
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               className="w-full h-11 rounded-xl pl-10 pr-4 text-white text-sm outline-none placeholder:text-white/30"
@@ -569,39 +565,55 @@ const AddPlayerSheet = ({
           </div>
         </div>
 
-        <div className="px-5 pb-2">
-          <div className="text-xs uppercase tracking-wider font-semibold" style={{ color: "rgba(255,255,255,0.35)" }}>
-            {isSearching
-              ? loading ? "Searching..." : `Results (${results.length})`
-              : "Frequently played"}
-          </div>
-        </div>
-
         <div className="overflow-y-auto flex-1 px-3 pb-2">
-          {!loading && list.length === 0 ? (
+          {loading ? (
+            <div className="flex items-center justify-center py-10">
+              <div className="h-6 w-6 rounded-full border-2 border-action border-t-transparent animate-spin" />
+            </div>
+          ) : filtered.length === 0 ? (
             <div className="text-center py-10 text-sm" style={{ color: "rgba(255,255,255,0.3)" }}>
-              {isSearching ? "No results found" : "No frequent players"}
+              {q ? "Никого не найдено" : "Нет других игроков"}
             </div>
           ) : (
-            list.map((p) => (
-              <button
-                key={p.id}
-                disabled={alreadyAdded(p.id)}
-                onClick={() => onAdd(p)}
-                className="w-full flex items-center gap-3 px-3 py-3 rounded-xl mb-1 active:scale-[0.98] transition-transform disabled:opacity-40"
-                style={{ background: "rgba(255,255,255,0.05)" }}
-              >
-                <Avatar name={p.name} tone="muted" />
-                <div className="text-left flex-1 min-w-0">
-                  <div className="text-white font-semibold truncate">{p.name}</div>
-                  <div className="text-xs" style={{ color: "rgba(255,255,255,0.4)" }}>HCP {p.hcp}</div>
-                </div>
-                {alreadyAdded(p.id)
-                  ? <div className="text-xs font-semibold" style={{ color: "rgba(255,255,255,0.3)" }}>Added</div>
-                  : <div className="text-sm font-semibold" style={{ color: "#22c55e" }}>+ Add</div>
-                }
-              </button>
-            ))
+            filtered.map((u) => {
+              const name = mkPlayerName(u);
+              const added = alreadyAdded(u.id);
+              return (
+                <button
+                  key={u.id}
+                  disabled={added}
+                  onClick={() => onAdd({
+                    id: u.id,
+                    name,
+                    initials: mkInitials(name),
+                    hcp: u.hcp ?? 0,
+                    photoUrl: u.photo_url ?? undefined,
+                  })}
+                  className="w-full flex items-center gap-3 px-3 py-3 rounded-xl mb-1 active:scale-[0.98] transition-transform disabled:opacity-40"
+                  style={{ background: "rgba(255,255,255,0.05)" }}
+                >
+                  {u.photo_url ? (
+                    <img
+                      src={u.photo_url}
+                      alt={name}
+                      className="h-12 w-12 rounded-full object-cover shrink-0"
+                    />
+                  ) : (
+                    <Avatar name={name} tone="muted" />
+                  )}
+                  <div className="text-left flex-1 min-w-0">
+                    <div className="text-white font-semibold truncate">{name}</div>
+                    <div className="text-xs truncate" style={{ color: "rgba(255,255,255,0.4)" }}>
+                      {u.username ? `@${u.username}` : `HCP ${u.hcp ?? "—"}`}
+                    </div>
+                  </div>
+                  {added
+                    ? <div className="text-xs font-semibold shrink-0" style={{ color: "rgba(255,255,255,0.3)" }}>Добавлен</div>
+                    : <div className="text-sm font-semibold shrink-0" style={{ color: "#22c55e" }}>+ Add</div>
+                  }
+                </button>
+              );
+            })
           )}
         </div>
       </div>
@@ -726,7 +738,7 @@ const RoundPlayer = ({ onExit, onCancel }: { onExit: () => void; onCancel: () =>
                 <div key={p.id} className="rounded-2xl overflow-hidden" style={{ background: "#1a1a1a" }}>
                   <div className="flex items-center justify-between px-5 py-4">
                     <div className="flex items-center gap-3">
-                      <Avatar name={p.name} tone={p.isMe ? "orange" : "muted"} />
+                      <Avatar name={p.name} tone={p.isMe ? "orange" : "muted"} photoUrl={p.photoUrl} />
                       <div>
                         <div className="text-white font-bold">{p.name}</div>
                         <div className="text-white/50 text-sm">HCP {p.hcp} · CH {ch}</div>
@@ -1084,7 +1096,7 @@ const RoundPlayer = ({ onExit, onCancel }: { onExit: () => void; onCancel: () =>
               style={{ background: "#1a1a1a" }}
             >
               <div className="flex items-center gap-3 min-w-0">
-                <Avatar name={p.name} tone={p.isMe ? "orange" : "muted"} />
+                <Avatar name={p.name} tone={p.isMe ? "orange" : "muted"} photoUrl={p.photoUrl} />
                 <div className="text-left min-w-0">
                   <div className="text-white font-semibold truncate">
                     {p.name.split(" ")[0]}
@@ -1184,7 +1196,7 @@ const RoundPlayer = ({ onExit, onCancel }: { onExit: () => void; onCancel: () =>
             {/* Header */}
             <div className="flex items-center justify-between px-5 py-3" style={{ borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
               <div className="flex items-center gap-3">
-                <Avatar name={sheetPlayer.name} tone={sheetPlayer.isMe ? "orange" : "muted"} />
+                <Avatar name={sheetPlayer.name} tone={sheetPlayer.isMe ? "orange" : "muted"} photoUrl={sheetPlayer.photoUrl} />
                 <div>
                   <div className="text-white font-bold">{sheetPlayer.name.split(" ")[0]}</div>
                   <div className="text-white/40 text-xs">
