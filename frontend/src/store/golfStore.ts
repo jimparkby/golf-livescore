@@ -23,6 +23,7 @@ export type HoleScore = {
   bunker: number;
   penalties: number;
   teeShot?: "fairway" | "left" | "right" | "long" | "short" | "miss";
+  madeBy?: string;
 };
 
 export type HolesMode = "18" | "front9" | "back9";
@@ -45,6 +46,7 @@ export type Round = {
   photoUrl?: string;
   currentHoleIndex?: number;
   holesMode?: HolesMode;
+  teams?: [string[], string[]];
 };
 
 export type Profile = {
@@ -69,6 +71,8 @@ export type CustomTournament = {
   month: string;
   format: FormatId;
   courseId?: string;
+  holesMode?: HolesMode;
+  teams?: [string[], string[]];
   notes?: string;
   createdAt: string;
 };
@@ -83,14 +87,14 @@ type State = {
   customTournaments: CustomTournament[];
   updateProfile: (p: Partial<Profile>) => void;
   resetStore: () => void;
-  startRound: (course: Course, players: Player[], tournamentId?: string, format?: FormatId, holesMode?: HolesMode) => void;
+  startRound: (course: Course, players: Player[], tournamentId?: string, format?: FormatId, holesMode?: HolesMode, teams?: [string[], string[]]) => void;
   cancelActiveRound: () => void;
   enterScore: (playerId: string, score: HoleScore) => void;
   finishRound: () => void;
   deleteRound: (id: string) => void;
   setRoundPhoto: (id: string, photoUrl: string) => void;
   addFrequent: (p: Player) => void;
-  addCustomTournament: (t: Omit<CustomTournament, "id" | "createdAt">) => void;
+  addCustomTournament: (t: Omit<CustomTournament, "createdAt">) => void;
   deleteCustomTournament: (id: string) => void;
   setCurrentHole: (idx: number) => void;
   addRound: (round: Round) => void;
@@ -167,7 +171,7 @@ export const useGolf = create<State>()(
       resetStore: () =>
         set({ profile: defaultProfile, frequent: [], rounds: [], activeRound: null, customTournaments: [] }),
 
-      startRound: (course, players, tournamentId, format, holesMode) => {
+      startRound: (course, players, tournamentId, format, holesMode, teams) => {
         const mePlayer = players.find((p) => p.isMe);
         const teeColor: TeeColor = mePlayer?.tee ?? "yellow";
         const teeInfo = course.tees.find((t) => t.color === teeColor) ?? course.tees[2] ?? course.tees[0];
@@ -185,6 +189,7 @@ export const useGolf = create<State>()(
           tournamentId,
           format,
           holesMode: holesMode ?? "18",
+          teams,
         };
         set({ activeRound: round });
         // Save to backend immediately so it survives app restarts
@@ -258,7 +263,7 @@ export const useGolf = create<State>()(
       addCustomTournament: (t) =>
         set((s) => ({
           customTournaments: [
-            { ...t, id: `ct-${Date.now()}`, createdAt: new Date().toISOString() },
+            { ...t, createdAt: new Date().toISOString() },
             ...s.customTournaments,
           ],
         })),

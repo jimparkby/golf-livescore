@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { useGolf } from "@/store/golfStore";
 import { Card } from "@/components/ui/card";
-import { ArrowDownUp, ChevronDown, ChevronUp } from "lucide-react";
+import { ChevronDown, ChevronUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getDifferentials, calcHandicapIndex, diffUseCount, roundsNeeded } from "@/lib/handicap";
 import { COURSES as COURSE_LIST } from "@/lib/courses";
@@ -172,14 +172,9 @@ const StatsPage = () => {
 
       {/* ── Round Cards (TheGrint style) ── */}
       <div>
-        <div className="flex items-center justify-between mb-3">
-          <div>
-            <div className="font-bold">Rounds</div>
-            <div className="text-xs text-muted-foreground">{rounds.length} played</div>
-          </div>
-          <button className="inline-flex items-center gap-1 text-action text-sm font-semibold">
-            <ArrowDownUp className="h-3.5 w-3.5" /> Sort
-          </button>
+        <div className="mb-3">
+          <div className="font-bold">Rounds</div>
+          <div className="text-xs text-muted-foreground">{rounds.length} played</div>
         </div>
 
         {rounds.length === 0 && (

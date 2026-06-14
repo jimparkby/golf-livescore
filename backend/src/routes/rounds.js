@@ -91,7 +91,7 @@ router.get('/', requireAuth, async (req, res, next) => {
        LEFT JOIN round_players rp
          ON rp.round_id = r.id AND rp.user_id = $1
        WHERE r.user_id = $1 OR rp.user_id = $1
-       ORDER BY r.updated_at DESC NULLS LAST, r.date DESC`,
+       ORDER BY r.date DESC`,
       [req.user.userId]
     )
 

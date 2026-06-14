@@ -1,10 +1,11 @@
 import { useState, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import { TOURNAMENTS, TIER_LABELS, type Tier } from "@/lib/tournaments";
 import { FORMATS } from "@/lib/formats";
 import { useGolf } from "@/store/golfStore";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
-import { Trash2 } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
 
 const tierColor: Record<Tier, string> = {
   gold:     "bg-tier-gold",
@@ -14,6 +15,7 @@ const tierColor: Record<Tier, string> = {
 };
 
 const TournamentsPage = () => {
+  const navigate = useNavigate();
   const { customTournaments, deleteCustomTournament } = useGolf();
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
@@ -30,10 +32,19 @@ const TournamentsPage = () => {
   return (
     <div className="space-y-5 animate-in fade-in duration-300">
       {/* Header */}
-      <div>
-        <div className="text-xs uppercase tracking-[0.25em] text-muted-foreground font-semibold">Calendar</div>
-        <h1 className="text-3xl font-bold mt-1">Tournaments 2026</h1>
-        <p className="text-sm text-muted-foreground mt-1">Golf Club Minsk · {TOURNAMENTS.length} events</p>
+      <div className="flex items-start justify-between">
+        <div>
+          <div className="text-xs uppercase tracking-[0.25em] text-muted-foreground font-semibold">Calendar</div>
+          <h1 className="text-3xl font-bold mt-1">Tournaments 2026</h1>
+          <p className="text-sm text-muted-foreground mt-1">Golf Club Minsk · {TOURNAMENTS.length} events</p>
+        </div>
+        <button
+          onClick={() => navigate("/create-tournament")}
+          className="flex items-center gap-1.5 h-10 px-4 rounded-xl font-bold text-sm mt-1 shrink-0"
+          style={{ background: "rgba(34,197,94,0.12)", border: "1.5px solid rgba(34,197,94,0.3)", color: "#22c55e" }}
+        >
+          <Plus className="h-4 w-4" strokeWidth={2.5} /> Создать
+        </button>
       </div>
 
       {/* Custom tournaments */}
