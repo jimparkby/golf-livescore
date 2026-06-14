@@ -25,6 +25,12 @@ db.query(`ALTER TABLE rounds ADD COLUMN IF NOT EXISTS teams JSONB`)
 db.query(`CREATE UNIQUE INDEX IF NOT EXISTS hole_scores_unique_idx ON hole_scores (round_id, player_id, hole)`)
   .catch((err) => console.error('[db] hole_scores index error:', err.message))
 
+db.query(`ALTER TABLE rounds ADD COLUMN IF NOT EXISTS format TEXT`)
+  .catch((err) => console.error('[db] format migration error:', err.message))
+
+db.query(`ALTER TABLE rounds ADD COLUMN IF NOT EXISTS holes_mode TEXT`)
+  .catch((err) => console.error('[db] holes_mode migration error:', err.message))
+
 db.query(`CREATE TABLE IF NOT EXISTS pending_scorecards (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,

@@ -130,6 +130,7 @@ router.post('/:id/notify', requireAuth, async (req, res, next) => {
       [req.params.id, req.user.userId]
     )
 
+    console.log(`[notify] round=${req.params.id} participants=${participants.length} bot=${!!bot}`)
     if (!participants.length || !bot) return res.json({ notified: 0 })
 
     const { rows: [round] } = await db.query('SELECT course_name FROM rounds WHERE id = $1', [req.params.id])
@@ -193,14 +194,13 @@ router.post('/', requireAuth, async (req, res, next) => {
       ]
     )
 
-    // Upsert players (don't overwrite user_id/is_me set by others)
+    // Re-insert players — DELETE first so stale players are cleaned up
+    await db.query('DELETE FROM round_players WHERE round_id = $1', [round.id])
     for (const p of round.players) {
       const linkedUserId = p.isMe ? req.user.userId : (isUUID(p.id) ? p.id : null)
       await db.query(
         `INSERT INTO round_players (round_id, player_id, name, initials, hcp, is_me, user_id)
-         VALUES ($1,$2,$3,$4,$5,$6,$7)
-         ON CONFLICT (round_id, player_id) DO UPDATE SET
-           name = EXCLUDED.name, hcp = EXCLUDED.hcp`,
+         VALUES ($1,$2,$3,$4,$5,$6,$7)`,
         [round.id, p.id, p.name, p.initials, p.hcp, p.isMe || false, linkedUserId]
       )
     }
@@ -280,6 +280,7 @@ router.post('/', requireAuth, async (req, res, next) => {
     res.json({ success: true })
   } catch (err) {
     await db.query('ROLLBACK')
+    console.error('[rounds] POST /api/rounds failed:', err.message)
     next(err)
   }
 })
