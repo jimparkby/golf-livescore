@@ -245,16 +245,6 @@ const HomeScreen = ({ onStart, activeRound, onResume, onAbandon, extraCourses, o
         </div>
       </div>
 
-      {/* ── Поля России ── */}
-      <div>
-        <div className="text-xs uppercase tracking-wider text-muted-foreground font-semibold mb-3 px-1">Поля России</div>
-        <div className="space-y-2">
-          {russianCourses.map(c => (
-            <CourseRow key={c.id} course={c} onStart={() => onStart(c.id)} />
-          ))}
-        </div>
-      </div>
-
       {/* ── Кастомные поля (сохранённые через поиск) ── */}
       {customCourses.length > 0 && (
         <div>
@@ -284,6 +274,8 @@ const HomeScreen = ({ onStart, activeRound, onResume, onAbandon, extraCourses, o
       {/* ── Course Search Sheet ── */}
       {showSearch && (
         <CourseSearchSheet
+          quickCourses={russianCourses}
+          onQuickSelect={(course) => onStart(course.id)}
           onFound={(course) => {
             onAddCourse?.(course);
             onStart(course.id);
@@ -297,9 +289,13 @@ const HomeScreen = ({ onStart, activeRound, onResume, onAbandon, extraCourses, o
 
 /* ────────── COURSE SEARCH SHEET ────────── */
 const CourseSearchSheet = ({
+  quickCourses,
+  onQuickSelect,
   onFound,
   onClose,
 }: {
+  quickCourses?: Course[];
+  onQuickSelect?: (course: Course) => void;
   onFound: (course: Course) => void;
   onClose: () => void;
 }) => {
@@ -392,6 +388,29 @@ const CourseSearchSheet = ({
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto px-5">
+          {!found && !loading && quickCourses && quickCourses.length > 0 && (
+            <div className="pb-4">
+              <div className="text-xs uppercase tracking-wider mb-2 px-1" style={{ color: "rgba(255,255,255,0.4)" }}>Поля России</div>
+              <div className="space-y-2">
+                {quickCourses.map((c) => (
+                  <button
+                    key={c.id}
+                    onClick={() => onQuickSelect?.(c)}
+                    className="w-full flex items-center justify-between px-4 py-3 rounded-xl active:scale-[0.98] transition-transform text-left"
+                    style={{ background: "rgba(255,255,255,0.05)" }}
+                  >
+                    <div className="min-w-0">
+                      <div className="text-white font-semibold text-sm truncate">{c.name}</div>
+                      <div className="text-xs truncate" style={{ color: "rgba(255,255,255,0.4)" }}>{c.club}</div>
+                      <div className="text-xs mt-0.5" style={{ color: "rgba(255,255,255,0.3)" }}>{c.holes.length} holes · Par {c.totalPar}</div>
+                    </div>
+                    <ChevronRight className="h-4 w-4 shrink-0 ml-3" style={{ color: "rgba(255,255,255,0.3)" }} />
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           {loading && (
             <div className="flex flex-col items-center justify-center py-12 gap-4">
               <div className="relative h-14 w-14">
