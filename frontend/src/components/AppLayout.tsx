@@ -24,8 +24,15 @@ const AppLayout = () => {
   const location = useLocation();
   const isPlayTab = location.pathname === "/";
 
-  const { profile, rounds, activeRound } = useGolf();
-  const othersRounds = useOthersRounds();
+  const { profile, rounds, activeRound, frequent } = useGolf();
+  const allOthersRounds = useOthersRounds();
+
+  // Show only rounds from frequent partners (people played with before)
+  const frequentIds = useMemo(() => new Set(frequent.map((f) => f.id)), [frequent]);
+  const othersRounds = useMemo(
+    () => allOthersRounds.filter((r) => r.players.some((p) => !p.isMe && frequentIds.has(p.id))),
+    [allOthersRounds, frequentIds]
+  );
   const [modalRound, setModalRound] = useState<ActiveRound | null>(null);
 
   const currentUser = useMemo((): CurrentUser => {
