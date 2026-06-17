@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Avatar } from "@/components/PlayerAvatar";
-import { COURSES, TEE_CONFIG, type TeeColor } from "@/lib/courses";
+import { COURSES, TEE_CONFIG, type TeeColor, getAllCourses, getCustomCourses, saveCustomCourse, type Course } from "@/lib/courses";
 import { useGolf, type Player, type Round, type HolesMode } from "@/store/golfStore";
 import { calcCourseHcpForMode, holeRankInSet, holeStrokesInSet } from "@/lib/handicap";
 import { compressImage } from "@/lib/imageUtils";
@@ -39,6 +39,15 @@ const PlayPage = () => {
     }).catch(() => {});
   };
   const [courseId, setCourseId] = useState<string>(COURSES[0].id);
+  const [extraCourses, setExtraCourses] = useState<Course[]>(() => getCustomCourses());
+
+  const allCourses = [...COURSES, ...extraCourses];
+
+  const addExtraCourse = (course: Course) => {
+    saveCustomCourse(course);
+    setExtraCourses(getCustomCourses());
+  };
+
   const [players, setPlayers] = useState<Player[]>([
     { id: "me", name: `${profile.firstName} ${profile.lastName}`, initials: profile.initials, hcp: profile.hcp, tee: profile.defaultTee ?? "yellow", isMe: true },
   ]);
@@ -54,7 +63,7 @@ const PlayPage = () => {
     }
   }, [activeRound]);
 
-  const course = COURSES.find((c) => c.id === courseId)!;
+  const course = allCourses.find((c) => c.id === courseId) ?? COURSES[0];
 
   // ── Conditional renders (after all hooks) ────────────────────────────────
   if (confirmId) {
@@ -69,7 +78,14 @@ const PlayPage = () => {
 
   if (step === "playing") return <RoundPlayer onExit={() => { cancelActiveRound(); setStep("home"); }} onCancel={() => setStep("home")} />;
   if (activeRound && step === "home") return (
-    <HomeScreen onStart={(id) => { if (id) setCourseId(id); setStep("setup"); }} activeRound={activeRound} onResume={() => setStep("playing")} onAbandon={() => { cancelActiveRound(); }} />
+    <HomeScreen
+      onStart={(id) => { if (id) setCourseId(id); setStep("setup"); }}
+      activeRound={activeRound}
+      onResume={() => setStep("playing")}
+      onAbandon={() => { cancelActiveRound(); }}
+      extraCourses={extraCourses}
+      onAddCourse={addExtraCourse}
+    />
   );
 
   if (step === "setup") {
@@ -78,6 +94,7 @@ const PlayPage = () => {
         course={course}
         courseId={courseId}
         setCourseId={setCourseId}
+        allCourses={allCourses}
         players={players}
         setPlayers={setPlayers}
         frequent={frequent}
@@ -97,35 +114,60 @@ const PlayPage = () => {
         if (id) setCourseId(id);
         setStep("setup");
       }}
+      extraCourses={extraCourses}
+      onAddCourse={addExtraCourse}
     />
   );
 
 };
 
 /* ────────── HOME ────────── */
-const HomeScreen = ({ onStart, activeRound, onResume, onAbandon }: {
+const RUSSIA_IDS = ["pestovo", "skolkovo", "petergolf", "mcc-nakhabino", "agalarov", "tseleevo"];
+
+const CourseRow = ({ course, onStart }: { course: Course; onStart: () => void }) => (
+  <button
+    onClick={onStart}
+    className="w-full flex items-center justify-between px-4 py-3 rounded-xl border border-border bg-card active:scale-[0.98] transition-transform text-left"
+  >
+    <div className="min-w-0">
+      <div className="font-semibold text-sm truncate">{course.name}</div>
+      <div className="text-xs text-muted-foreground truncate">{course.club}</div>
+      <div className="text-xs text-muted-foreground mt-0.5">{course.holes.length} holes · Par {course.totalPar}</div>
+    </div>
+    <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0 ml-3" />
+  </button>
+);
+
+const HomeScreen = ({ onStart, activeRound, onResume, onAbandon, extraCourses, onAddCourse }: {
   onStart: (courseId?: string) => void;
   activeRound?: import("@/store/golfStore").Round | null;
   onResume?: () => void;
   onAbandon?: () => void;
+  extraCourses?: Course[];
+  onAddCourse?: (course: Course) => void;
 }) => {
   const { rounds, profile } = useGolf();
   const completedRounds = rounds.filter(r => r.completed);
   const last = completedRounds.find(r => r.players.some(p => p.isMe)) ?? null;
+  const [showSearch, setShowSearch] = useState(false);
+
+  const russianCourses = COURSES.filter(c => RUSSIA_IDS.includes(c.id));
+  const customCourses = extraCourses ?? [];
 
   return (
     <div className="space-y-5 animate-in fade-in duration-300">
 
+      {/* ── Unfinished round ── */}
       {activeRound && onResume && (
         <Card className="p-4 shadow-elevated" style={{ border: "1.5px solid rgba(34,197,94,0.4)", background: "rgba(34,197,94,0.06)" }}>
           <div className="text-xs uppercase tracking-wider font-semibold mb-2" style={{ color: "#22c55e" }}>
-            Unfinished round
+            Незавершённый раунд
           </div>
           <div className="font-semibold text-foreground mb-1">{activeRound.courseName.split(" · ")[0]}</div>
           <div className="text-sm text-muted-foreground mb-3">
             {Object.values(activeRound.scores).flat().filter(s => s.score > 0).length > 0
-              ? `Holes played: ${Math.max(...Object.values(activeRound.scores).flat().map(s => s.hole), 0)}`
-              : "Round started, no scores entered"}
+              ? `Лунок сыграно: ${Math.max(...Object.values(activeRound.scores).flat().map(s => s.hole), 0)}`
+              : "Раунд начат, счёт не введён"}
           </div>
           <div className="flex gap-2">
             <button
@@ -133,45 +175,27 @@ const HomeScreen = ({ onStart, activeRound, onResume, onAbandon }: {
               className="flex-1 h-10 rounded-xl font-bold text-sm"
               style={{ background: "#22c55e", color: "#000" }}
             >
-              Resume
+              Продолжить
             </button>
             <button
               onClick={onAbandon}
               className="h-10 px-4 rounded-xl font-bold text-sm"
               style={{ background: "rgba(239,68,68,0.12)", color: "#f87171", border: "1.5px solid rgba(239,68,68,0.25)" }}
             >
-              Cancel
+              Отмена
             </button>
           </div>
         </Card>
       )}
 
-      <Card className="overflow-hidden border-0 shadow-elevated">
-        <div className="relative h-44">
-          <img src={heroImg} alt="Golf Club Minsk Course" className="absolute inset-0 h-full w-full object-cover" />
-          <div className="absolute inset-0 bg-gradient-to-t from-primary/90 via-primary/40 to-transparent" />
-          <div className="absolute inset-0 p-5 flex flex-col justify-end text-primary-foreground">
-            <div className="text-xs uppercase tracking-[0.2em] opacity-80">Golf Club Minsk</div>
-            <div className="text-2xl font-bold mt-1">Ready to play?</div>
-          </div>
-        </div>
-        <div className="p-5 bg-card">
-          <Button
-            onClick={() => onStart()}
-            size="lg"
-            className="w-full h-14 text-base font-semibold bg-action hover:bg-action/90 text-action-foreground rounded-xl shadow-glow transition-spring hover:scale-[1.01]"
-          >
-            <PlayCircle className="h-5 w-5 mr-2" strokeWidth={2.5} /> Начать раунд
-          </Button>
-        </div>
-      </Card>
-
+      {/* ── Stats ── */}
       <div className="grid grid-cols-3 gap-3">
         <StatTile label="HCP" value={String(profile.hcp)} />
-        <StatTile label="Rounds" value={String(rounds.length)} />
-        <StatTile label="Best" value={rounds.length === 0 ? "—" : String(Math.min(...rounds.map((r) => r.players[0] ? (r.scores[r.players[0].id] ?? []).reduce((a, s) => a + s.score, 0) : 999)))} />
+        <StatTile label="Раундов" value={String(rounds.length)} />
+        <StatTile label="Лучший" value={rounds.length === 0 ? "—" : String(Math.min(...rounds.map((r) => r.players[0] ? (r.scores[r.players[0].id] ?? []).reduce((a, s) => a + s.score, 0) : 999)))} />
       </div>
 
+      {/* ── Last round ── */}
       {last && (() => {
         const me = last.players.find(p => p.isMe) ?? last.players[0];
         const lastScore = me ? (last.scores[me.id] ?? []).reduce((a, s) => a + s.score, 0) : null;
@@ -192,43 +216,270 @@ const HomeScreen = ({ onStart, activeRound, onResume, onAbandon }: {
         );
       })()}
 
-      <div className="grid grid-cols-2 gap-3">
-        <button
-          onClick={() => onStart("championship")}
-          className="overflow-hidden rounded-xl shadow-soft aspect-[4/3] relative group focus:outline-none active:scale-[0.97] transition-transform"
-        >
-          <img src={photo1} alt="Golf Club Minsk — Fairway" loading="lazy" className="absolute inset-0 h-full w-full object-cover transition-spring group-hover:scale-105" />
-          <div className="absolute inset-0 bg-gradient-to-t from-primary/80 to-transparent" />
-          <div className="absolute inset-0 flex flex-col justify-between p-3">
-            <div className="self-end opacity-0 group-hover:opacity-100 transition-opacity">
-              <div className="h-7 w-7 rounded-full bg-action/90 grid place-items-center">
-                <PlayCircle className="h-4 w-4 text-action-foreground" strokeWidth={2.5} />
-              </div>
-            </div>
-            <div className="text-left">
-              <div className="text-primary-foreground text-xs font-semibold uppercase tracking-wider">Championship</div>
+      {/* ── Golf Club Minsk ── */}
+      <div>
+        <div className="text-xs uppercase tracking-wider text-muted-foreground font-semibold mb-3 px-1">Golf Club Minsk</div>
+        <div className="grid grid-cols-2 gap-3">
+          <button
+            onClick={() => onStart("championship")}
+            className="overflow-hidden rounded-xl shadow-soft aspect-[4/3] relative group focus:outline-none active:scale-[0.97] transition-transform"
+          >
+            <img src={photo1} alt="Championship" loading="lazy" className="absolute inset-0 h-full w-full object-cover transition-spring group-hover:scale-105" />
+            <div className="absolute inset-0 bg-gradient-to-t from-primary/80 to-transparent" />
+            <div className="absolute inset-0 flex flex-col justify-end p-3">
+              <div className="text-primary-foreground text-xs font-bold uppercase tracking-wider">Championship</div>
               <div className="text-primary-foreground/60 text-[10px] mt-0.5">18 holes · Par 72</div>
             </div>
-          </div>
-        </button>
-        <button
-          onClick={() => onStart("academy")}
-          className="overflow-hidden rounded-xl shadow-soft aspect-[4/3] relative group focus:outline-none active:scale-[0.97] transition-transform"
-        >
-          <img src={photo2} alt="Golf Club Minsk — Green" loading="lazy" className="absolute inset-0 h-full w-full object-cover transition-spring group-hover:scale-105" />
-          <div className="absolute inset-0 bg-gradient-to-t from-primary/80 to-transparent" />
-          <div className="absolute inset-0 flex flex-col justify-between p-3">
-            <div className="self-end opacity-0 group-hover:opacity-100 transition-opacity">
-              <div className="h-7 w-7 rounded-full bg-action/90 grid place-items-center">
-                <PlayCircle className="h-4 w-4 text-action-foreground" strokeWidth={2.5} />
-              </div>
-            </div>
-            <div className="text-left">
-              <div className="text-primary-foreground text-xs font-semibold uppercase tracking-wider">Academy</div>
+          </button>
+          <button
+            onClick={() => onStart("academy")}
+            className="overflow-hidden rounded-xl shadow-soft aspect-[4/3] relative group focus:outline-none active:scale-[0.97] transition-transform"
+          >
+            <img src={photo2} alt="Academy" loading="lazy" className="absolute inset-0 h-full w-full object-cover transition-spring group-hover:scale-105" />
+            <div className="absolute inset-0 bg-gradient-to-t from-primary/80 to-transparent" />
+            <div className="absolute inset-0 flex flex-col justify-end p-3">
+              <div className="text-primary-foreground text-xs font-bold uppercase tracking-wider">Academy</div>
               <div className="text-primary-foreground/60 text-[10px] mt-0.5">9 holes · Par 27</div>
             </div>
+          </button>
+        </div>
+      </div>
+
+      {/* ── Поля России ── */}
+      <div>
+        <div className="text-xs uppercase tracking-wider text-muted-foreground font-semibold mb-3 px-1">Поля России</div>
+        <div className="space-y-2">
+          {russianCourses.map(c => (
+            <CourseRow key={c.id} course={c} onStart={() => onStart(c.id)} />
+          ))}
+        </div>
+      </div>
+
+      {/* ── Кастомные поля (сохранённые через поиск) ── */}
+      {customCourses.length > 0 && (
+        <div>
+          <div className="text-xs uppercase tracking-wider text-muted-foreground font-semibold mb-3 px-1">Сохранённые поля</div>
+          <div className="space-y-2">
+            {customCourses.map(c => (
+              <CourseRow key={c.id} course={c} onStart={() => onStart(c.id)} />
+            ))}
           </div>
-        </button>
+        </div>
+      )}
+
+      {/* ── Поиск любого поля ── */}
+      <button
+        onClick={() => setShowSearch(true)}
+        className="w-full flex items-center gap-3 p-4 rounded-xl border-2 border-dashed border-border text-left active:scale-[0.98] transition-transform"
+      >
+        <div className="h-10 w-10 rounded-full grid place-items-center shrink-0" style={{ background: "rgba(34,197,94,0.1)", border: "1.5px solid rgba(34,197,94,0.3)" }}>
+          <Search className="h-5 w-5" style={{ color: "#22c55e" }} />
+        </div>
+        <div>
+          <div className="font-semibold text-sm">Найти любое поле</div>
+          <div className="text-xs text-muted-foreground mt-0.5">Al Hamra, Wentworth, Augusta…</div>
+        </div>
+      </button>
+
+      {/* ── Course Search Sheet ── */}
+      {showSearch && (
+        <CourseSearchSheet
+          onFound={(course) => {
+            onAddCourse?.(course);
+            onStart(course.id);
+          }}
+          onClose={() => setShowSearch(false)}
+        />
+      )}
+    </div>
+  );
+};
+
+/* ────────── COURSE SEARCH SHEET ────────── */
+const CourseSearchSheet = ({
+  onFound,
+  onClose,
+}: {
+  onFound: (course: Course) => void;
+  onClose: () => void;
+}) => {
+  const [query, setQuery] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [found, setFound] = useState<Course | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const search = async () => {
+    const q = query.trim();
+    if (q.length < 2) return;
+    setLoading(true);
+    setError(null);
+    setFound(null);
+    try {
+      const token = localStorage.getItem("golf_jwt");
+      const base = (import.meta as { env?: { VITE_BACKEND_URL?: string } }).env?.VITE_BACKEND_URL
+        ? `https://${(import.meta as { env: { VITE_BACKEND_URL: string } }).env.VITE_BACKEND_URL}`
+        : "";
+      const res = await fetch(`${base}/api/ai/course`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ query: q }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json() as { course: Course };
+      if (!data.course) throw new Error("No course data");
+      setFound(data.course);
+    } catch {
+      setError("Не удалось загрузить поле. Проверьте название и попробуйте снова.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end animate-in fade-in duration-150">
+      <button className="absolute inset-0 bg-black/70" onClick={onClose} />
+      <div
+        className="relative w-full rounded-t-3xl animate-in slide-in-from-bottom duration-250 flex flex-col"
+        style={{ background: "#1c1c1e", maxHeight: "90vh", paddingBottom: "max(env(safe-area-inset-bottom), 24px)" }}
+      >
+        {/* Drag handle */}
+        <div className="mx-auto w-10 h-1 rounded-full mt-3 mb-4" style={{ background: "rgba(255,255,255,0.15)" }} />
+
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 pb-4">
+          <div className="text-white font-bold text-lg">Найти поле</div>
+          <button
+            onClick={onClose}
+            className="h-8 w-8 rounded-full grid place-items-center"
+            style={{ background: "rgba(255,255,255,0.1)" }}
+          >
+            <X className="h-4 w-4 text-white" />
+          </button>
+        </div>
+
+        {/* Search input */}
+        <div className="px-5 pb-4">
+          <div className="flex gap-2">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4" style={{ color: "rgba(255,255,255,0.4)" }} />
+              <input
+                type="text"
+                autoFocus
+                placeholder="Название поля или клуба…"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && search()}
+                className="w-full h-12 rounded-xl pl-10 pr-4 text-white text-sm outline-none placeholder:text-white/30"
+                style={{ background: "rgba(255,255,255,0.08)", border: "1.5px solid rgba(255,255,255,0.1)" }}
+              />
+            </div>
+            <button
+              onClick={search}
+              disabled={loading || query.trim().length < 2}
+              className="h-12 px-5 rounded-xl font-bold text-sm disabled:opacity-40 transition-opacity"
+              style={{ background: "#22c55e", color: "#000" }}
+            >
+              Найти
+            </button>
+          </div>
+          <p className="text-xs mt-2 px-1" style={{ color: "rgba(255,255,255,0.3)" }}>
+            Введите название на любом языке: «Skolkovo», «Al Hamra Golf», «Augusta National»
+          </p>
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto px-5">
+          {loading && (
+            <div className="flex flex-col items-center justify-center py-12 gap-4">
+              <div className="relative h-14 w-14">
+                <div className="absolute inset-0 rounded-full border-4 border-white/10" />
+                <div className="absolute inset-0 rounded-full border-4 border-t-green-400 animate-spin" />
+                <div className="absolute inset-0 flex items-center justify-center text-xl">⛳</div>
+              </div>
+              <div className="text-center">
+                <div className="text-white font-semibold">Загружаем поле…</div>
+                <div className="text-xs mt-1" style={{ color: "rgba(255,255,255,0.4)" }}>
+                  AI ищет информацию о поле
+                </div>
+              </div>
+            </div>
+          )}
+
+          {error && !loading && (
+            <div className="rounded-2xl p-4 text-center" style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.25)" }}>
+              <div className="text-2xl mb-2">❌</div>
+              <div className="text-white font-semibold text-sm mb-1">Поле не найдено</div>
+              <div className="text-xs" style={{ color: "rgba(255,255,255,0.5)" }}>{error}</div>
+            </div>
+          )}
+
+          {found && !loading && (
+            <div className="space-y-4 pb-4">
+              <div className="rounded-2xl overflow-hidden" style={{ background: "#2a2a2a" }}>
+                <div className="px-5 py-4">
+                  <div className="text-xs uppercase tracking-wider mb-1" style={{ color: "#22c55e" }}>Поле найдено</div>
+                  <div className="text-white font-black text-xl">{found.name}</div>
+                  <div className="text-white/60 text-sm mt-0.5">{found.club}</div>
+                  <div className="text-white/40 text-xs mt-1">{found.address}</div>
+                </div>
+
+                <div className="grid grid-cols-3 divide-x divide-white/10 border-t border-white/10">
+                  <div className="flex flex-col items-center py-3">
+                    <div className="text-white font-black text-xl">{found.totalPar}</div>
+                    <div className="text-xs" style={{ color: "rgba(255,255,255,0.4)" }}>Par</div>
+                  </div>
+                  <div className="flex flex-col items-center py-3">
+                    <div className="text-white font-black text-xl">{found.holes.length}</div>
+                    <div className="text-xs" style={{ color: "rgba(255,255,255,0.4)" }}>Лунок</div>
+                  </div>
+                  <div className="flex flex-col items-center py-3">
+                    <div className="text-white font-black text-xl">{found.tees.length}</div>
+                    <div className="text-xs" style={{ color: "rgba(255,255,255,0.4)" }}>Тии</div>
+                  </div>
+                </div>
+
+                {found.tees.length > 0 && (
+                  <div className="px-5 pb-4 pt-3 border-t border-white/10">
+                    <div className="text-xs uppercase tracking-wider mb-2" style={{ color: "rgba(255,255,255,0.4)" }}>Тии</div>
+                    <div className="space-y-1.5">
+                      {found.tees.map(t => (
+                        <div key={t.color} className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <div className="w-4 h-4 rounded-sm" style={{ background: t.cssColor, border: "1px solid rgba(255,255,255,0.2)" }} />
+                            <span className="text-white text-sm font-semibold">{t.label}</span>
+                          </div>
+                          <span className="text-xs" style={{ color: "rgba(255,255,255,0.5)" }}>
+                            {t.totalMeters}m · CR {t.rating} / {t.slope}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {found.designer && (
+                  <div className="px-5 pb-4">
+                    <span className="text-xs" style={{ color: "rgba(255,255,255,0.35)" }}>
+                      Дизайнер: {found.designer}
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              <button
+                onClick={() => onFound(found)}
+                className="w-full h-14 rounded-2xl font-black text-base uppercase tracking-wider active:scale-[0.98] transition-transform flex items-center justify-center gap-2"
+                style={{ background: "#22c55e", color: "#000" }}
+              >
+                <PlayCircle className="h-5 w-5" strokeWidth={2.5} />
+                Начать раунд
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -243,11 +494,12 @@ const StatTile = ({ label, value }: { label: string; value: string }) => (
 
 /* ────────── SETUP ────────── */
 const SetupScreen = ({
-  course, courseId, setCourseId, players, setPlayers, frequent, onBack, onPregame, onStart,
+  course, courseId, setCourseId, allCourses, players, setPlayers, frequent, onBack, onPregame, onStart,
 }: {
-  course: ReturnType<typeof COURSES.find> & object;
+  course: Course;
   courseId: string;
   setCourseId: (id: string) => void;
+  allCourses: Course[];
   players: Player[];
   setPlayers: (p: Player[]) => void;
   frequent: Player[];
@@ -283,21 +535,24 @@ const SetupScreen = ({
 
         {/* Course selector */}
         <Card className="p-4 shadow-soft">
-          <div className="text-xs uppercase tracking-wider text-muted-foreground mb-3 font-semibold">Course</div>
-          <div className="grid grid-cols-2 gap-2">
-            {COURSES.map((c) => (
+          <div className="text-xs uppercase tracking-wider text-muted-foreground mb-3 font-semibold">Поле</div>
+          <div className="space-y-1.5 max-h-52 overflow-y-auto">
+            {allCourses.map((c) => (
               <button
                 key={c.id}
                 onClick={() => setCourseId(c.id)}
                 className={cn(
-                  "p-3 rounded-xl border-2 text-left transition-base",
+                  "w-full flex items-center justify-between p-3 rounded-xl border-2 text-left transition-base",
                   courseId === c.id ? "border-action bg-action/5" : "border-border hover:border-muted-foreground/30",
                 )}
               >
-                <div className="font-semibold text-sm">{c.name}</div>
-                <div className="text-[11px] text-muted-foreground mt-0.5">
-                  {c.tees.find(t => t.color === "yellow")?.totalMeters ?? c.tees[0]?.totalMeters ?? ""}m · Par {c.totalPar}
+                <div>
+                  <div className="font-semibold text-sm">{c.name}</div>
+                  <div className="text-[11px] text-muted-foreground mt-0.5">
+                    {c.club} · Par {c.totalPar}
+                  </div>
                 </div>
+                {courseId === c.id && <Check className="h-4 w-4 text-action shrink-0" />}
               </button>
             ))}
           </div>
@@ -653,7 +908,7 @@ const RoundPlayer = ({ onExit, onCancel }: { onExit: () => void; onCancel: () =>
   }, [activeRound?.id]);
 
   // Compute play holes before useState so initializer can use them
-  const _course = COURSES.find(c => c.id === activeRound?.courseId) ?? COURSES[0];
+  const _course = getAllCourses().find(c => c.id === activeRound?.courseId) ?? COURSES[0];
   const _mode = activeRound?.holesMode ?? "18";
   const playHoles = _mode === "front9"
     ? _course.holes.filter(h => h.number <= 9)
@@ -810,7 +1065,7 @@ const RoundPlayer = ({ onExit, onCancel }: { onExit: () => void; onCancel: () =>
   }
 
   if (completedRound) {
-    const completedCourse = COURSES.find((c) => c.id === completedRound.courseId);
+    const completedCourse = getAllCourses().find((c) => c.id === completedRound.courseId);
     const cme = completedRound.players.find((p) => p.isMe) ?? completedRound.players[0];
     const cScores = cme ? (completedRound.scores[cme.id] ?? []) : [];
     const cTotal = cScores.reduce((a, s) => a + s.score, 0);
@@ -1342,7 +1597,7 @@ const ScorecardConfirmModal = ({
         setPlayers(parsedPlayers);
         setSelectedLabel(parsedPlayers[0]?.label ?? "");
         if (data.courseName) {
-          const match = COURSES.find(
+          const match = getAllCourses().find(
             (c) =>
               c.name.toLowerCase().includes(data.courseName!.toLowerCase()) ||
               data.courseName!.toLowerCase().includes(c.name.toLowerCase())
@@ -1368,7 +1623,7 @@ const ScorecardConfirmModal = ({
     ));
   };
 
-  const course = COURSES.find((c) => c.id === courseId)!;
+  const course = getAllCourses().find((c) => c.id === courseId) ?? COURSES[0];
   const teeInfo = course.tees.find((t) => t.color === tee) ?? course.tees[0];
   const totalScore = scores.reduce((sum, s) => sum + s.score, 0);
   const outSum = scores.filter(s => s.hole <= 9).reduce((a, s) => a + s.score, 0);
@@ -1520,19 +1775,22 @@ const ScorecardConfirmModal = ({
 
       {/* Course */}
       <Card className="p-4 shadow-soft">
-        <div className="text-xs uppercase tracking-wider text-muted-foreground font-semibold mb-2">Course</div>
-        <div className="grid grid-cols-2 gap-2">
-          {COURSES.map((c) => (
+        <div className="text-xs uppercase tracking-wider text-muted-foreground font-semibold mb-2">Поле</div>
+        <div className="space-y-1.5 max-h-44 overflow-y-auto">
+          {getAllCourses().map((c) => (
             <button
               key={c.id}
               onClick={() => setCourseId(c.id)}
               className={cn(
-                "p-3 rounded-xl border-2 text-left transition-base",
+                "w-full flex items-center justify-between p-3 rounded-xl border-2 text-left transition-base",
                 courseId === c.id ? "border-action bg-action/5" : "border-border hover:border-muted-foreground/30"
               )}
             >
-              <div className="font-semibold text-sm">{c.name}</div>
-              <div className="text-[11px] text-muted-foreground mt-0.5">Par {c.totalPar}</div>
+              <div>
+                <div className="font-semibold text-sm">{c.name}</div>
+                <div className="text-[11px] text-muted-foreground mt-0.5">{c.club} · Par {c.totalPar}</div>
+              </div>
+              {courseId === c.id && <Check className="h-4 w-4 text-action shrink-0" />}
             </button>
           ))}
         </div>

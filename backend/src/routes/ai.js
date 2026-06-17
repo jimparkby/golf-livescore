@@ -6,15 +6,15 @@ import { bot } from '../bot.js'
 
 const router = Router()
 
-async function callOpenRouter(prompt) {
+async function callOpenRouter(prompt, model = 'openai/gpt-4o-mini', max_tokens = 300, temperature = 0.85) {
   const apiKey = process.env.OPENROUTER_API_KEY
   if (!apiKey) throw new Error('OPENROUTER_API_KEY not set')
 
   const body = JSON.stringify({
-    model: 'openai/gpt-4o-mini',
+    model,
     messages: [{ role: 'user', content: prompt }],
-    max_tokens: 300,
-    temperature: 0.85,
+    max_tokens,
+    temperature,
   })
 
   return new Promise((resolve, reject) => {
@@ -119,6 +119,84 @@ ${weakHoles.length > 0 ? `\nПроблемные лунки по истории:
   } catch (err) {
     console.error('[ai/pregame]', err.message)
     res.json({ ok: true }) // never fail the client
+  }
+})
+
+// POST /api/ai/course
+// Body: { query: string }
+// Returns: { course: Course }
+router.post('/course', requireAuth, async (req, res, next) => {
+  try {
+    const { query } = req.body
+    if (!query || typeof query !== 'string' || query.trim().length < 2) {
+      return res.status(400).json({ error: 'Course name is required' })
+    }
+
+    const courseName = query.trim().slice(0, 120)
+    const timestamp = Date.now()
+
+    const prompt = `You are a professional golf data expert. Generate accurate golf course data for: "${courseName}"
+
+Return ONLY a valid JSON object (no markdown, no comments, no explanation) with this exact structure:
+{
+  "id": "custom-${timestamp}",
+  "name": "Official Course Name",
+  "club": "Club / Resort Name",
+  "address": "Full address, Country",
+  "website": "https://...",
+  "phone": "+1234567890",
+  "designer": "Designer Name or empty string",
+  "totalPar": 72,
+  "tees": [
+    { "color": "black",  "label": "Black",  "cssColor": "#1f2937", "rating": 74.5, "slope": 135, "totalMeters": 6500 },
+    { "color": "white",  "label": "White",  "cssColor": "#f8fafc", "rating": 72.1, "slope": 130, "totalMeters": 6100 },
+    { "color": "yellow", "label": "Yellow", "cssColor": "#f59e0b", "rating": 70.0, "slope": 125, "totalMeters": 5700 },
+    { "color": "blue",   "label": "Blue",   "cssColor": "#3b82f6", "rating": 69.5, "slope": 123, "totalMeters": 5400 },
+    { "color": "red",    "label": "Red",    "cssColor": "#ef4444", "rating": 67.5, "slope": 118, "totalMeters": 5000 }
+  ],
+  "holes": [
+    { "number": 1, "par": 4, "hcp": 5, "meters": { "black": 400, "white": 380, "yellow": 355, "blue": 340, "red": 315 } },
+    ... all 18 holes
+  ]
+}
+
+Important rules:
+- "hcp" (stroke index) values MUST be unique integers 1 through 18
+- totalPar MUST equal the exact sum of all 18 hole par values
+- Par distribution: typically 4 par-3s + 10 par-4s + 4 par-5s = 72
+- All distances in METERS (multiply yards by 0.9144)
+- If the course doesn't have a black or blue tee, use the same values as white or yellow
+- If this is a real course you know, use real data; otherwise generate plausible data
+- tees totalMeters must match the sum of all holes meters for that color`
+
+    const raw = await callOpenRouter(prompt, 'openai/gpt-4o', 2200, 0.3)
+
+    // Extract JSON
+    const jsonMatch = raw.match(/\{[\s\S]*\}/)
+    if (!jsonMatch) throw new Error('AI did not return valid JSON')
+
+    let course
+    try {
+      course = JSON.parse(jsonMatch[0])
+    } catch {
+      throw new Error('AI returned malformed JSON')
+    }
+
+    // Validate structure
+    if (!course.name || !Array.isArray(course.holes) || course.holes.length < 9 || !Array.isArray(course.tees) || course.tees.length === 0) {
+      throw new Error('AI returned incomplete course data')
+    }
+
+    // Force unique id
+    course.id = `custom-${timestamp}`
+
+    // Ensure totalPar is correct
+    course.totalPar = course.holes.reduce((sum, h) => sum + (h.par || 4), 0)
+
+    res.json({ course })
+  } catch (err) {
+    console.error('[ai/course]', err.message)
+    next(err)
   }
 })
 
