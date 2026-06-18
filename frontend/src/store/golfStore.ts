@@ -234,6 +234,17 @@ export const useGolf = create<State>()(
       finishRound: async () => {
         const a = get().activeRound;
         if (!a) return;
+        const holesPlayed = Object.values(a.scores).flat().length;
+        if (holesPlayed === 0) {
+          // No scores entered — discard instead of saving an empty round
+          try {
+            await api.delete(`/api/rounds/${a.id}`);
+          } catch (err) {
+            console.error('Failed to discard empty round:', err);
+          }
+          set({ activeRound: null });
+          return;
+        }
         const completedRound = { ...a, completed: true, completedAt: new Date().toISOString() };
         set((s) => ({ rounds: [completedRound, ...s.rounds], activeRound: null }));
 

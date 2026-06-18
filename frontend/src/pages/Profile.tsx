@@ -10,8 +10,8 @@ import { Label } from "@/components/ui/label";
 import { Pencil, Check, Trophy, Camera, LogOut, Trash2, ChevronRight, X, Calendar } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { getDifferentials, calcHandicapIndex, playingHandicap } from "@/lib/handicap";
-import { COURSES, TEE_CONFIG, type TeeColor } from "@/lib/courses";
+import { getDifferentials, calcHandicapIndex } from "@/lib/handicap";
+import { TEE_CONFIG, type TeeColor } from "@/lib/courses";
 import { compressImage } from "@/lib/imageUtils";
 
 const ProfilePage = () => {
@@ -168,31 +168,6 @@ const ProfilePage = () => {
           </div>
         </div>
       </Card>
-
-      {/* HCP detail */}
-      {hcpIndex !== null && (
-        <Card className="p-4 shadow-soft">
-          <div className="flex items-center justify-between mb-3">
-            <div className="text-xs uppercase tracking-[0.2em] font-bold text-action">Handicap Index</div>
-            <div className="text-2xl font-black text-foreground tabular-nums">{hcpIndex.toFixed(1)}</div>
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            {COURSES.map((c) => {
-              const yellowTee = c.tees.find(t => t.color === "yellow") ?? c.tees[0];
-              const ph = playingHandicap(hcpIndex, yellowTee.slope, yellowTee.rating, c.totalPar);
-              return (
-                <div key={c.id} className="flex items-center justify-between px-3 py-2 rounded-xl bg-muted">
-                  <div>
-                    <div className="text-xs font-semibold">{c.name}</div>
-                    <div className="text-[10px] text-muted-foreground">{yellowTee.label} · {yellowTee.rating}/{yellowTee.slope}</div>
-                  </div>
-                  <div className="text-xl font-black text-foreground tabular-nums">{ph}</div>
-                </div>
-              );
-            })}
-          </div>
-        </Card>
-      )}
 
       {/* Edit form */}
       {editing ? (
