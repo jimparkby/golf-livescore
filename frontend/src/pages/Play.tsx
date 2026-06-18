@@ -92,9 +92,6 @@ const PlayPage = () => {
     return (
       <SetupScreen
         course={course}
-        courseId={courseId}
-        setCourseId={setCourseId}
-        allCourses={allCourses}
         players={players}
         setPlayers={setPlayers}
         frequent={frequent}
@@ -195,6 +192,20 @@ const HomeScreen = ({ onStart, activeRound, onResume, onAbandon, extraCourses, o
         <StatTile label="Лучший" value={rounds.length === 0 ? "—" : String(Math.min(...rounds.map((r) => r.players[0] ? (r.scores[r.players[0].id] ?? []).reduce((a, s) => a + s.score, 0) : 999)))} />
       </div>
 
+      {/* ── Поиск любого поля ── */}
+      <button
+        onClick={() => setShowSearch(true)}
+        className="w-full flex items-center gap-3 p-4 rounded-xl border-2 border-dashed border-border text-left active:scale-[0.98] transition-transform"
+      >
+        <div className="h-10 w-10 rounded-full grid place-items-center shrink-0" style={{ background: "rgba(34,197,94,0.1)", border: "1.5px solid rgba(34,197,94,0.3)" }}>
+          <Search className="h-5 w-5" style={{ color: "#22c55e" }} />
+        </div>
+        <div>
+          <div className="font-semibold text-sm">Найти любое поле</div>
+          <div className="text-xs text-muted-foreground mt-0.5">Al Hamra, Wentworth, Augusta…</div>
+        </div>
+      </button>
+
       {/* ── Last round ── */}
       {last && (() => {
         const me = last.players.find(p => p.isMe) ?? last.players[0];
@@ -256,20 +267,6 @@ const HomeScreen = ({ onStart, activeRound, onResume, onAbandon, extraCourses, o
           </div>
         </div>
       )}
-
-      {/* ── Поиск любого поля ── */}
-      <button
-        onClick={() => setShowSearch(true)}
-        className="w-full flex items-center gap-3 p-4 rounded-xl border-2 border-dashed border-border text-left active:scale-[0.98] transition-transform"
-      >
-        <div className="h-10 w-10 rounded-full grid place-items-center shrink-0" style={{ background: "rgba(34,197,94,0.1)", border: "1.5px solid rgba(34,197,94,0.3)" }}>
-          <Search className="h-5 w-5" style={{ color: "#22c55e" }} />
-        </div>
-        <div>
-          <div className="font-semibold text-sm">Найти любое поле</div>
-          <div className="text-xs text-muted-foreground mt-0.5">Al Hamra, Wentworth, Augusta…</div>
-        </div>
-      </button>
 
       {/* ── Course Search Sheet ── */}
       {showSearch && (
@@ -513,12 +510,9 @@ const StatTile = ({ label, value }: { label: string; value: string }) => (
 
 /* ────────── SETUP ────────── */
 const SetupScreen = ({
-  course, courseId, setCourseId, allCourses, players, setPlayers, frequent, onBack, onPregame, onStart,
+  course, players, setPlayers, frequent, onBack, onPregame, onStart,
 }: {
   course: Course;
-  courseId: string;
-  setCourseId: (id: string) => void;
-  allCourses: Course[];
   players: Player[];
   setPlayers: (p: Player[]) => void;
   frequent: Player[];
@@ -552,28 +546,12 @@ const SetupScreen = ({
           <ChevronLeft className="h-5 w-5" strokeWidth={2.5} /> PLAYER SETUP
         </button>
 
-        {/* Course selector */}
+        {/* Selected course (chosen on the previous step) */}
         <Card className="p-4 shadow-soft">
           <div className="text-xs uppercase tracking-wider text-muted-foreground mb-3 font-semibold">Поле</div>
-          <div className="space-y-1.5 max-h-52 overflow-y-auto">
-            {allCourses.map((c) => (
-              <button
-                key={c.id}
-                onClick={() => setCourseId(c.id)}
-                className={cn(
-                  "w-full flex items-center justify-between p-3 rounded-xl border-2 text-left transition-base",
-                  courseId === c.id ? "border-action bg-action/5" : "border-border hover:border-muted-foreground/30",
-                )}
-              >
-                <div>
-                  <div className="font-semibold text-sm">{c.name}</div>
-                  <div className="text-[11px] text-muted-foreground mt-0.5">
-                    {c.club} · Par {c.totalPar}
-                  </div>
-                </div>
-                {courseId === c.id && <Check className="h-4 w-4 text-action shrink-0" />}
-              </button>
-            ))}
+          <div className="font-semibold text-sm">{course.name}</div>
+          <div className="text-[11px] text-muted-foreground mt-0.5">
+            {course.club} · Par {course.totalPar}
           </div>
         </Card>
 
