@@ -156,11 +156,11 @@ const StatsPage = () => {
               <div className="text-[10px] uppercase tracking-wider mt-1 text-muted-foreground">HCP</div>
             </div>
           </div>
-          <div className="rounded-xl border border-border p-4 bg-muted/20">
-            <div className="flex items-end justify-between gap-2 h-32 border-l-2 border-dashed border-accent/40 pl-2 border-r-2 border-r-dashed border-r-accent/40 pr-2">
+          <div className="rounded-xl border border-border p-4 bg-muted/20 overflow-hidden">
+            <div className="flex items-end justify-between gap-1.5 h-32 border-l-2 border-dashed border-accent/40 pl-2 border-r-2 border-r-dashed border-r-accent/40 pr-2">
               {totals.slice().reverse().map((t, i) => (
-                <div key={i} className="flex-1 flex flex-col items-center gap-1.5">
-                  <div className="text-[10px] tabular-nums font-semibold">{t.total}</div>
+                <div key={i} className="flex-1 min-w-0 flex flex-col items-center gap-1.5">
+                  <div className="text-[10px] tabular-nums font-semibold truncate">{t.total}</div>
                   <div className={cn("w-full rounded-t-md transition-spring", t.isGreen ? "bg-accent" : "bg-action")}
                     style={{ height: `${(t.total / max) * 80}%`, minHeight: 8 }} />
                 </div>
