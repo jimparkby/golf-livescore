@@ -25,17 +25,21 @@ const PlayPage = () => {
   const [step, setStep] = useState<Step>(activeRound ? "playing" : "home");
   const initialHadRound = useRef(!!activeRound);
 
-  const sendPregameInsight = () => {
+  const sendPregameInsight = (currentCourse?: { id: string; name: string }) => {
     const token = localStorage.getItem("golf_jwt");
     if (!token) return;
     const completedRounds = rounds.filter(r => r.completed);
     const trimmedRounds = completedRounds.slice(0, 10).map(r => ({
-      date: r.date, scores: r.scores, tee: r.tee, rating: r.rating, slope: r.slope, holesMode: r.holesMode,
+      date: r.date, scores: r.scores, tee: r.tee, rating: r.rating, slope: r.slope, holesMode: r.holesMode, courseId: r.courseId, courseName: r.courseName,
     }));
     fetch(`${BASE}/api/ai/pregame`, {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ rounds: trimmedRounds, profile: { hcp: profile.hcp, firstName: profile.firstName } }),
+      body: JSON.stringify({
+        rounds: trimmedRounds,
+        profile: { hcp: profile.hcp, firstName: profile.firstName },
+        currentCourse,
+      }),
     }).catch(() => {});
   };
   const [courseId, setCourseId] = useState<string>(COURSES[0].id);
@@ -96,7 +100,7 @@ const PlayPage = () => {
         setPlayers={setPlayers}
         frequent={frequent}
         onBack={() => setStep("home")}
-        onPregame={sendPregameInsight}
+        onPregame={() => sendPregameInsight({ id: course.id, name: course.name })}
         onStart={(mode) => {
           startRound(course, players, undefined, undefined, mode);
           setStep("playing");
@@ -418,7 +422,7 @@ const CourseSearchSheet = ({
               <div className="text-center">
                 <div className="text-white font-semibold">Загружаем поле…</div>
                 <div className="text-xs mt-1" style={{ color: "rgba(255,255,255,0.4)" }}>
-                  AI ищет информацию о поле
+                  Получаем информацию о поле
                 </div>
               </div>
             </div>
