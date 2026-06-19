@@ -7,8 +7,7 @@ import { Avatar } from "@/components/PlayerAvatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Pencil, Check, Trophy, Camera, LogOut, Trash2, ChevronRight, X, Calendar, Flag } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { Pencil, Check, Trophy, Camera, LogOut, Trash2, ChevronRight, X, Calendar } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { getDifferentials, calcHandicapIndex } from "@/lib/handicap";
@@ -18,7 +17,6 @@ import { compressImage } from "@/lib/imageUtils";
 const ProfilePage = () => {
   const { profile, updateProfile, rounds } = useGolf();
   const { signOut } = useAuth();
-  const navigate = useNavigate();
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(profile);
   const [showTeePicker, setShowTeePicker] = useState(false);
@@ -243,20 +241,6 @@ const ProfilePage = () => {
           </div>
         </div>
       </Card>
-
-      {/* Play button */}
-      <button
-        onClick={() => navigate("/play")}
-        className="w-full flex items-center justify-center gap-3 h-14 rounded-xl text-base font-bold transition-spring active:scale-[0.98]"
-        style={{
-          background: "var(--accent)",
-          color: "var(--accent-foreground)",
-          boxShadow: "var(--shadow-glow)",
-        }}
-      >
-        <Flag className="h-5 w-5" strokeWidth={2.4} />
-        Играть
-      </button>
 
       {/* Edit form */}
       {editing ? (
