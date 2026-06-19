@@ -191,7 +191,14 @@ const StatsPage = () => {
               profilePhoto={profile.photoUrl}
               playerName={playerName}
               playerHcp={profile.hcp}
-              onDelete={() => deleteRound(r.id)}
+              onDelete={async () => {
+                try {
+                  await deleteRound(r.id);
+                } catch (err) {
+                  const { toast } = await import("sonner");
+                  toast.error("Failed to delete round");
+                }
+              }}
               onAddPhoto={(url) => setRoundPhoto(r.id, url)}
             />
           ))}

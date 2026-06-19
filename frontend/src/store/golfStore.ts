@@ -261,11 +261,19 @@ export const useGolf = create<State>()(
       },
 
       deleteRound: async (id) => {
+        const deletedRound = get().rounds.find((r) => r.id === id);
+        if (!deletedRound) return;
+
+        // Optimistically remove from state
         set((s) => ({ rounds: s.rounds.filter((r) => r.id !== id) }));
+
         try {
           await api.delete(`/api/rounds/${id}`);
         } catch (err) {
           console.error('Failed to delete round:', err);
+          // Rollback: restore the round if delete failed
+          set((s) => ({ rounds: [deletedRound, ...s.rounds] }));
+          throw err; // Re-throw so caller can show error toast
         }
       },
 
