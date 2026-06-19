@@ -7,7 +7,8 @@ import { Avatar } from "@/components/PlayerAvatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Pencil, Check, Trophy, Camera, LogOut, Trash2, ChevronRight, X, Calendar } from "lucide-react";
+import { Pencil, Check, Trophy, Camera, LogOut, Trash2, ChevronRight, X, Calendar, Flag } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { getDifferentials, calcHandicapIndex } from "@/lib/handicap";
@@ -17,6 +18,7 @@ import { compressImage } from "@/lib/imageUtils";
 const ProfilePage = () => {
   const { profile, updateProfile, rounds } = useGolf();
   const { signOut } = useAuth();
+  const navigate = useNavigate();
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(profile);
   const [showTeePicker, setShowTeePicker] = useState(false);
@@ -102,6 +104,79 @@ const ProfilePage = () => {
   const isEmpty = !profile.firstName && !profile.lastName;
   const hcpToShow = hcpIndex ?? profile.hcp;
 
+  // Calculate performance stats from completed rounds
+  const perfStats = useMemo(() => {
+    const completedRounds = rounds.filter(r => r.completed);
+    if (completedRounds.length === 0) return null;
+
+    let totalHoles = 0, girCount = 0, fairwayCount = 0, scrambleAttempts = 0, scrambleSuccess = 0;
+    let totalPutts = 0, totalPenalties = 0;
+
+    completedRounds.forEach(r => {
+      const me = r.players.find(p => p.isMe);
+      if (!me) return;
+      const myScores = r.scores[me.id] || [];
+
+      myScores.forEach(s => {
+        if (s.score > 0) {
+          totalHoles++;
+          if (s.gir) girCount++;
+          if (s.driving) fairwayCount++;
+          if (!s.gir) {
+            scrambleAttempts++;
+            // Consider it a scramble success if score <= par
+            const holePar = {1:4,2:5,3:3,4:4,5:4,6:4,7:3,8:4,9:5,10:4,11:3,12:4,13:5,14:4,15:4,16:3,17:5,18:4}[s.hole] || 4;
+            if (s.score <= holePar) scrambleSuccess++;
+          }
+          totalPutts += s.putts || 0;
+          totalPenalties += s.penalties || 0;
+        }
+      });
+    });
+
+    const gir = totalHoles > 0 ? Math.round((girCount / totalHoles) * 100) : 0;
+    const fairways = totalHoles > 0 ? Math.round((fairwayCount / totalHoles) * 100) : 0;
+    const scrambling = scrambleAttempts > 0 ? Math.round((scrambleSuccess / scrambleAttempts) * 100) : 0;
+    const puttsPerRound = completedRounds.length > 0 ? (totalPutts / completedRounds.length).toFixed(1) : "0";
+    const penaltiesPerRound = completedRounds.length > 0 ? (totalPenalties / completedRounds.length).toFixed(1) : "0";
+
+    return { gir, fairways, scrambling, putts: puttsPerRound, penalties: penaltiesPerRound };
+  }, [rounds]);
+
+  // Calculate scoring breakdown
+  const scoringBreakdown = useMemo(() => {
+    let eagles = 0, birdies = 0, pars = 0, bogeys = 0, doubles = 0;
+
+    rounds.forEach(r => {
+      const me = r.players.find(p => p.isMe);
+      if (!me) return;
+      const myScores = r.scores[me.id] || [];
+
+      myScores.forEach(s => {
+        if (s.score > 0) {
+          const holePar = {1:4,2:5,3:3,4:4,5:4,6:4,7:3,8:4,9:5,10:4,11:3,12:4,13:5,14:4,15:4,16:3,17:5,18:4}[s.hole] || 4;
+          const diff = s.score - holePar;
+          if (diff <= -2) eagles++;
+          else if (diff === -1) birdies++;
+          else if (diff === 0) pars++;
+          else if (diff === 1) bogeys++;
+          else if (diff >= 2) doubles++;
+        }
+      });
+    });
+
+    const total = eagles + birdies + pars + bogeys + doubles;
+    return [
+      { key: "eagle", label: "Eagles", count: eagles, color: "var(--score-eagle)" },
+      { key: "birdie", label: "Birdies", count: birdies, color: "var(--score-birdie)" },
+      { key: "par", label: "Pars", count: pars, color: "rgba(255,255,255,0.55)" },
+      { key: "bogey", label: "Bogeys", count: bogeys, color: "var(--score-bogey)" },
+      { key: "double", label: "Double+", count: doubles, color: "var(--score-double)" },
+    ].filter(s => total > 0);
+  }, [rounds]);
+
+  const scoreTotal = scoringBreakdown.reduce((a, s) => a + s.count, 0);
+
   return (
     <div className="space-y-5 animate-in fade-in duration-300">
       {/* Hero */}
@@ -169,6 +244,20 @@ const ProfilePage = () => {
         </div>
       </Card>
 
+      {/* Play button */}
+      <button
+        onClick={() => navigate("/play")}
+        className="w-full flex items-center justify-center gap-3 h-14 rounded-xl text-base font-bold transition-spring active:scale-[0.98]"
+        style={{
+          background: "var(--accent)",
+          color: "var(--accent-foreground)",
+          boxShadow: "var(--shadow-glow)",
+        }}
+      >
+        <Flag className="h-5 w-5" strokeWidth={2.4} />
+        Играть
+      </button>
+
       {/* Edit form */}
       {editing ? (
         <Card className="p-5 shadow-soft space-y-4">
@@ -200,6 +289,45 @@ const ProfilePage = () => {
         <Card className="p-5 shadow-soft space-y-3 text-sm">
           <Row icon={<Calendar className="h-4 w-4" />} label="Member since" value={profile.memberSince || "—"} />
           <Row icon={<Trophy className="h-4 w-4" />} label="Rounds played" value={String(rounds.length)} />
+        </Card>
+      )}
+
+      {/* Performance stats */}
+      {perfStats && !editing && (
+        <div>
+          <div className="gm-eyebrow mb-3 px-1">Статистика · последние {rounds.filter(r => r.completed).length}</div>
+          <div className="grid grid-cols-3 gap-3">
+            <PerfTile value={`${perfStats.gir}%`} label="GIR" accent />
+            <PerfTile value={`${perfStats.fairways}%`} label="Фарвеи" />
+            <PerfTile value={`${perfStats.scrambling}%`} label="Скрэмблинг" />
+            <PerfTile value={perfStats.putts} label="Патты / раунд" />
+            <PerfTile value={perfStats.penalties} label="Штрафы" />
+            <PerfTile value="—" label="Драйв" />
+          </div>
+        </div>
+      )}
+
+      {/* Scoring breakdown */}
+      {scoreTotal > 0 && !editing && (
+        <Card className="p-5 shadow-soft">
+          <div className="flex items-baseline justify-between mb-4">
+            <div className="font-bold">Скоринг по лункам</div>
+            <div className="gm-nums text-xs" style={{ color: "var(--text-secondary)" }}>{scoreTotal} лунок</div>
+          </div>
+          <div className="flex h-3 rounded-full overflow-hidden gap-0.5">
+            {scoringBreakdown.map((s) => (
+              <div key={s.key} title={s.label} style={{ flex: s.count, background: s.color }} />
+            ))}
+          </div>
+          <div className="grid grid-cols-2 gap-y-3 gap-x-4 mt-4">
+            {scoringBreakdown.map((s) => (
+              <div key={s.key} className="flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: s.color }} />
+                <span className="text-sm flex-1" style={{ color: "var(--text-body)" }}>{s.label}</span>
+                <span className="gm-nums text-sm font-bold">{s.count}</span>
+              </div>
+            ))}
+          </div>
         </Card>
       )}
 
@@ -325,6 +453,17 @@ const Row = ({ icon, label, value }: { icon: React.ReactNode; label: string; val
       <span>{label}</span>
     </div>
     <div className="font-medium">{value}</div>
+  </div>
+);
+
+const PerfTile = ({ value, label, accent }: { value: string; label: string; accent?: boolean }) => (
+  <div className="rounded-xl p-4 text-center" style={{ background: "var(--surface-card)", border: "1px solid var(--border-hairline)" }}>
+    <div className="gm-nums text-2xl font-extrabold leading-none" style={{ color: accent ? "var(--accent)" : "var(--text-primary)", letterSpacing: "-0.02em" }}>
+      {value}
+    </div>
+    <div className="mt-1.5 text-[10px] uppercase tracking-wider font-medium" style={{ color: "var(--text-muted)" }}>
+      {label}
+    </div>
   </div>
 );
 
