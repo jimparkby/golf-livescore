@@ -11,8 +11,16 @@ import { Pencil, Check, Trophy, Camera, LogOut, Trash2, ChevronRight, X, Calenda
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { getDifferentials, calcHandicapIndex } from "@/lib/handicap";
-import { TEE_CONFIG, type TeeColor } from "@/lib/courses";
+import { TEE_CONFIG, COURSES, type TeeColor } from "@/lib/courses";
 import { compressImage } from "@/lib/imageUtils";
+
+// Helper to get par for a hole from course data
+const getHolePar = (courseId: string, holeNumber: number): number => {
+  const course = COURSES.find(c => c.id === courseId);
+  if (!course) return 4; // fallback
+  const hole = course.holes.find(h => h.number === holeNumber);
+  return hole?.par ?? 4;
+};
 
 const ProfilePage = () => {
   const { profile, updateProfile, rounds } = useGolf();
@@ -123,7 +131,7 @@ const ProfilePage = () => {
           if (!s.gir) {
             scrambleAttempts++;
             // Consider it a scramble success if score <= par
-            const holePar = {1:4,2:5,3:3,4:4,5:4,6:4,7:3,8:4,9:5,10:4,11:3,12:4,13:5,14:4,15:4,16:3,17:5,18:4}[s.hole] || 4;
+            const holePar = getHolePar(r.courseId, s.hole);
             if (s.score <= holePar) scrambleSuccess++;
           }
           totalPutts += s.putts || 0;
@@ -152,7 +160,7 @@ const ProfilePage = () => {
 
       myScores.forEach(s => {
         if (s.score > 0) {
-          const holePar = {1:4,2:5,3:3,4:4,5:4,6:4,7:3,8:4,9:5,10:4,11:3,12:4,13:5,14:4,15:4,16:3,17:5,18:4}[s.hole] || 4;
+          const holePar = getHolePar(r.courseId, s.hole);
           const diff = s.score - holePar;
           if (diff <= -2) eagles++;
           else if (diff === -1) birdies++;
