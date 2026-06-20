@@ -2,12 +2,13 @@ import { useState, useMemo, useRef, useEffect } from "react";
 import { BASE } from "@/lib/api";
 import { useGolf } from "@/store/golfStore";
 import { useAuth } from "@/hooks/useAuth";
+import { useSettings } from "@/store/settingsStore";
 import { Card } from "@/components/ui/card";
 import { Avatar } from "@/components/PlayerAvatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Pencil, Check, Trophy, Camera, LogOut, Trash2, ChevronRight, X, Calendar } from "lucide-react";
+import { Pencil, Check, Trophy, Camera, LogOut, Trash2, ChevronRight, X, Calendar, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { getDifferentials, calcHandicapIndex } from "@/lib/handicap";
@@ -25,9 +26,11 @@ const getHolePar = (courseId: string, holeNumber: number): number => {
 const ProfilePage = () => {
   const { profile, updateProfile, rounds } = useGolf();
   const { signOut } = useAuth();
+  const { statsMode } = useSettings();
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(profile);
   const [showTeePicker, setShowTeePicker] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const photoInputRef = useRef<HTMLInputElement>(null);
 
   const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -115,10 +118,13 @@ const ProfilePage = () => {
     const completedRounds = rounds.filter(r => r.completed);
     if (completedRounds.length === 0) return null;
 
+    // Use only last round if statsMode is 'last'
+    const roundsToAnalyze = statsMode === "last" ? [completedRounds[0]] : completedRounds;
+
     let totalHoles = 0, girCount = 0, fairwayCount = 0, scrambleAttempts = 0, scrambleSuccess = 0;
     let totalPutts = 0, totalPenalties = 0;
 
-    completedRounds.forEach(r => {
+    roundsToAnalyze.forEach(r => {
       const me = r.players.find(p => p.isMe);
       if (!me) return;
       const myScores = r.scores[me.id] || [];
@@ -143,11 +149,11 @@ const ProfilePage = () => {
     const gir = totalHoles > 0 ? Math.round((girCount / totalHoles) * 100) : 0;
     const fairways = totalHoles > 0 ? Math.round((fairwayCount / totalHoles) * 100) : 0;
     const scrambling = scrambleAttempts > 0 ? Math.round((scrambleSuccess / scrambleAttempts) * 100) : 0;
-    const puttsPerRound = completedRounds.length > 0 ? (totalPutts / completedRounds.length).toFixed(1) : "0";
-    const penaltiesPerRound = completedRounds.length > 0 ? (totalPenalties / completedRounds.length).toFixed(1) : "0";
+    const puttsPerRound = roundsToAnalyze.length > 0 ? (totalPutts / roundsToAnalyze.length).toFixed(1) : "0";
+    const penaltiesPerRound = roundsToAnalyze.length > 0 ? (totalPenalties / roundsToAnalyze.length).toFixed(1) : "0";
 
     return { gir, fairways, scrambling, putts: puttsPerRound, penalties: penaltiesPerRound };
-  }, [rounds]);
+  }, [rounds, statsMode]);
 
   // Calculate scoring breakdown
   const scoringBreakdown = useMemo(() => {
@@ -219,15 +225,23 @@ const ProfilePage = () => {
                 <Trophy className="h-3.5 w-3.5" /> Golf Club Minsk
               </div>
             </div>
-            <button
-              onClick={() => {
-                if (editing) save();
-                else { setDraft(profile); setEditing(true); }
-              }}
-              className="h-10 w-10 rounded-full bg-primary-foreground/20 hover:bg-primary-foreground/30 grid place-items-center transition-base"
-            >
-              {editing ? <Check className="h-4 w-4" /> : <Pencil className="h-4 w-4" />}
-            </button>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setShowSettings(true)}
+                className="h-10 w-10 rounded-full bg-primary-foreground/20 hover:bg-primary-foreground/30 grid place-items-center transition-base"
+              >
+                <Settings className="h-4 w-4" />
+              </button>
+              <button
+                onClick={() => {
+                  if (editing) save();
+                  else { setDraft(profile); setEditing(true); }
+                }}
+                className="h-10 w-10 rounded-full bg-primary-foreground/20 hover:bg-primary-foreground/30 grid place-items-center transition-base"
+              >
+                {editing ? <Check className="h-4 w-4" /> : <Pencil className="h-4 w-4" />}
+              </button>
+            </div>
           </div>
 
           <div className="grid grid-cols-3 gap-3 mt-5">
@@ -420,6 +434,120 @@ const ProfilePage = () => {
           </div>
         </div>
       )}
+
+      {/* ── Settings Modal ── */}
+      {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}
+    </div>
+  );
+};
+
+const SettingsModal = ({ onClose }: { onClose: () => void }) => {
+  const { language, theme, statsMode, setLanguage, setTheme, setStatsMode } = useSettings();
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+      <div
+        className="w-full max-w-md bg-card rounded-t-3xl shadow-elevated p-5 animate-in slide-in-from-bottom duration-300"
+        style={{ maxHeight: "85vh", overflowY: "auto" }}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="text-xl font-bold">Settings</h2>
+          <button
+            onClick={onClose}
+            className="h-8 w-8 rounded-full bg-secondary hover:bg-secondary/80 grid place-items-center transition-base"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        {/* Language */}
+        <Card className="p-4 mb-3">
+          <div className="text-xs uppercase tracking-wider text-muted-foreground font-semibold mb-3">Language</div>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setLanguage("en")}
+              className={cn(
+                "flex-1 py-2.5 rounded-xl text-sm font-bold transition-all",
+                language === "en"
+                  ? "bg-action text-action-foreground"
+                  : "bg-secondary text-muted-foreground hover:bg-secondary/80"
+              )}
+            >
+              English
+            </button>
+            <button
+              onClick={() => setLanguage("ru")}
+              className={cn(
+                "flex-1 py-2.5 rounded-xl text-sm font-bold transition-all",
+                language === "ru"
+                  ? "bg-action text-action-foreground"
+                  : "bg-secondary text-muted-foreground hover:bg-secondary/80"
+              )}
+            >
+              Русский
+            </button>
+          </div>
+        </Card>
+
+        {/* Theme */}
+        <Card className="p-4 mb-3">
+          <div className="text-xs uppercase tracking-wider text-muted-foreground font-semibold mb-3">Theme</div>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setTheme("dark")}
+              className={cn(
+                "flex-1 py-2.5 rounded-xl text-sm font-bold transition-all",
+                theme === "dark"
+                  ? "bg-action text-action-foreground"
+                  : "bg-secondary text-muted-foreground hover:bg-secondary/80"
+              )}
+            >
+              Dark
+            </button>
+            <button
+              onClick={() => setTheme("light")}
+              className={cn(
+                "flex-1 py-2.5 rounded-xl text-sm font-bold transition-all",
+                theme === "light"
+                  ? "bg-action text-action-foreground"
+                  : "bg-secondary text-muted-foreground hover:bg-secondary/80"
+              )}
+            >
+              Light
+            </button>
+          </div>
+        </Card>
+
+        {/* Stats Mode */}
+        <Card className="p-4">
+          <div className="text-xs uppercase tracking-wider text-muted-foreground font-semibold mb-3">Statistics</div>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setStatsMode("all")}
+              className={cn(
+                "flex-1 py-2.5 rounded-xl text-sm font-bold transition-all",
+                statsMode === "all"
+                  ? "bg-action text-action-foreground"
+                  : "bg-secondary text-muted-foreground hover:bg-secondary/80"
+              )}
+            >
+              All Rounds
+            </button>
+            <button
+              onClick={() => setStatsMode("last")}
+              className={cn(
+                "flex-1 py-2.5 rounded-xl text-sm font-bold transition-all",
+                statsMode === "last"
+                  ? "bg-action text-action-foreground"
+                  : "bg-secondary text-muted-foreground hover:bg-secondary/80"
+              )}
+            >
+              Last Round
+            </button>
+          </div>
+        </Card>
+      </div>
     </div>
   );
 };
