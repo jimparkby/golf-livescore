@@ -3,6 +3,7 @@ import { BASE } from "@/lib/api";
 import { useGolf } from "@/store/golfStore";
 import { useAuth } from "@/hooks/useAuth";
 import { useSettings } from "@/store/settingsStore";
+import { useTranslation } from "@/hooks/useTranslation";
 import { Card } from "@/components/ui/card";
 import { Avatar } from "@/components/PlayerAvatar";
 import { Button } from "@/components/ui/button";
@@ -27,6 +28,7 @@ const ProfilePage = () => {
   const { profile, updateProfile, rounds } = useGolf();
   const { signOut } = useAuth();
   const { statsMode } = useSettings();
+  const { t } = useTranslation();
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(profile);
   const [showTeePicker, setShowTeePicker] = useState(false);
@@ -38,7 +40,7 @@ const ProfilePage = () => {
     if (!file) return;
     const compressed = await compressImage(file, 400);
     updateProfile({ photoUrl: compressed });
-    toast.success("Profile photo updated");
+    toast.success(t.profilePhotoUpdated);
     e.target.value = "";
   };
 
@@ -94,7 +96,7 @@ const ProfilePage = () => {
   const save = () => {
     updateProfile(draft);
     setEditing(false);
-    toast.success("Profile updated");
+    toast.success(t.profileUpdated);
     syncProfile(draft);
   };
 
@@ -217,7 +219,7 @@ const ProfilePage = () => {
             </div>
             <div className="flex-1 min-w-0">
               {isEmpty ? (
-                <div className="text-base opacity-80">Enter your name →</div>
+                <div className="text-base opacity-80">{t.enterYourName}</div>
               ) : (
                 <div className="text-xl font-bold">{profile.firstName} {profile.lastName}</div>
               )}
@@ -258,8 +260,8 @@ const ProfilePage = () => {
                 </div>
               )}
             </div>
-            <HeroStat label="Best" value={best ? String(best) : "—"} />
-            <HeroStat label="Avg" value={avg ? String(avg) : "—"} />
+            <HeroStat label={t.best} value={best ? String(best) : "—"} />
+            <HeroStat label={t.avg} value={avg ? String(avg) : "—"} />
           </div>
         </div>
       </Card>
@@ -268,13 +270,13 @@ const ProfilePage = () => {
       {editing ? (
         <Card className="p-5 shadow-soft space-y-4">
           <div className="grid grid-cols-2 gap-3">
-            <Field label="First Name">
+            <Field label={t.firstName}>
               <Input value={draft.firstName} onChange={(e) => setDraft({ ...draft, firstName: e.target.value })} autoFocus />
             </Field>
-            <Field label="Last Name">
+            <Field label={t.lastName}>
               <Input value={draft.lastName} onChange={(e) => setDraft({ ...draft, lastName: e.target.value })} />
             </Field>
-            <Field label="HCP (manual)" className="col-span-2">
+            <Field label={`HCP (${t.manual})`} className="col-span-2">
               <Input type="number" step="0.1" value={draft.hcp} onChange={(e) => setDraft({ ...draft, hcp: Number(e.target.value) })} />
             </Field>
           </div>
@@ -284,31 +286,31 @@ const ProfilePage = () => {
               className="w-full flex items-center justify-center gap-2 h-10 rounded-xl text-sm font-semibold transition-colors"
               style={{ background: "rgba(239,68,68,0.1)", border: "1.5px solid rgba(239,68,68,0.3)", color: "#ef4444" }}
             >
-              <Trash2 className="h-4 w-4" /> Delete Photo
+              <Trash2 className="h-4 w-4" /> {t.deletePhoto}
             </button>
           )}
           <Button onClick={save} className="w-full bg-action hover:bg-action/90 text-action-foreground rounded-xl h-12">
-            Save Changes
+            {t.saveChanges}
           </Button>
         </Card>
       ) : (
         <Card className="p-5 shadow-soft space-y-3 text-sm">
-          <Row icon={<Calendar className="h-4 w-4" />} label="Member since" value={profile.memberSince || "—"} />
-          <Row icon={<Trophy className="h-4 w-4" />} label="Rounds played" value={String(rounds.length)} />
+          <Row icon={<Calendar className="h-4 w-4" />} label={t.memberSince} value={profile.memberSince || "—"} />
+          <Row icon={<Trophy className="h-4 w-4" />} label={t.roundsPlayed} value={String(rounds.length)} />
         </Card>
       )}
 
       {/* Performance stats */}
       {perfStats && !editing && (
         <div>
-          <div className="gm-eyebrow mb-3 px-1">Stats · last {rounds.filter(r => r.completed).length}</div>
+          <div className="gm-eyebrow mb-3 px-1">{t.stats} · {t.last} {rounds.filter(r => r.completed).length}</div>
           <div className="grid grid-cols-3 gap-3">
             <PerfTile value={`${perfStats.gir}%`} label="GIR" accent />
-            <PerfTile value={`${perfStats.fairways}%`} label="Fairways" />
-            <PerfTile value={`${perfStats.scrambling}%`} label="Scrambling" />
-            <PerfTile value={perfStats.putts} label="Putts / round" />
-            <PerfTile value={perfStats.penalties} label="Penalties" />
-            <PerfTile value="—" label="Drive" />
+            <PerfTile value={`${perfStats.fairways}%`} label="FAIRWAYS" />
+            <PerfTile value={`${perfStats.scrambling}%`} label="SCRAMBLING" />
+            <PerfTile value={perfStats.putts} label="PUTTS / ROUND" />
+            <PerfTile value={perfStats.penalties} label="PENALTIES" />
+            <PerfTile value="—" label="DRIVE" />
           </div>
         </div>
       )}
@@ -317,8 +319,8 @@ const ProfilePage = () => {
       {scoreTotal > 0 && !editing && (
         <Card className="p-5 shadow-soft">
           <div className="flex items-baseline justify-between mb-4">
-            <div className="font-bold">Hole Scoring</div>
-            <div className="gm-nums text-xs" style={{ color: "var(--text-secondary)" }}>{scoreTotal} holes</div>
+            <div className="font-bold">{t.holeScoring}</div>
+            <div className="gm-nums text-xs" style={{ color: "var(--text-secondary)" }}>{scoreTotal} {t.holes}</div>
           </div>
           <div className="flex h-3 rounded-full overflow-hidden gap-0.5">
             {scoringBreakdown.map((s) => (
@@ -344,7 +346,7 @@ const ProfilePage = () => {
           onClick={() => setShowTeePicker(true)}
           className="w-full flex items-center justify-between px-5 py-4"
         >
-          <div className="text-sm font-medium">Default Tee</div>
+          <div className="text-sm font-medium">{t.defaultTee}</div>
           <div className="flex items-center gap-2 text-muted-foreground">
             <div
               className="w-4 h-4 rounded-sm border"
@@ -371,13 +373,13 @@ const ProfilePage = () => {
         className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-medium border border-destructive/30 text-destructive hover:bg-destructive/10 transition-colors"
       >
         <LogOut className="h-4 w-4" />
-        Sign Out
+        {t.signOut}
       </button>
 
       {/* Frequent partners */}
       {useGolf.getState().frequent.length > 0 && (
         <Card className="p-5 shadow-soft">
-          <div className="text-xs uppercase tracking-wider font-semibold text-muted-foreground mb-3">Frequent Partners</div>
+          <div className="text-xs uppercase tracking-wider font-semibold text-muted-foreground mb-3">{t.frequentPartners}</div>
           <div className="flex gap-3 overflow-x-auto pb-1">
             {useGolf.getState().frequent.map((f) => (
               <div key={f.id} className="flex flex-col items-center gap-1.5 shrink-0">
@@ -400,7 +402,7 @@ const ProfilePage = () => {
           >
             <div className="mx-auto w-10 h-1 rounded-full mt-3 mb-4" style={{ background: "rgba(255,255,255,0.15)" }} />
             <div className="flex items-center justify-between px-5 pb-4">
-              <div className="text-white font-bold text-lg">Default Tee</div>
+              <div className="text-white font-bold text-lg">{t.defaultTee}</div>
               <button
                 onClick={() => setShowTeePicker(false)}
                 className="h-8 w-8 rounded-full grid place-items-center"
@@ -413,7 +415,7 @@ const ProfilePage = () => {
               {(Object.keys(TEE_CONFIG) as TeeColor[]).map((color) => (
                 <button
                   key={color}
-                  onClick={() => { pushSetting({ defaultTee: color }); setShowTeePicker(false); toast.success(`Default Tee: ${TEE_CONFIG[color].label}`); }}
+                  onClick={() => { pushSetting({ defaultTee: color }); setShowTeePicker(false); toast.success(`${t.defaultTee}: ${TEE_CONFIG[color].label}`); }}
                   className="w-full flex items-center gap-4 px-4 py-3 rounded-2xl active:scale-[0.98] transition-transform"
                   style={{
                     background: profile.defaultTee === color ? "rgba(255,255,255,0.1)" : "rgba(255,255,255,0.05)",
@@ -443,6 +445,7 @@ const ProfilePage = () => {
 
 const SettingsModal = ({ onClose }: { onClose: () => void }) => {
   const { language, theme, statsMode, setLanguage, setTheme, setStatsMode } = useSettings();
+  const { t } = useTranslation();
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
@@ -452,7 +455,7 @@ const SettingsModal = ({ onClose }: { onClose: () => void }) => {
       >
         {/* Header */}
         <div className="flex items-center justify-between mb-5">
-          <h2 className="text-xl font-bold">Settings</h2>
+          <h2 className="text-xl font-bold">{t.settings}</h2>
           <button
             onClick={onClose}
             className="h-8 w-8 rounded-full bg-secondary hover:bg-secondary/80 grid place-items-center transition-base"
@@ -463,7 +466,7 @@ const SettingsModal = ({ onClose }: { onClose: () => void }) => {
 
         {/* Language */}
         <Card className="p-4 mb-3">
-          <div className="text-xs uppercase tracking-wider text-muted-foreground font-semibold mb-3">Language</div>
+          <div className="text-xs uppercase tracking-wider text-muted-foreground font-semibold mb-3">{t.language}</div>
           <div className="flex gap-2">
             <button
               onClick={() => setLanguage("en")}
@@ -492,7 +495,7 @@ const SettingsModal = ({ onClose }: { onClose: () => void }) => {
 
         {/* Theme */}
         <Card className="p-4 mb-3">
-          <div className="text-xs uppercase tracking-wider text-muted-foreground font-semibold mb-3">Theme</div>
+          <div className="text-xs uppercase tracking-wider text-muted-foreground font-semibold mb-3">{t.theme}</div>
           <div className="flex gap-2">
             <button
               onClick={() => setTheme("dark")}
@@ -503,7 +506,7 @@ const SettingsModal = ({ onClose }: { onClose: () => void }) => {
                   : "bg-secondary text-muted-foreground hover:bg-secondary/80"
               )}
             >
-              Dark
+              {t.dark}
             </button>
             <button
               onClick={() => setTheme("light")}
@@ -514,14 +517,14 @@ const SettingsModal = ({ onClose }: { onClose: () => void }) => {
                   : "bg-secondary text-muted-foreground hover:bg-secondary/80"
               )}
             >
-              Light
+              {t.light}
             </button>
           </div>
         </Card>
 
         {/* Stats Mode */}
         <Card className="p-4">
-          <div className="text-xs uppercase tracking-wider text-muted-foreground font-semibold mb-3">Statistics</div>
+          <div className="text-xs uppercase tracking-wider text-muted-foreground font-semibold mb-3">{t.statistics}</div>
           <div className="flex gap-2">
             <button
               onClick={() => setStatsMode("all")}
@@ -532,7 +535,7 @@ const SettingsModal = ({ onClose }: { onClose: () => void }) => {
                   : "bg-secondary text-muted-foreground hover:bg-secondary/80"
               )}
             >
-              All Rounds
+              {t.allRounds}
             </button>
             <button
               onClick={() => setStatsMode("last")}
@@ -543,7 +546,7 @@ const SettingsModal = ({ onClose }: { onClose: () => void }) => {
                   : "bg-secondary text-muted-foreground hover:bg-secondary/80"
               )}
             >
-              Last Round
+              {t.lastRound}
             </button>
           </div>
         </Card>
