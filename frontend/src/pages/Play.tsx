@@ -318,7 +318,7 @@ const CourseSearchSheet = ({
       <button className="absolute inset-0 bg-black/70" onClick={onClose} />
       <div
         className="relative w-full rounded-t-3xl animate-in slide-in-from-bottom duration-250 flex flex-col"
-        style={{ background: "#1c1c1e", maxHeight: "90vh", paddingBottom: "max(env(safe-area-inset-bottom), 24px)" }}
+        style={{ background: "hsl(var(--popover))", maxHeight: "90vh", paddingBottom: "max(env(safe-area-inset-bottom), 24px)" }}
       >
         {/* Drag handle */}
         <div className="mx-auto w-10 h-1 rounded-full mt-3 mb-4" style={{ background: "rgba(255,255,255,0.15)" }} />
@@ -416,7 +416,7 @@ const CourseSearchSheet = ({
 
           {found && !loading && (
             <div className="space-y-4 pb-4">
-              <div className="rounded-2xl overflow-hidden" style={{ background: "#2a2a2a" }}>
+              <div className="rounded-2xl overflow-hidden" style={{ background: "hsl(var(--secondary))" }}>
                 <div className="px-5 py-4">
                   <div className="text-xs uppercase tracking-wider mb-1" style={{ color: "#22c55e" }}>{t.courseFound}</div>
                   <div className="text-white font-black text-xl">{found.name}</div>
@@ -677,7 +677,7 @@ const TeePickerSheet = ({
       <button className="absolute inset-0 bg-black/70" onClick={onClose} />
       <div
         className="relative w-full rounded-t-3xl animate-in slide-in-from-bottom duration-250"
-        style={{ background: "#1c1c1e", paddingBottom: "max(env(safe-area-inset-bottom), 24px)" }}
+        style={{ background: "hsl(var(--popover))", paddingBottom: "max(env(safe-area-inset-bottom), 24px)" }}
       >
         <div className="mx-auto w-10 h-1 rounded-full mt-3 mb-4" style={{ background: "rgba(255,255,255,0.15)" }} />
         <div className="flex items-center justify-between px-5 pb-4">
@@ -774,7 +774,7 @@ const AddPlayerSheet = ({
       <button className="absolute inset-0 bg-black/70" onClick={onClose} />
       <div
         className="relative w-full rounded-t-3xl animate-in slide-in-from-bottom duration-250 flex flex-col"
-        style={{ background: "#1c1c1e", maxHeight: "85vh", paddingBottom: "max(env(safe-area-inset-bottom), 24px)" }}
+        style={{ background: "hsl(var(--popover))", maxHeight: "85vh", paddingBottom: "max(env(safe-area-inset-bottom), 24px)" }}
       >
         <div className="mx-auto w-10 h-1 rounded-full mt-3 mb-4" style={{ background: "rgba(255,255,255,0.15)" }} />
 
@@ -959,7 +959,7 @@ const RoundPlayer = ({ onExit, onCancel }: { onExit: () => void; onCancel: () =>
     return (
       <div
         className="fixed inset-0 z-50 flex flex-col"
-        style={{ background: "#0a0a0a" }}
+        style={{ background: "hsl(var(--background))" }}
       >
         <div className="shrink-0 flex items-center justify-center" style={{ paddingTop: "calc(var(--tg-safe-top) + 10px)", paddingBottom: 10, borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
           <span className="text-white font-bold tracking-[0.18em] text-base">GOLF</span>
@@ -984,7 +984,7 @@ const RoundPlayer = ({ onExit, onCancel }: { onExit: () => void; onCancel: () =>
               const netVsParVal = vsPar - ch;
               const netVsParText = netVsParVal === 0 ? "E" : netVsParVal > 0 ? `+${netVsParVal}` : `${netVsParVal}`;
               return (
-                <div key={p.id} className="rounded-2xl overflow-hidden" style={{ background: "#1a1a1a" }}>
+                <div key={p.id} className="rounded-2xl overflow-hidden" style={{ background: "hsl(var(--card))" }}>
                   <div className="flex items-center justify-between px-5 py-4">
                     <div className="flex items-center gap-3">
                       <Avatar name={p.name} tone={p.isMe ? "orange" : "muted"} photoUrl={p.photoUrl} />
@@ -1074,7 +1074,7 @@ const RoundPlayer = ({ onExit, onCancel }: { onExit: () => void; onCancel: () =>
     return (
       <div
         className="fixed inset-0 z-50 flex flex-col"
-        style={{ background: "#0a0a0a" }}
+        style={{ background: "hsl(var(--background))" }}
       >
         <div className="shrink-0 flex items-center justify-center" style={{ paddingTop: "calc(var(--tg-safe-top) + 10px)", paddingBottom: 10, borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
           <span className="text-white font-bold tracking-[0.18em] text-base">GOLF</span>
@@ -1229,7 +1229,7 @@ const RoundPlayer = ({ onExit, onCancel }: { onExit: () => void; onCancel: () =>
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col" style={{ background: "#0a0a0a" }}>
+    <div className="fixed inset-0 z-50 flex flex-col" style={{ background: "hsl(var(--background))" }}>
 
       {/* ── Header + hole navigation in one row ── */}
       <div
@@ -1281,7 +1281,7 @@ const RoundPlayer = ({ onExit, onCancel }: { onExit: () => void; onCancel: () =>
       <div className="flex-1 flex flex-col justify-center px-5 pb-4 gap-4 overflow-y-auto">
 
         {/* Widget card */}
-        <div className="rounded-3xl overflow-hidden" style={{ background: "#1a1a1a" }}>
+        <div className="rounded-3xl overflow-hidden" style={{ background: "hsl(var(--card))" }}>
 
           {/* Card header */}
           <div className="flex items-center gap-2 px-5 pt-5 pb-3">
@@ -1342,7 +1342,7 @@ const RoundPlayer = ({ onExit, onCancel }: { onExit: () => void; onCancel: () =>
               key={p.id}
               onClick={() => openSheet(p)}
               className="w-full rounded-2xl p-4 flex items-center justify-between gap-3 active:scale-[0.98] transition-transform"
-              style={{ background: "#1a1a1a" }}
+              style={{ background: "hsl(var(--card))" }}
             >
               <div className="flex items-center gap-3 min-w-0">
                 <Avatar name={p.name} tone={p.isMe ? "orange" : "muted"} photoUrl={p.photoUrl} />
@@ -1402,7 +1402,7 @@ const RoundPlayer = ({ onExit, onCancel }: { onExit: () => void; onCancel: () =>
       {/* ── Exit confirmation ── */}
       {showExitConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center px-6 animate-in fade-in duration-150" style={{ background: "rgba(0,0,0,0.7)" }}>
-          <div className="w-full rounded-3xl p-6 space-y-4" style={{ background: "#1a1a1a" }}>
+          <div className="w-full rounded-3xl p-6 space-y-4" style={{ background: "hsl(var(--card))" }}>
             <div className="text-center">
               <div className="text-white font-black text-xl mb-1">Leave round?</div>
               <div className="text-sm" style={{ color: "rgba(255,255,255,0.45)" }}>
@@ -1437,7 +1437,7 @@ const RoundPlayer = ({ onExit, onCancel }: { onExit: () => void; onCancel: () =>
           <button className="absolute inset-0 bg-black/70" onClick={() => setSheetPlayer(null)} />
           <div
             className="relative w-full rounded-t-3xl animate-in slide-in-from-bottom duration-250"
-            style={{ background: "#1a1a1a", paddingBottom: `max(env(safe-area-inset-bottom), 24px)` }}
+            style={{ background: "hsl(var(--card))", paddingBottom: `max(env(safe-area-inset-bottom), 24px)` }}
           >
             {/* drag handle */}
             <div className="mx-auto w-10 h-1 rounded-full mt-3 mb-1" style={{ background: "rgba(255,255,255,0.15)" }} />

@@ -53,6 +53,7 @@ All colors MUST be HSL.
     /* Score colors from design system */
     --score-eagle: #eab308;
     --score-birdie: #22c55e;
+    --score-par: rgba(255, 255, 255, 0.55);
     --score-bogey: #fb923c;
     --score-double: #ef4444;
 
@@ -189,6 +190,7 @@ All colors MUST be HSL.
 
     --score-eagle: #ca8a04;
     --score-birdie: #16a34a;
+    --score-par: rgba(13, 15, 18, 0.55);
     --score-bogey: #ea580c;
     --score-double: #dc2626;
 

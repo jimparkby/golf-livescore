@@ -183,7 +183,7 @@ const ProfilePage = () => {
     return [
       { key: "eagle", label: "Eagles", count: eagles, color: "var(--score-eagle)" },
       { key: "birdie", label: "Birdies", count: birdies, color: "var(--score-birdie)" },
-      { key: "par", label: "Pars", count: pars, color: "rgba(255,255,255,0.55)" },
+      { key: "par", label: "Pars", count: pars, color: "var(--score-par)" },
       { key: "bogey", label: "Bogeys", count: bogeys, color: "var(--score-bogey)" },
       { key: "double", label: "Double+", count: doubles, color: "var(--score-double)" },
     ].filter(s => total > 0);
