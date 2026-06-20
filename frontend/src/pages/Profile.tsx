@@ -279,14 +279,14 @@ const ProfilePage = () => {
       {/* Performance stats */}
       {perfStats && !editing && (
         <div>
-          <div className="gm-eyebrow mb-3 px-1">Статистика · последние {rounds.filter(r => r.completed).length}</div>
+          <div className="gm-eyebrow mb-3 px-1">Stats · last {rounds.filter(r => r.completed).length}</div>
           <div className="grid grid-cols-3 gap-3">
             <PerfTile value={`${perfStats.gir}%`} label="GIR" accent />
-            <PerfTile value={`${perfStats.fairways}%`} label="Фарвеи" />
-            <PerfTile value={`${perfStats.scrambling}%`} label="Скрэмблинг" />
-            <PerfTile value={perfStats.putts} label="Патты / раунд" />
-            <PerfTile value={perfStats.penalties} label="Штрафы" />
-            <PerfTile value="—" label="Драйв" />
+            <PerfTile value={`${perfStats.fairways}%`} label="Fairways" />
+            <PerfTile value={`${perfStats.scrambling}%`} label="Scrambling" />
+            <PerfTile value={perfStats.putts} label="Putts / round" />
+            <PerfTile value={perfStats.penalties} label="Penalties" />
+            <PerfTile value="—" label="Drive" />
           </div>
         </div>
       )}
@@ -295,8 +295,8 @@ const ProfilePage = () => {
       {scoreTotal > 0 && !editing && (
         <Card className="p-5 shadow-soft">
           <div className="flex items-baseline justify-between mb-4">
-            <div className="font-bold">Скоринг по лункам</div>
-            <div className="gm-nums text-xs" style={{ color: "var(--text-secondary)" }}>{scoreTotal} лунок</div>
+            <div className="font-bold">Hole Scoring</div>
+            <div className="gm-nums text-xs" style={{ color: "var(--text-secondary)" }}>{scoreTotal} holes</div>
           </div>
           <div className="flex h-3 rounded-full overflow-hidden gap-0.5">
             {scoringBreakdown.map((s) => (

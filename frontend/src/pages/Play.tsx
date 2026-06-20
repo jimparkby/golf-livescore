@@ -162,13 +162,13 @@ const HomeScreen = ({ onStart, activeRound, onResume, onAbandon, extraCourses, o
       {activeRound && onResume && (
         <Card className="p-4 shadow-elevated" style={{ border: "1.5px solid rgba(34,197,94,0.4)", background: "rgba(34,197,94,0.06)" }}>
           <div className="text-xs uppercase tracking-wider font-semibold mb-2" style={{ color: "#22c55e" }}>
-            Незавершённый раунд
+            Unfinished round
           </div>
           <div className="font-semibold text-foreground mb-1">{activeRound.courseName.split(" · ")[0]}</div>
           <div className="text-sm text-muted-foreground mb-3">
             {Object.values(activeRound.scores).flat().filter(s => s.score > 0).length > 0
-              ? `Лунок сыграно: ${Math.max(...Object.values(activeRound.scores).flat().map(s => s.hole), 0)}`
-              : "Раунд начат, счёт не введён"}
+              ? `Holes played: ${Math.max(...Object.values(activeRound.scores).flat().map(s => s.hole), 0)}`
+              : "Round started, no scores entered"}
           </div>
           <div className="flex gap-2">
             <button
@@ -176,14 +176,14 @@ const HomeScreen = ({ onStart, activeRound, onResume, onAbandon, extraCourses, o
               className="flex-1 h-10 rounded-xl font-bold text-sm"
               style={{ background: "#22c55e", color: "#000" }}
             >
-              Продолжить
+              Continue
             </button>
             <button
               onClick={onAbandon}
               className="h-10 px-4 rounded-xl font-bold text-sm"
               style={{ background: "rgba(239,68,68,0.12)", color: "#f87171", border: "1.5px solid rgba(239,68,68,0.25)" }}
             >
-              Отмена
+              Cancel
             </button>
           </div>
         </Card>
@@ -192,11 +192,11 @@ const HomeScreen = ({ onStart, activeRound, onResume, onAbandon, extraCourses, o
       {/* ── Stats ── */}
       <div className="grid grid-cols-3 gap-3">
         <StatTile label="HCP" value={String(profile.hcp)} />
-        <StatTile label="Раундов" value={String(rounds.length)} />
-        <StatTile label="Лучший" value={rounds.length === 0 ? "—" : String(Math.min(...rounds.map((r) => r.players[0] ? (r.scores[r.players[0].id] ?? []).reduce((a, s) => a + s.score, 0) : 999)))} />
+        <StatTile label="Rounds" value={String(rounds.length)} />
+        <StatTile label="Best" value={rounds.length === 0 ? "—" : String(Math.min(...rounds.map((r) => r.players[0] ? (r.scores[r.players[0].id] ?? []).reduce((a, s) => a + s.score, 0) : 999)))} />
       </div>
 
-      {/* ── Поиск любого поля ── */}
+      {/* ── Search any course ── */}
       <button
         onClick={() => setShowSearch(true)}
         className="w-full flex items-center gap-3 p-4 rounded-xl border-2 border-dashed border-border text-left active:scale-[0.98] transition-transform"
@@ -205,7 +205,7 @@ const HomeScreen = ({ onStart, activeRound, onResume, onAbandon, extraCourses, o
           <Search className="h-5 w-5" style={{ color: "#22c55e" }} />
         </div>
         <div>
-          <div className="font-semibold text-sm">Найти любое поле</div>
+          <div className="font-semibold text-sm">Find any course</div>
           <div className="text-xs text-muted-foreground mt-0.5">Al Hamra, Wentworth, Augusta…</div>
         </div>
       </button>
@@ -216,7 +216,7 @@ const HomeScreen = ({ onStart, activeRound, onResume, onAbandon, extraCourses, o
         const lastScore = me ? (last.scores[me.id] ?? []).reduce((a, s) => a + s.score, 0) : null;
         return (
           <Card className="p-5 shadow-soft">
-            <div className="text-xs uppercase tracking-wider text-muted-foreground font-semibold mb-3">Последний раунд</div>
+            <div className="text-xs uppercase tracking-wider text-muted-foreground font-semibold mb-3">Last round</div>
             <div className="flex items-center justify-between">
               <div>
                 <div className="font-semibold">{last.courseName}</div>
@@ -224,7 +224,7 @@ const HomeScreen = ({ onStart, activeRound, onResume, onAbandon, extraCourses, o
               </div>
               <div className="text-right">
                 <div className="text-3xl font-bold text-action tabular-nums">{lastScore ?? "—"}</div>
-                <div className="text-[11px] text-muted-foreground">{new Date(last.date).toLocaleDateString("ru-RU")}</div>
+                <div className="text-[11px] text-muted-foreground">{new Date(last.date).toLocaleDateString("en-US")}</div>
               </div>
             </div>
           </Card>
@@ -260,10 +260,10 @@ const HomeScreen = ({ onStart, activeRound, onResume, onAbandon, extraCourses, o
         </div>
       </div>
 
-      {/* ── Кастомные поля (сохранённые через поиск) ── */}
+      {/* ── Saved courses ── */}
       {customCourses.length > 0 && (
         <div>
-          <div className="text-xs uppercase tracking-wider text-muted-foreground font-semibold mb-3 px-1">Сохранённые поля</div>
+          <div className="text-xs uppercase tracking-wider text-muted-foreground font-semibold mb-3 px-1">Saved courses</div>
           <div className="space-y-2">
             {customCourses.map(c => (
               <CourseRow key={c.id} course={c} onStart={() => onStart(c.id)} />
@@ -329,7 +329,7 @@ const CourseSearchSheet = ({
       if (!data.course) throw new Error("No course data");
       setFound(data.course);
     } catch {
-      setError("Не удалось загрузить поле. Проверьте название и попробуйте снова.");
+      setError("Failed to load course. Please check the name and try again.");
     } finally {
       setLoading(false);
     }
@@ -347,7 +347,7 @@ const CourseSearchSheet = ({
 
         {/* Header */}
         <div className="flex items-center justify-between px-5 pb-4">
-          <div className="text-white font-bold text-lg">Найти поле</div>
+          <div className="text-white font-bold text-lg">Find course</div>
           <button
             onClick={onClose}
             className="h-8 w-8 rounded-full grid place-items-center"
@@ -365,7 +365,7 @@ const CourseSearchSheet = ({
               <input
                 type="text"
                 autoFocus
-                placeholder="Название поля или клуба…"
+                placeholder="Course or club name…"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && search()}
@@ -379,11 +379,11 @@ const CourseSearchSheet = ({
               className="h-12 px-5 rounded-xl font-bold text-sm disabled:opacity-40 transition-opacity"
               style={{ background: "#22c55e", color: "#000" }}
             >
-              Найти
+              Find
             </button>
           </div>
           <p className="text-xs mt-2 px-1" style={{ color: "rgba(255,255,255,0.3)" }}>
-            Введите название на любом языке: «Skolkovo», «Al Hamra Golf», «Augusta National»
+            Enter name in any language: «Skolkovo», «Al Hamra Golf», «Augusta National»
           </p>
         </div>
 
@@ -391,7 +391,7 @@ const CourseSearchSheet = ({
         <div className="flex-1 overflow-y-auto px-5">
           {!found && !loading && quickCourses && quickCourses.length > 0 && (
             <div className="pb-4">
-              <div className="text-xs uppercase tracking-wider mb-2 px-1" style={{ color: "rgba(255,255,255,0.4)" }}>Поля России</div>
+              <div className="text-xs uppercase tracking-wider mb-2 px-1" style={{ color: "rgba(255,255,255,0.4)" }}>Russian courses</div>
               <div className="space-y-2">
                 {quickCourses.map((c) => (
                   <button
@@ -420,9 +420,9 @@ const CourseSearchSheet = ({
                 <div className="absolute inset-0 flex items-center justify-center text-xl">⛳</div>
               </div>
               <div className="text-center">
-                <div className="text-white font-semibold">Загружаем поле…</div>
+                <div className="text-white font-semibold">Loading course…</div>
                 <div className="text-xs mt-1" style={{ color: "rgba(255,255,255,0.4)" }}>
-                  Получаем информацию о поле
+                  Getting course info
                 </div>
               </div>
             </div>
@@ -431,7 +431,7 @@ const CourseSearchSheet = ({
           {error && !loading && (
             <div className="rounded-2xl p-4 text-center" style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.25)" }}>
               <div className="text-2xl mb-2">❌</div>
-              <div className="text-white font-semibold text-sm mb-1">Поле не найдено</div>
+              <div className="text-white font-semibold text-sm mb-1">Course not found</div>
               <div className="text-xs" style={{ color: "rgba(255,255,255,0.5)" }}>{error}</div>
             </div>
           )}
@@ -440,7 +440,7 @@ const CourseSearchSheet = ({
             <div className="space-y-4 pb-4">
               <div className="rounded-2xl overflow-hidden" style={{ background: "#2a2a2a" }}>
                 <div className="px-5 py-4">
-                  <div className="text-xs uppercase tracking-wider mb-1" style={{ color: "#22c55e" }}>Поле найдено</div>
+                  <div className="text-xs uppercase tracking-wider mb-1" style={{ color: "#22c55e" }}>Course found</div>
                   <div className="text-white font-black text-xl">{found.name}</div>
                   <div className="text-white/60 text-sm mt-0.5">{found.club}</div>
                   <div className="text-white/40 text-xs mt-1">{found.address}</div>
@@ -453,11 +453,11 @@ const CourseSearchSheet = ({
                   </div>
                   <div className="flex flex-col items-center py-3">
                     <div className="text-white font-black text-xl">{found.holes.length}</div>
-                    <div className="text-xs" style={{ color: "rgba(255,255,255,0.4)" }}>Лунок</div>
+                    <div className="text-xs" style={{ color: "rgba(255,255,255,0.4)" }}>Holes</div>
                   </div>
                   <div className="flex flex-col items-center py-3">
                     <div className="text-white font-black text-xl">{found.tees.length}</div>
-                    <div className="text-xs" style={{ color: "rgba(255,255,255,0.4)" }}>Тии</div>
+                    <div className="text-xs" style={{ color: "rgba(255,255,255,0.4)" }}>Tees</div>
                   </div>
                 </div>
 
