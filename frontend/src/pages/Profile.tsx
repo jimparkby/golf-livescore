@@ -444,7 +444,7 @@ const ProfilePage = () => {
 };
 
 const SettingsModal = ({ onClose }: { onClose: () => void }) => {
-  const { language, theme, statsMode, setLanguage, setTheme, setStatsMode } = useSettings();
+  const { language, statsMode, setLanguage, setStatsMode } = useSettings();
   const { t } = useTranslation();
 
   return (
@@ -489,35 +489,6 @@ const SettingsModal = ({ onClose }: { onClose: () => void }) => {
               )}
             >
               Русский
-            </button>
-          </div>
-        </Card>
-
-        {/* Theme */}
-        <Card className="p-4 mb-3">
-          <div className="text-xs uppercase tracking-wider text-muted-foreground font-semibold mb-3">{t.theme}</div>
-          <div className="flex gap-2">
-            <button
-              onClick={() => setTheme("dark")}
-              className={cn(
-                "flex-1 py-2.5 rounded-xl text-sm font-bold transition-all",
-                theme === "dark"
-                  ? "bg-action text-action-foreground"
-                  : "bg-secondary text-muted-foreground hover:bg-secondary/80"
-              )}
-            >
-              {t.dark}
-            </button>
-            <button
-              onClick={() => setTheme("light")}
-              className={cn(
-                "flex-1 py-2.5 rounded-xl text-sm font-bold transition-all",
-                theme === "light"
-                  ? "bg-action text-action-foreground"
-                  : "bg-secondary text-muted-foreground hover:bg-secondary/80"
-              )}
-            >
-              {t.light}
             </button>
           </div>
         </Card>
