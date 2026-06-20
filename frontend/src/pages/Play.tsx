@@ -148,8 +148,6 @@ const HomeScreen = ({ onStart, activeRound, onResume, onAbandon, extraCourses, o
   onAddCourse?: (course: Course) => void;
 }) => {
   const { rounds, profile } = useGolf();
-  const completedRounds = rounds.filter(r => r.completed);
-  const last = completedRounds.find(r => r.players.some(p => p.isMe)) ?? null;
   const [showSearch, setShowSearch] = useState(false);
 
   const russianCourses = COURSES.filter(c => RUSSIA_IDS.includes(c.id));
@@ -210,26 +208,15 @@ const HomeScreen = ({ onStart, activeRound, onResume, onAbandon, extraCourses, o
         </div>
       </button>
 
-      {/* ── Last round ── */}
-      {last && (() => {
-        const me = last.players.find(p => p.isMe) ?? last.players[0];
-        const lastScore = me ? (last.scores[me.id] ?? []).reduce((a, s) => a + s.score, 0) : null;
-        return (
-          <Card className="p-5 shadow-soft">
-            <div className="text-xs uppercase tracking-wider text-muted-foreground font-semibold mb-3">Last round</div>
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="font-semibold">{last.courseName}</div>
-                <div className="text-sm text-muted-foreground">{last.tee} · CR {last.rating} / {last.slope}</div>
-              </div>
-              <div className="text-right">
-                <div className="text-3xl font-bold text-action tabular-nums">{lastScore ?? "—"}</div>
-                <div className="text-[11px] text-muted-foreground">{new Date(last.date).toLocaleDateString("en-US")}</div>
-              </div>
-            </div>
-          </Card>
-        );
-      })()}
+      {/* ── Play button ── */}
+      <button
+        onClick={() => onStart("championship")}
+        className="w-full h-14 rounded-xl font-bold text-base flex items-center justify-center gap-3 shadow-glow active:scale-[0.98] transition-transform"
+        style={{ background: "#22c55e", color: "#000" }}
+      >
+        <Flag className="h-5 w-5" strokeWidth={2.5} />
+        Play
+      </button>
 
       {/* ── Golf Club Minsk ── */}
       <div>
@@ -259,16 +246,6 @@ const HomeScreen = ({ onStart, activeRound, onResume, onAbandon, extraCourses, o
           </button>
         </div>
       </div>
-
-      {/* ── Play button ── */}
-      <button
-        onClick={() => onStart("championship")}
-        className="w-full h-14 rounded-xl font-bold text-base flex items-center justify-center gap-3 shadow-glow active:scale-[0.98] transition-transform"
-        style={{ background: "#22c55e", color: "#000" }}
-      >
-        <Flag className="h-5 w-5" strokeWidth={2.5} />
-        Play
-      </button>
 
       {/* ── Course Search Sheet ── */}
       {showSearch && (
