@@ -260,17 +260,15 @@ const HomeScreen = ({ onStart, activeRound, onResume, onAbandon, extraCourses, o
         </div>
       </div>
 
-      {/* ── Saved courses ── */}
-      {customCourses.length > 0 && (
-        <div>
-          <div className="text-xs uppercase tracking-wider text-muted-foreground font-semibold mb-3 px-1">Saved courses</div>
-          <div className="space-y-2">
-            {customCourses.map(c => (
-              <CourseRow key={c.id} course={c} onStart={() => onStart(c.id)} />
-            ))}
-          </div>
-        </div>
-      )}
+      {/* ── Play button ── */}
+      <button
+        onClick={() => onStart("championship")}
+        className="w-full h-14 rounded-xl font-bold text-base flex items-center justify-center gap-3 shadow-glow active:scale-[0.98] transition-transform"
+        style={{ background: "#22c55e", color: "#000" }}
+      >
+        <Flag className="h-5 w-5" strokeWidth={2.5} />
+        Play
+      </button>
 
       {/* ── Course Search Sheet ── */}
       {showSearch && (
