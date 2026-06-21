@@ -1,5 +1,6 @@
 import pg from 'pg'
 const { Pool } = pg
+import { migrateTournaments } from './migrations/tournaments.js'
 
 export const db = new Pool({
   host: process.env.DB_HOST,
@@ -41,3 +42,6 @@ db.query(`CREATE TABLE IF NOT EXISTS pending_scorecards (
   expires_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() + INTERVAL '24 hours',
   status TEXT DEFAULT 'pending'
 )`).catch((err) => console.error('[db] pending_scorecards migration error:', err.message))
+
+// Run tournament migrations
+migrateTournaments().catch((err) => console.error('[db] tournament migration failed:', err.message))

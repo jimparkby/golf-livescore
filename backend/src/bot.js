@@ -3,6 +3,7 @@ import { createRequire } from 'module'
 import https from 'https'
 import { db } from './db.js'
 import { parseScorecardPhoto } from './services/scoreParser.js'
+import { setupAdminCommands } from './bot-admin.js'
 
 const require = createRequire(import.meta.url)
 
@@ -186,6 +187,10 @@ if (!token) {
       })
     }
   })
+
+  // Setup admin commands
+  setupAdminCommands(bot, downloadTelegramPhoto)
+  console.log('[bot] Admin commands registered')
 
   if (enablePolling) {
     let consecutiveErrors = 0

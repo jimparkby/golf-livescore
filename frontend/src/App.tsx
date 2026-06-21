@@ -9,7 +9,8 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import DemoPage from "./pages/Demo";
 import AuthPage from "./pages/Auth";
 import PlayPage from "./pages/Play";
-import TournamentsPage from "./pages/Tournaments";
+import TournamentsPage from "./pages/TournamentsPage";
+import TournamentDetailPage from "./pages/TournamentDetail";
 import TournamentPlayPage from "./pages/TournamentPlay";
 import CreateTournamentPage from "./pages/CreateTournament";
 import StatsPage from "./pages/Stats";
@@ -41,7 +42,8 @@ function AppRoutes() {
       <Route element={<AppLayout />}>
         <Route path="/" element={<PlayPage />} />
         <Route path="/tournaments" element={<TournamentsPage />} />
-        <Route path="/tournament/:id" element={<TournamentPlayPage />} />
+        <Route path="/tournament/:id" element={<TournamentDetailPage />} />
+        <Route path="/tournament/:id/play" element={<TournamentPlayPage />} />
         <Route path="/create-tournament" element={<CreateTournamentPage />} />
         <Route path="/stats" element={<StatsPage />} />
         <Route path="/profile" element={<ProfilePage />} />
