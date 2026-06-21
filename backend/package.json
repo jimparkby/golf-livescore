@@ -8,7 +8,8 @@
     "start": "node src/index.js",
     "start:bot": "node src/bot-standalone.js",
     "dev": "node --watch src/index.js",
-    "update-stats": "node src/scripts/update-player-stats.js"
+    "update-stats": "node src/scripts/update-player-stats.js",
+    "import-tournaments": "node src/scripts/import-tournaments.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.95.1",

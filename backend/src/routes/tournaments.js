@@ -238,4 +238,41 @@ router.delete('/:id/register', requireAuth, async (req, res) => {
   }
 })
 
+// Get tournament photo (placeholder endpoint)
+// In production, photos should be served from a CDN or storage service
+router.get('/:id/photo/:filename', async (req, res) => {
+  try {
+    const { id, filename } = req.params
+
+    // Verify tournament exists
+    const { rows } = await db.query(
+      'SELECT settings FROM tournaments WHERE id = $1',
+      [id]
+    )
+
+    if (!rows[0]) {
+      return res.status(404).json({ error: 'Tournament not found' })
+    }
+
+    const settings = rows[0].settings || {}
+    const photos = settings.photos || []
+
+    if (!photos.includes(filename)) {
+      return res.status(404).json({ error: 'Photo not found' })
+    }
+
+    // For now, return a placeholder response
+    // In production, implement actual file serving from storage
+    res.json({
+      message: 'Photo endpoint - implement file serving from storage',
+      filename,
+      tournamentId: id,
+      note: 'Store photos in S3/CloudFlare R2 and serve via CDN'
+    })
+  } catch (err) {
+    console.error('[tournaments] photo error:', err)
+    res.status(500).json({ error: 'Failed to fetch photo' })
+  }
+})
+
 export default router

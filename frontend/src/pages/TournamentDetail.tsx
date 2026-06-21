@@ -3,7 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, Trophy, TrendingUp, Users, Award, Calendar, MapPin } from "lucide-react";
+import { ArrowLeft, Trophy, TrendingUp, Users, Award, Calendar, MapPin, ImageIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface Tournament {
@@ -18,6 +18,11 @@ interface Tournament {
   format?: string;
   holes_count: number;
   entry_fee?: number;
+  settings?: {
+    photos?: string[];
+    original_date_display?: string;
+    original_day_display?: string;
+  };
 }
 
 interface Participant {
@@ -84,7 +89,16 @@ async function fetchTopPlayers(): Promise<Leaderboards> {
 const TournamentDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState("leaderboard");
+  // Set default tab based on tournament status
+  const getDefaultTab = () => {
+    if (!tournament) return "leaderboard";
+    if (tournament.status === "completed" && tournament.settings?.photos && tournament.settings.photos.length > 0) {
+      return "results";
+    }
+    return "leaderboard";
+  };
+
+  const [activeTab, setActiveTab] = useState(getDefaultTab());
 
   const { data: tournament, isLoading: tournamentLoading } = useQuery({
     queryKey: ["tournament", id],
@@ -201,7 +215,20 @@ const TournamentDetail = () => {
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className={cn(
+          "grid w-full",
+          tournament.status === "completed" && tournament.settings?.photos && tournament.settings.photos.length > 0
+            ? "grid-cols-3"
+            : tournament.status === "active" || tournament.status === "upcoming"
+            ? "grid-cols-3"
+            : "grid-cols-2"
+        )}>
+          {tournament.status === "completed" && tournament.settings?.photos && tournament.settings.photos.length > 0 && (
+            <TabsTrigger value="results">
+              <ImageIcon className="h-4 w-4 mr-2" />
+              Результаты
+            </TabsTrigger>
+          )}
           <TabsTrigger value="leaderboard">
             <Trophy className="h-4 w-4 mr-2" />
             Таблица
@@ -217,6 +244,60 @@ const TournamentDetail = () => {
             Лучшие игроки
           </TabsTrigger>
         </TabsList>
+
+        {/* Results Tab (Photos) */}
+        {tournament.status === "completed" && tournament.settings?.photos && tournament.settings.photos.length > 0 && (
+          <TabsContent value="results" className="space-y-3">
+            <Card className="p-4">
+              <div className="flex items-start gap-3 mb-4 pb-4 border-b border-border">
+                <ImageIcon className="h-5 w-5 text-blue-500 mt-0.5" />
+                <div>
+                  <h3 className="font-semibold mb-1">Фотографии результатов</h3>
+                  <p className="text-xs text-muted-foreground">
+                    {tournament.settings.photos.length} фото с результатами турнира
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 gap-4">
+                {tournament.settings.photos.map((photo, idx) => (
+                  <div key={idx} className="space-y-2">
+                    <div className="text-sm font-medium text-muted-foreground">
+                      Фото {idx + 1} из {tournament.settings!.photos!.length}
+                    </div>
+                    <div className="relative rounded-lg overflow-hidden bg-muted">
+                      <img
+                        src={`/api/tournaments/${tournament.id}/photo/${encodeURIComponent(photo)}`}
+                        alt={`Результаты ${idx + 1}`}
+                        className="w-full h-auto"
+                        onError={(e) => {
+                          // Fallback: show filename if image fails to load
+                          const target = e.target as HTMLImageElement;
+                          target.style.display = 'none';
+                          const parent = target.parentElement;
+                          if (parent) {
+                            parent.innerHTML = `
+                              <div class="p-8 text-center">
+                                <div class="text-sm text-muted-foreground">${photo}</div>
+                                <div class="text-xs text-muted-foreground mt-2">
+                                  Изображение временно недоступно
+                                </div>
+                              </div>
+                            `;
+                          }
+                        }}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="mt-4 pt-4 border-t border-border text-[11px] text-muted-foreground">
+                📸 Результаты загружены администратором турнира
+              </div>
+            </Card>
+          </TabsContent>
+        )}
 
         {/* Leaderboard Tab */}
         <TabsContent value="leaderboard" className="space-y-3">

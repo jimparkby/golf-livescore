@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { Plus, Trophy, Calendar, MapPin } from "lucide-react";
+import { TOURNAMENTS as STATIC_TOURNAMENTS } from "@/lib/tournaments";
 
 type Tier = "gold" | "platinum" | "diamond" | "closed";
 
@@ -21,6 +22,21 @@ interface Tournament {
   entry_fee?: number;
   max_participants?: number;
   registration_deadline?: string;
+  settings?: {
+    photos?: string[];
+    original_date_display?: string;
+    original_day_display?: string;
+  };
+}
+
+interface StaticTournament {
+  id: string;
+  date: string;
+  day: string;
+  name: string;
+  tier: Tier;
+  fee?: string;
+  month: string;
 }
 
 const tierColor: Record<Tier, string> = {
@@ -52,18 +68,46 @@ const statusLabel: Record<string, string> = {
 };
 
 async function fetchTournaments(): Promise<Tournament[]> {
-  const response = await fetch("/api/tournaments");
-  if (!response.ok) throw new Error("Failed to fetch tournaments");
-  return response.json();
+  try {
+    const response = await fetch("/api/tournaments");
+    if (!response.ok) throw new Error("Failed to fetch tournaments");
+    return response.json();
+  } catch (err) {
+    console.log("Failed to fetch from API, using static data");
+    return [];
+  }
 }
 
 const TournamentsPage = () => {
   const navigate = useNavigate();
 
-  const { data: tournaments = [], isLoading } = useQuery({
+  const { data: apiTournaments = [], isLoading } = useQuery({
     queryKey: ["tournaments"],
     queryFn: fetchTournaments,
   });
+
+  // Use API tournaments if available, otherwise fallback to static list
+  const tournaments = useMemo(() => {
+    if (apiTournaments.length > 0) {
+      return apiTournaments;
+    }
+
+    // Convert static tournaments to API format
+    return STATIC_TOURNAMENTS.map((t: StaticTournament) => ({
+      id: t.id,
+      name: t.name,
+      tier: t.tier,
+      status: "completed" as const,
+      start_date: new Date(2026, getMonthNumber(t.month) - 1, parseInt(t.date.split('-')[0])).toISOString(),
+      course_name: "Golf Club Minsk",
+      holes_count: 18,
+      entry_fee: t.fee ? parseFloat(t.fee) : undefined,
+      settings: {
+        original_date_display: t.date,
+        original_day_display: t.day,
+      },
+    }));
+  }, [apiTournaments]);
 
   const grouped = useMemo(() => {
     const map = new Map<string, Tournament[]>();
@@ -81,13 +125,35 @@ const TournamentsPage = () => {
     return Array.from(map.entries());
   }, [tournaments]);
 
-  const formatDate = (dateStr: string) => {
-    const date = new Date(dateStr);
+  const formatDate = (tournament: Tournament) => {
+    // Use original display if available
+    if (tournament.settings?.original_date_display && tournament.settings?.original_day_display) {
+      return {
+        date: tournament.settings.original_date_display,
+        day: tournament.settings.original_day_display,
+      };
+    }
+
+    const date = new Date(tournament.start_date);
     return {
       date: date.getDate().toString(),
       day: date.toLocaleDateString("ru-RU", { weekday: "short" }).toUpperCase(),
     };
   };
+
+  function getMonthNumber(month: string): number {
+    const months: Record<string, number> = {
+      "Апрель": 4,
+      "Май": 5,
+      "Июнь": 6,
+      "Июль": 7,
+      "Август": 8,
+      "Сентябрь": 9,
+      "Октябрь": 10,
+      "Ноябрь": 11,
+    };
+    return months[month] || 1;
+  }
 
   if (isLoading) {
     return (
@@ -144,10 +210,10 @@ const TournamentsPage = () => {
                 <div className="px-4 py-4 flex items-center gap-3">
                   <div className="w-16 shrink-0">
                     <div className="font-bold tabular-nums text-foreground text-lg leading-none">
-                      {formatDate(t.start_date).date}
+                      {formatDate(t).date}
                     </div>
                     <div className="text-[10px] uppercase tracking-wider text-muted-foreground mt-0.5">
-                      {formatDate(t.start_date).day}
+                      {formatDate(t).day}
                     </div>
                   </div>
                   <div className="flex-1 min-w-0">
@@ -202,10 +268,10 @@ const TournamentsPage = () => {
               >
                 <div className="w-16 shrink-0">
                   <div className="font-bold tabular-nums text-foreground text-lg leading-none">
-                    {formatDate(t.start_date).date}
+                    {formatDate(t).date}
                   </div>
                   <div className="text-[10px] uppercase tracking-wider text-muted-foreground mt-0.5">
-                    {formatDate(t.start_date).day}
+                    {formatDate(t).day}
                   </div>
                 </div>
                 <div className="flex-1 min-w-0">
