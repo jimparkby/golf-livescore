@@ -101,11 +101,14 @@ export function setupAdminCommands(bot) {
       if (data === 'admin_tournament_results') {
         await bot.answerCallbackQuery(query.id)
 
-        // Get list of tournaments
+        // Get list of tournaments (upcoming first, then past)
         const { rows: tournaments } = await db.query(`
           SELECT id, name, date
           FROM tournaments
-          ORDER BY date DESC
+          ORDER BY
+            CASE WHEN date >= CURRENT_DATE THEN 0 ELSE 1 END,
+            CASE WHEN date >= CURRENT_DATE THEN date END ASC,
+            CASE WHEN date < CURRENT_DATE THEN date END DESC
           LIMIT 20
         `)
 
