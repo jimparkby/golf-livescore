@@ -179,7 +179,7 @@ const StatisticsPage = () => {
                 <div className="text-right shrink-0">
                   <div className="text-lg font-bold text-action">{player.first_places}</div>
                   <div className="text-[10px] text-muted-foreground uppercase tracking-wider">
-                    {player.win_rate ? `${player.win_rate.toFixed(0)}%` : "побед"}
+                    {player.win_rate ? `${Number(player.win_rate).toFixed(0)}%` : "побед"}
                   </div>
                 </div>
               </div>

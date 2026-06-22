@@ -64,7 +64,6 @@ export function setupAdminCommands(bot) {
         reply_markup: {
           inline_keyboard: [
             [{ text: '📊 Ввести результаты турнира', callback_data: 'admin_tournament_results' }],
-            [{ text: '👥 Ввести участников', callback_data: 'admin_participants' }],
             [{ text: '🏆 Таблицы лидеров', callback_data: 'admin_leaderboards' }],
             [{ text: '🤖 AI-анализ шансов на победу', callback_data: 'admin_ai_analysis' }],
             [{ text: '❌ Закрыть', callback_data: 'admin_close' }],
@@ -182,7 +181,10 @@ export function setupAdminCommands(bot) {
           message_id: query.message.message_id,
           parse_mode: 'HTML',
           reply_markup: {
-            inline_keyboard: [[{ text: '❌ Отмена', callback_data: 'admin_back' }]],
+            inline_keyboard: [
+              [{ text: '👥 Ввести участников турнира', callback_data: 'admin_participants' }],
+              [{ text: '❌ Отмена', callback_data: 'admin_back' }],
+            ],
           },
         })
         return
@@ -192,8 +194,25 @@ export function setupAdminCommands(bot) {
       if (data === 'admin_participants') {
         await bot.answerCallbackQuery(query.id)
 
+        const currentSession = getSession(telegramId)
+        const tournamentId = currentSession?.tournamentId
+
+        if (!tournamentId) {
+          await bot.answerCallbackQuery(query.id, {
+            text: '❌ Сначала выберите турнир через "Ввести результаты турнира"',
+            show_alert: true
+          })
+          return
+        }
+
+        const { rows: [tournament] } = await db.query(
+          'SELECT id, name, date FROM tournaments WHERE id = $1',
+          [tournamentId]
+        )
+
         setSession(telegramId, {
           action: 'participants',
+          tournamentId,
           totalProcessed: 0,
           totalSaved: 0,
           photoCount: 0,
@@ -201,6 +220,8 @@ export function setupAdminCommands(bot) {
 
         const text = [
           '👥 <b>Ввод участников</b>',
+          `<b>Турнир:</b> ${tournament.name}`,
+          `<b>Дата:</b> ${new Date(tournament.date).toLocaleDateString('ru-RU')}`,
           '',
           '📸 <b>Отправьте фото списка участников (флайта)</b>',
           '',
@@ -281,7 +302,6 @@ export function setupAdminCommands(bot) {
           reply_markup: {
             inline_keyboard: [
               [{ text: '📊 Ввести результаты турнира', callback_data: 'admin_tournament_results' }],
-              [{ text: '👥 Ввести участников', callback_data: 'admin_participants' }],
               [{ text: '🏆 Таблицы лидеров', callback_data: 'admin_leaderboards' }],
               [{ text: '🤖 AI-анализ шансов на победу', callback_data: 'admin_ai_analysis' }],
               [{ text: '❌ Закрыть', callback_data: 'admin_close' }],
