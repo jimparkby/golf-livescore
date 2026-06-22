@@ -3,12 +3,53 @@
  * Analyzes player historical data to predict chances of winning upcoming tournaments
  */
 
-import Anthropic from '@anthropic-ai/sdk'
+import https from 'https'
 import db from '../db.js'
 
-const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY,
-})
+/**
+ * Call OpenRouter AI API
+ */
+async function callOpenRouterAPI(prompt, temperature = 0.3) {
+  const body = JSON.stringify({
+    model: 'anthropic/claude-3.5-sonnet',
+    messages: [{
+      role: 'user',
+      content: prompt,
+    }],
+    max_tokens: 1024,
+    temperature,
+  })
+
+  const data = await new Promise((resolve, reject) => {
+    const req = https.request({
+      hostname: 'openrouter.ai',
+      path: '/api/v1/chat/completions',
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
+        'Content-Length': Buffer.byteLength(body),
+      },
+    }, (res) => {
+      let raw = ''
+      res.on('data', c => { raw += c })
+      res.on('end', () => {
+        if (res.statusCode !== 200) return reject(new Error(`OpenRouter ${res.statusCode}: ${raw.slice(0, 300)}`))
+        try { resolve(JSON.parse(raw)) } catch { reject(new Error('OpenRouter: invalid JSON')) }
+      })
+      res.on('error', reject)
+    })
+    req.setTimeout(60000, () => req.destroy(new Error('OpenRouter timeout')))
+    req.on('error', reject)
+    req.write(body)
+    req.end()
+  })
+
+  const text = data?.choices?.[0]?.message?.content?.trim()
+  if (!text) throw new Error('OpenRouter: empty response')
+
+  return text
+}
 
 /**
  * Calculate win probability for a player in an upcoming tournament
@@ -90,19 +131,8 @@ ${tournament.name} - ${new Date(tournament.date).toLocaleDateString('ru-RU')}
   "recommendations": ["<рекомендация 1>", "<рекомендация 2>"]
 }`
 
-    // Call Claude API
-    const response = await anthropic.messages.create({
-      model: 'claude-3-5-sonnet-20241022',
-      max_tokens: 1024,
-      temperature: 0.3,
-      messages: [{
-        role: 'user',
-        content: prompt,
-      }],
-    })
-
-    // Parse AI response
-    const aiResponse = response.content[0].text
+    // Call OpenRouter API with Claude
+    const aiResponse = await callOpenRouterAPI(prompt, 0.3)
     const jsonMatch = aiResponse.match(/\{[\s\S]*\}/)
     if (!jsonMatch) {
       throw new Error('AI response not in expected JSON format')
