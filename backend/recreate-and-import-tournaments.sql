@@ -1,40 +1,23 @@
--- Fix tournaments table structure and import data
--- Step 1: Add missing 'date' column if it doesn't exist
+-- Recreate tournaments table with correct INTEGER id type and import data
+-- Safe to run because tournaments table is currently empty (0 records)
 
--- Add date column (will fail silently if exists in newer PostgreSQL)
-DO $$
-BEGIN
-    IF NOT EXISTS (
-        SELECT 1 FROM information_schema.columns
-        WHERE table_name = 'tournaments' AND column_name = 'date'
-    ) THEN
-        ALTER TABLE tournaments ADD COLUMN date DATE;
-    END IF;
-END $$;
+-- Step 1: Drop existing tournaments table if it has wrong structure
+DROP TABLE IF EXISTS tournaments CASCADE;
 
--- Step 2: Add location column if missing
-DO $$
-BEGIN
-    IF NOT EXISTS (
-        SELECT 1 FROM information_schema.columns
-        WHERE table_name = 'tournaments' AND column_name = 'location'
-    ) THEN
-        ALTER TABLE tournaments ADD COLUMN location VARCHAR(255) DEFAULT 'Golf Club Minsk';
-    END IF;
-END $$;
+-- Step 2: Create tournaments table with correct structure (INTEGER id, not UUID)
+CREATE TABLE tournaments (
+  id SERIAL PRIMARY KEY,
+  name VARCHAR(255) NOT NULL,
+  date DATE NOT NULL,
+  location VARCHAR(255) DEFAULT 'Golf Club Minsk',
+  description TEXT,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
 
--- Step 3: Add description column if missing
-DO $$
-BEGIN
-    IF NOT EXISTS (
-        SELECT 1 FROM information_schema.columns
-        WHERE table_name = 'tournaments' AND column_name = 'description'
-    ) THEN
-        ALTER TABLE tournaments ADD COLUMN description TEXT;
-    END IF;
-END $$;
+CREATE INDEX idx_tournaments_date ON tournaments(date);
 
--- Step 4: Import all tournaments for 2026 season
+-- Step 3: Import all 33 tournaments for 2026 season
 INSERT INTO tournaments (id, name, date, location, description) VALUES
   -- Апрель
   (1, 'III Весенний Кубок им. Н. Ермашова by БСБК', '2026-04-26', 'Golf Club Minsk', 'Platinum tier tournament'),
@@ -83,14 +66,11 @@ INSERT INTO tournaments (id, name, date, location, description) VALUES
   (32, 'XXI Rookie Cup', '2026-10-25', 'Golf Club Minsk', 'Gold tier'),
 
   -- Ноябрь
-  (33, 'XXII SUPER Rookie Cup', '2026-11-07', 'Golf Club Minsk', 'Gold tier - Super Rookie')
+  (33, 'XXII SUPER Rookie Cup', '2026-11-07', 'Golf Club Minsk', 'Gold tier - Super Rookie');
 
-ON CONFLICT (id) DO UPDATE SET
-  name = EXCLUDED.name,
-  date = EXCLUDED.date,
-  location = EXCLUDED.location,
-  description = EXCLUDED.description;
+-- Step 4: Reset auto-increment sequence to continue from 34
+SELECT setval('tournaments_id_seq', 33, true);
 
--- Verify import
+-- Step 5: Verify import
 SELECT COUNT(*) as total_tournaments FROM tournaments;
-SELECT id, name, date FROM tournaments ORDER BY date;
+SELECT id, name, date FROM tournaments ORDER BY date LIMIT 10;
