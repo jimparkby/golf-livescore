@@ -149,7 +149,13 @@ export function setupAdminCommands(bot) {
           return
         }
 
-        setSession(telegramId, { action: 'tournament_results', tournamentId })
+        setSession(telegramId, {
+          action: 'tournament_results',
+          tournamentId,
+          totalProcessed: 0,
+          totalSaved: 0,
+          photoCount: 0,
+        })
 
         const text = [
           `📊 <b>Ввод результатов</b>`,
@@ -164,6 +170,8 @@ export function setupAdminCommands(bot) {
           `• Общий зачет`,
           ``,
           `Бот автоматически распознает всех игроков и их результаты.`,
+          ``,
+          `💡 <i>Можно отправить несколько фото подряд</i>`,
         ].join('\n')
 
         await bot.editMessageText(text, {
@@ -181,7 +189,12 @@ export function setupAdminCommands(bot) {
       if (data === 'admin_participants') {
         await bot.answerCallbackQuery(query.id)
 
-        setSession(telegramId, { action: 'participants' })
+        setSession(telegramId, {
+          action: 'participants',
+          totalProcessed: 0,
+          totalSaved: 0,
+          photoCount: 0,
+        })
 
         const text = [
           '👥 <b>Ввод участников</b>',
@@ -195,6 +208,8 @@ export function setupAdminCommands(bot) {
           '• Разбивку по флайтам/группам',
           '',
           'Бот автоматически распознает всех участников и их данные.',
+          '',
+          '💡 <i>Можно отправить несколько фото подряд</i>',
         ].join('\n')
 
         await bot.editMessageText(text, {
@@ -205,6 +220,43 @@ export function setupAdminCommands(bot) {
             inline_keyboard: [[{ text: '❌ Отмена', callback_data: 'admin_back' }]],
           },
         })
+        return
+      }
+
+      // ── Continue adding photos ────────────────────────────────────────────
+      if (data === 'admin_continue') {
+        await bot.answerCallbackQuery(query.id, {
+          text: '📸 Отправьте следующее фото',
+          show_alert: false,
+        })
+        return
+      }
+
+      // ── Finish adding photos ──────────────────────────────────────────────
+      if (data === 'admin_finish') {
+        await bot.answerCallbackQuery(query.id)
+        const session = getSession(telegramId)
+
+        if (session) {
+          const summary = [
+            '✅ <b>Ввод завершен!</b>',
+            '',
+            `📸 Обработано фото: ${session.photoCount || 0}`,
+            `📊 Всего записей: ${session.totalProcessed || 0}`,
+            `💾 Сохранено: ${session.totalSaved || 0}`,
+          ].join('\n')
+
+          await bot.editMessageText(summary, {
+            chat_id: query.message.chat.id,
+            message_id: query.message.message_id,
+            parse_mode: 'HTML',
+            reply_markup: {
+              inline_keyboard: [[{ text: '◀️ В главное меню', callback_data: 'admin_back' }]],
+            },
+          })
+        }
+
+        clearSession(telegramId)
         return
       }
 
@@ -295,22 +347,40 @@ export function setupAdminCommands(bot) {
           }
         }
 
+        // Update session counters
+        session.photoCount = (session.photoCount || 0) + 1
+        session.totalProcessed = (session.totalProcessed || 0) + results.length
+        session.totalSaved = (session.totalSaved || 0) + saved
+        setSession(telegramId, session)
+
         const responseText = [
-          '✅ <b>Результаты сохранены!</b>',
+          '✅ <b>Фото обработано!</b>',
           '',
-          `📊 Распознано: ${results.length} записей`,
-          `💾 Сохранено: ${saved} записей`,
+          `📸 Фото: ${session.photoCount}`,
+          `📊 Распознано в этом фото: ${results.length}`,
+          `💾 Сохранено в этом фото: ${saved}`,
           '',
-          results.slice(0, 10).map(r => `${r.place}. ${r.name} — ${r.score}${r.group ? ` (${r.group})` : ''}`).join('\n'),
-          results.length > 10 ? `\n...и ещё ${results.length - 10}` : '',
+          '<b>Итого за сессию:</b>',
+          `Всего распознано: ${session.totalProcessed}`,
+          `Всего сохранено: ${session.totalSaved}`,
+          '',
+          '<i>Последние результаты:</i>',
+          results.slice(0, 5).map(r => `${r.place}. ${r.name} — ${r.score}${r.group ? ` (${r.group})` : ''}`).join('\n'),
+          results.length > 5 ? `...и ещё ${results.length - 5}` : '',
         ].filter(Boolean).join('\n')
 
         await bot.editMessageText(responseText, {
           chat_id: msg.chat.id,
           message_id: statusMsg.message_id,
           parse_mode: 'HTML',
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: '📸 Добавить ещё фото', callback_data: 'admin_continue' }],
+              [{ text: '✅ Завершить ввод', callback_data: 'admin_finish' }],
+              [{ text: '❌ Отмена', callback_data: 'admin_back' }],
+            ],
+          },
         })
-        clearSession(telegramId)
         return true
       }
 
@@ -353,27 +423,45 @@ export function setupAdminCommands(bot) {
           }
         }
 
+        // Update session counters
+        session.photoCount = (session.photoCount || 0) + 1
+        session.totalProcessed = (session.totalProcessed || 0) + participants.length
+        session.totalSaved = (session.totalSaved || 0) + saved
+        setSession(telegramId, session)
+
         const responseText = [
-          '✅ <b>Участники сохранены!</b>',
+          '✅ <b>Фото обработано!</b>',
           '',
-          `👥 Распознано: ${participants.length} участников`,
-          `💾 Сохранено: ${saved} записей`,
+          `📸 Фото: ${session.photoCount}`,
+          `👥 Распознано в этом фото: ${participants.length}`,
+          `💾 Сохранено в этом фото: ${saved}`,
           '',
-          participants.slice(0, 10).map(p => {
+          '<b>Итого за сессию:</b>',
+          `Всего распознано: ${session.totalProcessed} участников`,
+          `Всего сохранено: ${session.totalSaved}`,
+          '',
+          '<i>Последние участники:</i>',
+          participants.slice(0, 5).map(p => {
             const parts = [p.name]
             if (p.handicap > 0) parts.push(`HCP ${p.handicap}`)
             if (p.phone) parts.push(p.phone)
             return `• ${parts.join(' — ')}`
           }).join('\n'),
-          participants.length > 10 ? `\n...и ещё ${participants.length - 10}` : '',
+          participants.length > 5 ? `...и ещё ${participants.length - 5}` : '',
         ].filter(Boolean).join('\n')
 
         await bot.editMessageText(responseText, {
           chat_id: msg.chat.id,
           message_id: statusMsg.message_id,
           parse_mode: 'HTML',
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: '📸 Добавить ещё фото', callback_data: 'admin_continue' }],
+              [{ text: '✅ Завершить ввод', callback_data: 'admin_finish' }],
+              [{ text: '❌ Отмена', callback_data: 'admin_back' }],
+            ],
+          },
         })
-        clearSession(telegramId)
         return true
       }
 
