@@ -4,7 +4,7 @@
  */
 
 import https from 'https'
-import db from '../db.js'
+import { db } from '../db.js'
 
 /**
  * Call OpenRouter AI API
