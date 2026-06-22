@@ -118,10 +118,16 @@ if (!token) {
     }
   })
 
-  // ── Photo: scorecard processing ───────────────────────────────────────────
+  // ── Photo: scorecard processing + admin photo handler ─────────────────────
   bot.on('photo', async (msg) => {
     const telegramId = msg.from?.id
     if (!telegramId) return
+
+    // Check if this is admin photo session (admin handler will check internally)
+    if (bot._adminPhotoHandler) {
+      const handled = await bot._adminPhotoHandler(msg, (fileId) => downloadTelegramPhoto(bot, fileId))
+      if (handled) return // Admin handler processed it
+    }
 
     // Resolve user by telegram_id
     let user

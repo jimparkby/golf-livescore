@@ -1,4 +1,5 @@
 import { db } from './db.js'
+import { parseParticipantsPhoto, parseTournamentResultsPhoto } from './services/adminPhotoParser.js'
 
 // Load admin IDs from environment variable
 const ADMIN_IDS = (process.env.ADMIN_TELEGRAM_IDS || '')
@@ -155,15 +156,14 @@ export function setupAdminCommands(bot) {
           `<b>Турнир:</b> ${tournament.name}`,
           `<b>Дата:</b> ${new Date(tournament.date).toLocaleDateString('ru-RU')}`,
           ``,
-          `Отправьте результаты в формате:`,
-          `<code>Место,Имя игрока,Счет</code>`,
+          `📸 <b>Отправьте фото с результатами турнира</b>`,
           ``,
-          `Пример:`,
-          `<code>1,Иванов Иван,72</code>`,
-          `<code>2,Петров Петр,74</code>`,
-          `<code>3,Сидоров Сидор,75</code>`,
+          `Фото может содержать:`,
+          `• Таблицу с местами и счетами`,
+          `• Результаты по группам`,
+          `• Общий зачет`,
           ``,
-          `Или отправьте несколько строк за раз.`,
+          `Бот автоматически распознает всех игроков и их результаты.`,
         ].join('\n')
 
         await bot.editMessageText(text, {
@@ -186,14 +186,15 @@ export function setupAdminCommands(bot) {
         const text = [
           '👥 <b>Ввод участников</b>',
           '',
-          'Отправьте список участников в формате:',
-          '<code>Имя,Email,Телефон,Handicap</code>',
+          '📸 <b>Отправьте фото списка участников (флайта)</b>',
           '',
-          'Пример:',
-          '<code>Иванов Иван,ivan@example.com,+375291234567,12.5</code>',
-          '<code>Петров Петр,petr@example.com,+375297654321,18.0</code>',
+          'Фото может содержать:',
+          '• Список участников с именами',
+          '• Таблицу с гандикапами',
+          '• Контактную информацию',
+          '• Разбивку по флайтам/группам',
           '',
-          'Email и телефон необязательны (можно оставить пустым).',
+          'Бот автоматически распознает всех участников и их данные.',
         ].join('\n')
 
         await bot.editMessageText(text, {
@@ -239,124 +240,155 @@ export function setupAdminCommands(bot) {
     }
   })
 
-  // ── Text message handlers for admin sessions ──────────────────────────────
-  bot.on('message', async (msg) => {
+  // ── Photo handlers for admin sessions ─────────────────────────────────────
+  // This handler is defined inside setupAdminCommands and has access to bot
+  // Export it so bot.js can pass downloadTelegramPhoto function
+  const adminPhotoHandler = async (msg, downloadPhoto) => {
     const telegramId = msg.from?.id
-    if (!telegramId || !isAdmin(telegramId)) return
-    if (!msg.text || msg.text.startsWith('/')) return
+    if (!telegramId || !isAdmin(telegramId)) return false
+    if (!msg.photo) return false
 
     const session = getSession(telegramId)
-    if (!session) return
+    if (!session) return false
+
+    const statusMsg = await bot.sendMessage(msg.chat.id, '⏳ Распознаю фото...')
 
     try {
-      // ── Handle tournament results input ────────────────────────────────────
-      if (session.action === 'tournament_results') {
-        const lines = msg.text.trim().split('\n').filter(line => line.trim())
-        const results = []
-        const errors = []
+      // Download photo
+      const photo = msg.photo[msg.photo.length - 1]
+      const buffer = await downloadPhoto(photo.file_id)
 
-        for (const line of lines) {
-          const parts = line.split(',').map(p => p.trim())
-          if (parts.length < 3) {
-            errors.push(`Неверный формат: ${line}`)
-            continue
-          }
-
-          const [place, name, score] = parts
-          const placeNum = parseInt(place, 10)
-          const scoreNum = parseInt(score, 10)
-
-          if (isNaN(placeNum) || isNaN(scoreNum)) {
-            errors.push(`Неверные числа: ${line}`)
-            continue
-          }
-
-          results.push({ place: placeNum, name, score: scoreNum })
-        }
-
-        if (results.length === 0) {
-          await bot.sendMessage(msg.chat.id, '❌ Не удалось обработать результаты. Проверьте формат.')
-          return
-        }
-
-        // Save to database
-        for (const result of results) {
-          await db.query(
-            `INSERT INTO tournament_results (tournament_id, place, player_name, score)
-             VALUES ($1, $2, $3, $4)
-             ON CONFLICT (tournament_id, place)
-             DO UPDATE SET player_name = $3, score = $4`,
-            [session.tournamentId, result.place, result.name, result.score]
-          )
-        }
-
-        const responseText = [
-          '✅ <b>Результаты добавлены!</b>',
-          '',
-          `Обработано: ${results.length} записей`,
-          errors.length > 0 ? `\n❌ Ошибки: ${errors.length}` : '',
-          errors.length > 0 ? errors.join('\n') : '',
-        ].filter(Boolean).join('\n')
-
-        await bot.sendMessage(msg.chat.id, responseText, { parse_mode: 'HTML' })
-        clearSession(telegramId)
-        return
+      if (!buffer) {
+        await bot.editMessageText('❌ Не удалось загрузить фото. Попробуйте ещё раз.', {
+          chat_id: msg.chat.id,
+          message_id: statusMsg.message_id,
+        })
+        return true
       }
 
-      // ── Handle participants input ──────────────────────────────────────────
-      if (session.action === 'participants') {
-        const lines = msg.text.trim().split('\n').filter(line => line.trim())
-        const participants = []
-        const errors = []
+      // ── Handle tournament results photo ────────────────────────────────────
+      if (session.action === 'tournament_results') {
+        const { results } = await parseTournamentResultsPhoto(buffer)
 
-        for (const line of lines) {
-          const parts = line.split(',').map(p => p.trim())
-          if (parts.length < 1) {
-            errors.push(`Неверный формат: ${line}`)
-            continue
-          }
-
-          const [name, email = '', phone = '', handicap = '0'] = parts
-          const handicapNum = parseFloat(handicap) || 0
-
-          participants.push({ name, email, phone, handicap: handicapNum })
-        }
-
-        if (participants.length === 0) {
-          await bot.sendMessage(msg.chat.id, '❌ Не удалось обработать участников. Проверьте формат.')
-          return
+        if (results.length === 0) {
+          await bot.editMessageText('❌ Не удалось распознать результаты. Убедитесь, что фото чёткое и содержит таблицу результатов.', {
+            chat_id: msg.chat.id,
+            message_id: statusMsg.message_id,
+          })
+          return true
         }
 
         // Save to database
-        for (const p of participants) {
-          await db.query(
-            `INSERT INTO participants (name, email, phone, handicap)
-             VALUES ($1, $2, $3, $4)
-             ON CONFLICT (email)
-             DO UPDATE SET name = $1, phone = $3, handicap = $4
-             WHERE participants.email != ''`,
-            [p.name, p.email || null, p.phone || null, p.handicap]
-          )
+        let saved = 0
+        for (const result of results) {
+          try {
+            await db.query(
+              `INSERT INTO tournament_results (tournament_id, place, player_name, score, group_name)
+               VALUES ($1, $2, $3, $4, $5)
+               ON CONFLICT (tournament_id, place, group_name)
+               DO UPDATE SET player_name = $3, score = $4`,
+              [session.tournamentId, result.place, result.name, result.score, result.group]
+            )
+            saved++
+          } catch (err) {
+            console.error('[bot-admin] Save result error:', err.message)
+          }
         }
 
         const responseText = [
-          '✅ <b>Участники добавлены!</b>',
+          '✅ <b>Результаты сохранены!</b>',
           '',
-          `Обработано: ${participants.length} записей`,
-          errors.length > 0 ? `\n❌ Ошибки: ${errors.length}` : '',
-          errors.length > 0 ? errors.join('\n') : '',
+          `📊 Распознано: ${results.length} записей`,
+          `💾 Сохранено: ${saved} записей`,
+          '',
+          results.slice(0, 10).map(r => `${r.place}. ${r.name} — ${r.score}${r.group ? ` (${r.group})` : ''}`).join('\n'),
+          results.length > 10 ? `\n...и ещё ${results.length - 10}` : '',
         ].filter(Boolean).join('\n')
 
-        await bot.sendMessage(msg.chat.id, responseText, { parse_mode: 'HTML' })
+        await bot.editMessageText(responseText, {
+          chat_id: msg.chat.id,
+          message_id: statusMsg.message_id,
+          parse_mode: 'HTML',
+        })
         clearSession(telegramId)
-        return
+        return true
+      }
+
+      // ── Handle participants photo ──────────────────────────────────────────
+      if (session.action === 'participants') {
+        const { participants } = await parseParticipantsPhoto(buffer)
+
+        if (participants.length === 0) {
+          await bot.editMessageText('❌ Не удалось распознать участников. Убедитесь, что фото чёткое и содержит список участников.', {
+            chat_id: msg.chat.id,
+            message_id: statusMsg.message_id,
+          })
+          return true
+        }
+
+        // Save to database
+        let saved = 0
+        for (const p of participants) {
+          try {
+            await db.query(
+              `INSERT INTO participants (name, email, phone, handicap)
+               VALUES ($1, $2, $3, $4)
+               ON CONFLICT (email)
+               DO UPDATE SET name = $1, phone = $3, handicap = $4
+               WHERE participants.email IS NOT NULL AND participants.email != ''`,
+              [p.name, p.email, p.phone, p.handicap]
+            )
+            saved++
+          } catch (err) {
+            // If no email, try insert without conflict handling
+            try {
+              await db.query(
+                `INSERT INTO participants (name, email, phone, handicap) VALUES ($1, $2, $3, $4)`,
+                [p.name, p.email, p.phone, p.handicap]
+              )
+              saved++
+            } catch (err2) {
+              console.error('[bot-admin] Save participant error:', err2.message)
+            }
+          }
+        }
+
+        const responseText = [
+          '✅ <b>Участники сохранены!</b>',
+          '',
+          `👥 Распознано: ${participants.length} участников`,
+          `💾 Сохранено: ${saved} записей`,
+          '',
+          participants.slice(0, 10).map(p => {
+            const parts = [p.name]
+            if (p.handicap > 0) parts.push(`HCP ${p.handicap}`)
+            if (p.phone) parts.push(p.phone)
+            return `• ${parts.join(' — ')}`
+          }).join('\n'),
+          participants.length > 10 ? `\n...и ещё ${participants.length - 10}` : '',
+        ].filter(Boolean).join('\n')
+
+        await bot.editMessageText(responseText, {
+          chat_id: msg.chat.id,
+          message_id: statusMsg.message_id,
+          parse_mode: 'HTML',
+        })
+        clearSession(telegramId)
+        return true
       }
 
     } catch (err) {
-      console.error('[bot-admin] message handler error:', err.message)
-      await bot.sendMessage(msg.chat.id, `❌ Ошибка: ${err.message}`)
+      console.error('[bot-admin] photo handler error:', err.message)
+      await bot.editMessageText(`❌ Ошибка обработки: ${err.message}`, {
+        chat_id: msg.chat.id,
+        message_id: statusMsg.message_id,
+      })
+      return true // Still handled, just with error
     }
-  })
+  }
+
+  // Export the handler so bot.js can call it
+  bot._adminPhotoHandler = adminPhotoHandler
 }
 
 export { isAdmin }

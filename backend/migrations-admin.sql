@@ -8,9 +8,10 @@ CREATE TABLE IF NOT EXISTS tournament_results (
   place INTEGER NOT NULL,
   player_name VARCHAR(255) NOT NULL,
   score INTEGER NOT NULL,
+  group_name VARCHAR(255),
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  UNIQUE(tournament_id, place)
+  UNIQUE(tournament_id, place, COALESCE(group_name, ''))
 );
 
 CREATE INDEX IF NOT EXISTS idx_tournament_results_tournament_id
