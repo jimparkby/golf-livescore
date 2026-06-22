@@ -582,26 +582,25 @@ export function setupAdminCommands(bot) {
         let saved = 0
         for (const p of participants) {
           try {
-            await db.query(
-              `INSERT INTO participants (name, email, phone, handicap)
-               VALUES ($1, $2, $3, $4)
-               ON CONFLICT (email)
-               DO UPDATE SET name = $1, phone = $3, handicap = $4
-               WHERE participants.email IS NOT NULL AND participants.email != ''`,
-              [p.name, p.email, p.phone, p.handicap]
-            )
-            saved++
-          } catch (err) {
-            // If no email, try insert without conflict handling
-            try {
+            if (p.email && p.email.trim().length > 0) {
+              // If email exists, use ON CONFLICT
               await db.query(
-                `INSERT INTO participants (name, email, phone, handicap) VALUES ($1, $2, $3, $4)`,
+                `INSERT INTO participants (name, email, phone, handicap)
+                 VALUES ($1, $2, $3, $4)
+                 ON CONFLICT (email)
+                 DO UPDATE SET name = $1, phone = $3, handicap = $4`,
                 [p.name, p.email, p.phone, p.handicap]
               )
-              saved++
-            } catch (err2) {
-              console.error('[bot-admin] Save participant error:', err2.message)
+            } else {
+              // If no email, just insert (multiple NULL emails are allowed)
+              await db.query(
+                `INSERT INTO participants (name, email, phone, handicap) VALUES ($1, $2, $3, $4)`,
+                [p.name, null, p.phone, p.handicap]
+              )
             }
+            saved++
+          } catch (err) {
+            console.error('[bot-admin] Save participant error:', err.message)
           }
         }
 
