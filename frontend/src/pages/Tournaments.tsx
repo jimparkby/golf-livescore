@@ -1,17 +1,9 @@
 import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { TOURNAMENTS, TIER_LABELS, type Tier } from "@/lib/tournaments";
+import { TOURNAMENTS } from "@/lib/tournaments";
 import { getTournamentData } from "@/lib/tournament-data";
 import { Card } from "@/components/ui/card";
-import { cn } from "@/lib/utils";
 import { Plus, Image } from "lucide-react";
-
-const tierColor: Record<Tier, string> = {
-  gold:     "bg-tier-gold",
-  platinum: "bg-tier-platinum",
-  diamond:  "bg-tier-diamond",
-  closed:   "bg-tier-closed",
-};
 
 const TournamentsPage = () => {
   const navigate = useNavigate();
@@ -73,37 +65,11 @@ const TournamentsPage = () => {
                     </div>
                   )}
                 </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  <div
-                    title={TIER_LABELS[t.tier]}
-                    className={cn("h-7 w-7 rounded-full grid place-items-center text-[8px] font-bold text-primary-foreground shadow-soft", tierColor[t.tier])}
-                  >
-                    {t.tier === "gold" && "G"}
-                    {t.tier === "platinum" && "PL"}
-                    {t.tier === "diamond" && "◆"}
-                    {t.tier === "closed" && "C"}
-                  </div>
-                  {t.fee && <div className="text-xs font-semibold tabular-nums text-foreground">{t.fee}</div>}
-                </div>
               </div>
             ))}
           </div>
         </Card>
       ))}
-
-      {/* Legend */}
-      <Card className="p-4 shadow-soft">
-        <div className="text-xs uppercase tracking-wider font-semibold text-muted-foreground mb-3">Tournament Status</div>
-        <div className="grid grid-cols-2 gap-3 text-sm">
-          {(Object.keys(TIER_LABELS) as Tier[]).map((tier) => (
-            <div key={tier} className="flex items-center gap-2">
-              <div className={cn("h-5 w-5 rounded-full shrink-0", tierColor[tier])} />
-              <span className="text-foreground">{TIER_LABELS[tier]}</span>
-            </div>
-          ))}
-        </div>
-        <div className="text-[11px] text-muted-foreground mt-3">*Tournament date is subject to change</div>
-      </Card>
     </div>
   );
 };

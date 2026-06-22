@@ -1,17 +1,10 @@
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Calendar, MapPin, Trophy, Award, Image as ImageIcon } from "lucide-react";
-import { TOURNAMENTS, TIER_LABELS, type Tier } from "@/lib/tournaments";
+import { ArrowLeft, Calendar, MapPin, Award, Image as ImageIcon, Trophy } from "lucide-react";
+import { TOURNAMENTS } from "@/lib/tournaments";
 import { getTournamentData } from "@/lib/tournament-data";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
-
-const tierColor: Record<Tier, string> = {
-  gold: "bg-tier-gold",
-  platinum: "bg-tier-platinum",
-  diamond: "bg-tier-diamond",
-  closed: "bg-tier-closed",
-};
 
 type Tab = "info" | "results" | "nominations" | "photos";
 
@@ -115,17 +108,6 @@ const TournamentInfoPage = () => {
       {activeTab === "info" && (
         <Card className="p-5 shadow-soft">
           <div className="flex items-start gap-4">
-            <div
-              className={cn(
-                "h-16 w-16 rounded-2xl grid place-items-center text-2xl font-bold text-primary-foreground shadow-lg shrink-0",
-                tierColor[tournament.tier]
-              )}
-            >
-              {tournament.tier === "gold" && "G"}
-              {tournament.tier === "platinum" && "PL"}
-              {tournament.tier === "diamond" && "◆"}
-              {tournament.tier === "closed" && "C"}
-            </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-start gap-2 mb-3">
                 <Calendar className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />
@@ -136,19 +118,7 @@ const TournamentInfoPage = () => {
                 </div>
               </div>
 
-              <div className="flex items-start gap-2 mb-3">
-                <Trophy className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />
-                <div>
-                  <div className="text-xs text-muted-foreground uppercase tracking-wider mb-0.5">
-                    Тип турнира
-                  </div>
-                  <div className="text-sm font-semibold text-foreground">
-                    {TIER_LABELS[tournament.tier]}
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-2 mb-3">
+              <div className="flex items-start gap-2">
                 <MapPin className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />
                 <div>
                   <div className="text-xs text-muted-foreground uppercase tracking-wider mb-0.5">
@@ -157,18 +127,6 @@ const TournamentInfoPage = () => {
                   <div className="text-sm font-semibold text-foreground">Golf Club Minsk</div>
                 </div>
               </div>
-
-              {tournament.fee && (
-                <div className="flex items-start gap-2">
-                  <div className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0 font-bold text-xs">€</div>
-                  <div>
-                    <div className="text-xs text-muted-foreground uppercase tracking-wider mb-0.5">
-                      Взнос
-                    </div>
-                    <div className="text-sm font-semibold text-foreground">{tournament.fee}M BYN</div>
-                  </div>
-                </div>
-              )}
             </div>
           </div>
         </Card>
