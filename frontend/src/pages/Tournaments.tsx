@@ -1,9 +1,10 @@
 import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { TOURNAMENTS, TIER_LABELS, type Tier } from "@/lib/tournaments";
+import { getTournamentData } from "@/lib/tournament-data";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
-import { Plus } from "lucide-react";
+import { Plus, Image } from "lucide-react";
 
 const tierColor: Record<Tier, string> = {
   gold:     "bg-tier-gold",
@@ -52,13 +53,25 @@ const TournamentsPage = () => {
           </div>
           <div className="divide-y divide-border">
             {items.map((t) => (
-              <div key={t.id} className="px-4 py-3 flex items-center gap-3">
+              <div
+                key={t.id}
+                onClick={() => navigate(`/tournament-info/${t.id}`)}
+                className="px-4 py-3 flex items-center gap-3 cursor-pointer hover:bg-muted/30 active:bg-muted/50 transition-colors"
+              >
                 <div className="w-16 shrink-0">
                   <div className="font-bold tabular-nums text-foreground text-lg leading-none">{t.date}</div>
                   <div className="text-[10px] uppercase tracking-wider text-muted-foreground mt-0.5">{t.day}</div>
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="text-sm font-medium leading-snug">{t.name}</div>
+                  {getTournamentData(t.id) && (
+                    <div className="flex items-center gap-1 mt-1">
+                      <Image className="h-3 w-3 text-action" />
+                      <span className="text-[10px] text-action font-semibold uppercase tracking-wider">
+                        Результаты
+                      </span>
+                    </div>
+                  )}
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                   <div
