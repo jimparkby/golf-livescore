@@ -1,5 +1,6 @@
 import { db } from './db.js'
 import { parseParticipantsPhoto, parseTournamentResultsPhoto } from './services/adminPhotoParser.js'
+import { calculateWinProbability, getLeaderboards, getPlayerProfile } from './services/winProbabilityAI.js'
 
 // Load admin IDs from environment variable
 const ADMIN_IDS = (process.env.ADMIN_TELEGRAM_IDS || '')
@@ -64,6 +65,8 @@ export function setupAdminCommands(bot) {
           inline_keyboard: [
             [{ text: '📊 Ввести результаты турнира', callback_data: 'admin_tournament_results' }],
             [{ text: '👥 Ввести участников', callback_data: 'admin_participants' }],
+            [{ text: '🏆 Таблицы лидеров', callback_data: 'admin_leaderboards' }],
+            [{ text: '🤖 AI-анализ шансов на победу', callback_data: 'admin_ai_analysis' }],
             [{ text: '❌ Закрыть', callback_data: 'admin_close' }],
           ],
         },
@@ -279,10 +282,169 @@ export function setupAdminCommands(bot) {
             inline_keyboard: [
               [{ text: '📊 Ввести результаты турнира', callback_data: 'admin_tournament_results' }],
               [{ text: '👥 Ввести участников', callback_data: 'admin_participants' }],
+              [{ text: '🏆 Таблицы лидеров', callback_data: 'admin_leaderboards' }],
+              [{ text: '🤖 AI-анализ шансов на победу', callback_data: 'admin_ai_analysis' }],
               [{ text: '❌ Закрыть', callback_data: 'admin_close' }],
             ],
           },
         })
+        return
+      }
+
+      // ── Leaderboards ───────────────────────────────────────────────────────
+      if (data === 'admin_leaderboards') {
+        await bot.answerCallbackQuery(query.id)
+
+        try {
+          const { topByWins, topByHcp } = await getLeaderboards()
+
+          let text = '🏆 <b>Таблицы лидеров</b>\n\n'
+
+          // Top by wins
+          text += '<b>🥇 Топ-10 по победам:</b>\n'
+          topByWins.slice(0, 10).forEach((p, i) => {
+            const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}.`
+            text += `${medal} <b>${p.player_name}</b>\n`
+            text += `   Побед: ${p.first_places} | Турниров: ${p.total_tournaments} | Win rate: ${p.win_rate}%\n`
+          })
+
+          text += '\n<b>🎯 Топ-10 по HCP:</b>\n'
+          topByHcp.slice(0, 10).forEach((p, i) => {
+            const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}.`
+            text += `${medal} <b>${p.player_name}</b>\n`
+            text += `   HCP: ${p.estimated_hcp} | Top-3: ${p.top3_finishes}\n`
+          })
+
+          await bot.editMessageText(text, {
+            chat_id: query.message.chat.id,
+            message_id: query.message.message_id,
+            parse_mode: 'HTML',
+            reply_markup: {
+              inline_keyboard: [[{ text: '◀️ Назад', callback_data: 'admin_back' }]],
+            },
+          })
+        } catch (err) {
+          console.error('[bot-admin] Leaderboards error:', err)
+          await bot.answerCallbackQuery(query.id, { text: '❌ Ошибка загрузки статистики', show_alert: true })
+        }
+        return
+      }
+
+      // ── AI Analysis ────────────────────────────────────────────────────────
+      if (data === 'admin_ai_analysis') {
+        await bot.answerCallbackQuery(query.id)
+
+        // Get upcoming tournaments
+        const { rows: tournaments } = await db.query(`
+          SELECT id, name, date
+          FROM tournaments
+          WHERE date >= CURRENT_DATE
+          ORDER BY date ASC
+          LIMIT 10
+        `)
+
+        if (tournaments.length === 0) {
+          await bot.editMessageText('❌ Нет предстоящих турниров для анализа.', {
+            chat_id: query.message.chat.id,
+            message_id: query.message.message_id,
+            reply_markup: {
+              inline_keyboard: [[{ text: '◀️ Назад', callback_data: 'admin_back' }]],
+            },
+          })
+          return
+        }
+
+        const keyboard = tournaments.map(t => [{
+          text: `${t.name} (${new Date(t.date).toLocaleDateString('ru-RU')})`,
+          callback_data: `admin_ai_tournament_${t.id}`,
+        }])
+        keyboard.push([{ text: '◀️ Назад', callback_data: 'admin_back' }])
+
+        await bot.editMessageText('🤖 <b>AI-анализ шансов на победу</b>\n\nВыберите турнир:', {
+          chat_id: query.message.chat.id,
+          message_id: query.message.message_id,
+          parse_mode: 'HTML',
+          reply_markup: { inline_keyboard: keyboard },
+        })
+        return
+      }
+
+      // ── AI Analysis for specific tournament ───────────────────────────────
+      if (data?.startsWith('admin_ai_tournament_')) {
+        const tournamentId = parseInt(data.replace('admin_ai_tournament_', ''), 10)
+        await bot.answerCallbackQuery(query.id)
+
+        const statusMsg = await bot.editMessageText('⏳ Запускаю AI-анализ... Это может занять минуту.', {
+          chat_id: query.message.chat.id,
+          message_id: query.message.message_id,
+        })
+
+        try {
+          // Get top players to analyze
+          const { rows: players } = await db.query(`
+            SELECT player_name FROM player_statistics
+            WHERE total_tournaments >= 2
+            ORDER BY first_places DESC, total_tournaments DESC
+            LIMIT 10
+          `)
+
+          if (players.length === 0) {
+            await bot.editMessageText('❌ Недостаточно данных для анализа. Добавьте результаты турниров.', {
+              chat_id: query.message.chat.id,
+              message_id: query.message.message_id,
+              reply_markup: {
+                inline_keyboard: [[{ text: '◀️ Назад', callback_data: 'admin_back' }]],
+              },
+            })
+            return
+          }
+
+          let results = []
+          for (const player of players) {
+            try {
+              const prob = await calculateWinProbability(player.player_name, tournamentId)
+              results.push(prob)
+              await new Promise(resolve => setTimeout(resolve, 500)) // Rate limiting
+            } catch (err) {
+              console.error(`[bot-admin] AI analysis error for ${player.player_name}:`, err)
+            }
+          }
+
+          // Sort by probability
+          results.sort((a, b) => (b.probability || 0) - (a.probability || 0))
+
+          let text = `🤖 <b>AI-Анализ шансов на победу</b>\n<b>${results[0]?.tournament || 'Турнир'}</b>\n\n`
+
+          results.slice(0, 10).forEach((r, i) => {
+            if (r.probability !== null) {
+              const emoji = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}.`
+              const confidence = r.confidence === 'high' ? '🟢' : r.confidence === 'medium' ? '🟡' : '🔴'
+              text += `${emoji} <b>${r.playerName}</b>\n`
+              text += `   Шанс: ${r.probability}% ${confidence}\n`
+              text += `   ${r.analysis}\n\n`
+            }
+          })
+
+          text += '<i>Уверенность: 🟢 высокая 🟡 средняя 🔴 низкая</i>'
+
+          await bot.editMessageText(text, {
+            chat_id: query.message.chat.id,
+            message_id: query.message.message_id,
+            parse_mode: 'HTML',
+            reply_markup: {
+              inline_keyboard: [[{ text: '◀️ Назад', callback_data: 'admin_ai_analysis' }]],
+            },
+          })
+        } catch (err) {
+          console.error('[bot-admin] AI analysis error:', err)
+          await bot.editMessageText('❌ Ошибка AI-анализа: ' + err.message, {
+            chat_id: query.message.chat.id,
+            message_id: query.message.message_id,
+            reply_markup: {
+              inline_keyboard: [[{ text: '◀️ Назад', callback_data: 'admin_back' }]],
+            },
+          })
+        }
         return
       }
 

@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { TOURNAMENTS } from "@/lib/tournaments";
 import { getTournamentData } from "@/lib/tournament-data";
 import { Card } from "@/components/ui/card";
-import { Plus, Image } from "lucide-react";
+import { Plus, Image, Trophy } from "lucide-react";
 
 const TournamentsPage = () => {
   const navigate = useNavigate();
@@ -27,13 +27,22 @@ const TournamentsPage = () => {
           <h1 className="text-3xl font-bold mt-1">Tournaments 2026</h1>
           <p className="text-sm text-muted-foreground mt-1">Golf Club Minsk · {TOURNAMENTS.length} events</p>
         </div>
-        <button
-          onClick={() => navigate("/create-tournament")}
-          className="flex items-center gap-1.5 h-10 px-4 rounded-xl font-bold text-sm mt-1 shrink-0"
-          style={{ background: "rgba(34,197,94,0.12)", border: "1.5px solid rgba(34,197,94,0.3)", color: "#22c55e" }}
-        >
-          <Plus className="h-4 w-4" strokeWidth={2.5} /> Создать
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => navigate("/statistics")}
+            className="flex items-center gap-1.5 h-10 px-4 rounded-xl font-bold text-sm mt-1 shrink-0"
+            style={{ background: "rgba(234,179,8,0.12)", border: "1.5px solid rgba(234,179,8,0.3)", color: "#eab308" }}
+          >
+            <Trophy className="h-4 w-4" strokeWidth={2.5} /> Результаты
+          </button>
+          <button
+            onClick={() => navigate("/create-tournament")}
+            className="flex items-center gap-1.5 h-10 px-4 rounded-xl font-bold text-sm mt-1 shrink-0"
+            style={{ background: "rgba(34,197,94,0.12)", border: "1.5px solid rgba(34,197,94,0.3)", color: "#22c55e" }}
+          >
+            <Plus className="h-4 w-4" strokeWidth={2.5} /> Создать
+          </button>
+        </div>
       </div>
 
 
