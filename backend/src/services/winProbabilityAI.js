@@ -104,7 +104,7 @@ export async function calculateWinProbability(playerName, tournamentId) {
 - Вторых мест: ${playerStats.second_places}
 - Третьих мест: ${playerStats.third_places}
 - Top-3 финишей: ${playerStats.top3_finishes}
-- Средее место: ${playerStats.average_place ? playerStats.average_place.toFixed(1) : 'н/д'}
+- Средее место: ${playerStats.average_place ? Number(playerStats.average_place).toFixed(1) : 'н/д'}
 - Лучший результат (net): ${playerStats.best_net || 'н/д'}
 - Оценочный HCP: ${playerStats.estimated_hcp || 'н/д'}
 

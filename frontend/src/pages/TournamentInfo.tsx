@@ -232,7 +232,7 @@ const TournamentInfoPage = () => {
                     : "bg-muted/50 text-muted-foreground hover:bg-muted"
                 )}
               >
-                AI Прогноз
+                Наш прогноз
               </button>
             </>
           )}
@@ -396,7 +396,7 @@ const TournamentInfoPage = () => {
             <div className="flex items-center gap-2">
               <Brain className="h-4 w-4 text-action" />
               <div className="text-sm font-bold text-foreground">
-                AI Прогноз шансов на победу
+                Наш прогноз шансов на победу
               </div>
             </div>
             <div className="text-xs text-muted-foreground mt-1">

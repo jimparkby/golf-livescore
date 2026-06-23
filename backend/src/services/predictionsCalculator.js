@@ -51,10 +51,21 @@ async function downloadTelegramPhoto(fileId) {
   }
 }
 
+// Track running calculations to prevent duplicates
+const runningCalculations = new Set()
+
 /**
  * Calculate and save predictions for a tournament (background job)
  */
 export async function calculateAndSavePredictions(tournamentId) {
+  // Prevent duplicate calculations
+  if (runningCalculations.has(tournamentId)) {
+    console.log(`[predictionsCalc] Calculation already running for tournament ${tournamentId}`)
+    return
+  }
+
+  runningCalculations.add(tournamentId)
+
   try {
     console.log(`[predictionsCalc] Starting calculation for tournament ${tournamentId}`)
 
@@ -129,5 +140,7 @@ export async function calculateAndSavePredictions(tournamentId) {
     console.log(`[predictionsCalc] Completed: ${calculated}/${uniqueNames.length} predictions saved`)
   } catch (error) {
     console.error('[predictionsCalc] Calculation error:', error)
+  } finally {
+    runningCalculations.delete(tournamentId)
   }
 }
