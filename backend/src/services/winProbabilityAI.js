@@ -11,7 +11,7 @@ import { db } from '../db.js'
  */
 async function callOpenRouterAPI(prompt, temperature = 0.3) {
   const body = JSON.stringify({
-    model: 'anthropic/claude-3.7-sonnet',
+    model: 'openai/gpt-4o',
     messages: [{
       role: 'user',
       content: prompt,
