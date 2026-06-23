@@ -23,8 +23,13 @@ app.use(express.json({ limit: '10mb' }))
 
 // Telegram webhook — must be before other routes
 app.post('/bot-webhook', (req, res) => {
+  console.log('[webhook] Received update:', JSON.stringify(req.body).slice(0, 200))
   res.sendStatus(200)
-  processUpdate(req.body)
+  try {
+    processUpdate(req.body)
+  } catch (err) {
+    console.error('[webhook] Error processing update:', err.message)
+  }
 })
 
 app.use('/api/auth', authRouter)

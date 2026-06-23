@@ -221,7 +221,12 @@ if (!token) {
 }
 
 export function processUpdate(update) {
-  if (bot) bot.processUpdate(update)
+  if (!bot) {
+    console.warn('[bot] processUpdate called but bot is null')
+    return
+  }
+  console.log('[bot] Processing update:', update.message?.text || update.callback_query?.data || 'photo/other')
+  bot.processUpdate(update)
 }
 
 export { bot }
