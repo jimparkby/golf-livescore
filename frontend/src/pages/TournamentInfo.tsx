@@ -1,21 +1,45 @@
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Calendar, MapPin, Award, Image as ImageIcon, Trophy } from "lucide-react";
+import { ArrowLeft, Calendar, MapPin, Award, Image as ImageIcon, Trophy, Users } from "lucide-react";
 import { TOURNAMENTS } from "@/lib/tournaments";
 import { getTournamentData } from "@/lib/tournament-data";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
-type Tab = "info" | "results" | "nominations" | "photos";
+type Tab = "info" | "results" | "nominations" | "photos" | "flights";
 
 const TournamentInfoPage = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<Tab>("info");
   const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
+  const [flightsPhotos, setFlightsPhotos] = useState<string[]>([]);
+  const [loadingFlights, setLoadingFlights] = useState(false);
 
   const tournament = TOURNAMENTS.find((t) => t.id === id);
   const tournamentData = id ? getTournamentData(id) : null;
+
+  // Load flights photos from API
+  useEffect(() => {
+    const loadFlightsPhotos = async () => {
+      if (!id) return;
+
+      setLoadingFlights(true);
+      try {
+        const response = await fetch(`/api/tournaments/${id}/flights-photos`);
+        if (response.ok) {
+          const data = await response.json();
+          setFlightsPhotos(data.photos || []);
+        }
+      } catch (error) {
+        console.error("Error loading flights photos:", error);
+      } finally {
+        setLoadingFlights(false);
+      }
+    };
+
+    loadFlightsPhotos();
+  }, [id]);
 
   if (!tournament) {
     return (
@@ -101,6 +125,19 @@ const TournamentInfoPage = () => {
           >
             Фотогалерея
           </button>
+          {flightsPhotos.length > 0 && (
+            <button
+              onClick={() => setActiveTab("flights")}
+              className={cn(
+                "px-4 py-2 rounded-lg text-sm font-semibold whitespace-nowrap transition-colors",
+                activeTab === "flights"
+                  ? "bg-action text-primary-foreground"
+                  : "bg-muted/50 text-muted-foreground hover:bg-muted"
+              )}
+            >
+              Флайты
+            </button>
+          )}
         </div>
       )}
 
@@ -251,6 +288,51 @@ const TournamentInfoPage = () => {
               ))}
             </div>
           </div>
+        </Card>
+      )}
+
+      {/* Flights Tab */}
+      {activeTab === "flights" && (
+        <Card className="overflow-hidden shadow-soft">
+          <div className="px-4 py-3 bg-muted/50 border-b border-border">
+            <div className="flex items-center gap-2">
+              <Users className="h-4 w-4 text-action" />
+              <div className="text-sm font-bold text-foreground">
+                Флайты ({flightsPhotos.length})
+              </div>
+            </div>
+          </div>
+          {loadingFlights ? (
+            <div className="p-8 text-center text-muted-foreground text-sm">
+              Загрузка...
+            </div>
+          ) : flightsPhotos.length === 0 ? (
+            <div className="p-8 text-center text-muted-foreground text-sm">
+              Фото флайтов пока не загружены
+            </div>
+          ) : (
+            <div className="p-4">
+              <div className="grid grid-cols-1 gap-3">
+                {flightsPhotos.map((fileId, idx) => (
+                  <div
+                    key={idx}
+                    onClick={() => setSelectedPhoto(`/api/tournaments/telegram-photo/${fileId}`)}
+                    className="rounded-xl overflow-hidden bg-muted/30 cursor-pointer hover:opacity-90 transition-opacity"
+                  >
+                    <img
+                      src={`/api/tournaments/telegram-photo/${fileId}`}
+                      alt={`Флайт ${idx + 1}`}
+                      className="w-full h-auto"
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement;
+                        target.src = "/placeholder.svg";
+                      }}
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </Card>
       )}
 

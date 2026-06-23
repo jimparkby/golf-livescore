@@ -64,6 +64,7 @@ export function setupAdminCommands(bot) {
         reply_markup: {
           inline_keyboard: [
             [{ text: '📊 Ввести результаты турнира', callback_data: 'admin_tournament_results' }],
+            [{ text: '🗑️ Удалить фото флайтов', callback_data: 'admin_manage_flights' }],
             [{ text: '🏆 Таблицы лидеров', callback_data: 'admin_leaderboards' }],
             [{ text: '🤖 AI-анализ шансов на победу', callback_data: 'admin_ai_analysis' }],
             [{ text: '❌ Закрыть', callback_data: 'admin_close' }],
@@ -94,6 +95,141 @@ export function setupAdminCommands(bot) {
         clearSession(telegramId)
         await bot.answerCallbackQuery(query.id)
         await bot.deleteMessage(query.message.chat.id, query.message.message_id)
+        return
+      }
+
+      // ── Manage flights photos ──────────────────────────────────────────────
+      if (data === 'admin_manage_flights') {
+        await bot.answerCallbackQuery(query.id)
+
+        // Get tournaments with flights photos
+        const { rows: tournaments } = await db.query(`
+          SELECT id, name, date, flights_photos
+          FROM tournaments
+          WHERE flights_photos IS NOT NULL
+            AND jsonb_array_length(flights_photos) > 0
+          ORDER BY date DESC
+          LIMIT 20
+        `)
+
+        if (tournaments.length === 0) {
+          await bot.editMessageText('ℹ️ Нет турниров с фото флайтов.', {
+            chat_id: query.message.chat.id,
+            message_id: query.message.message_id,
+            reply_markup: {
+              inline_keyboard: [[{ text: '◀️ Назад', callback_data: 'admin_back' }]],
+            },
+          })
+          return
+        }
+
+        // Build tournament selection keyboard
+        const keyboard = tournaments.map(t => [{
+          text: `${t.name} (${t.flights_photos.length} фото)`,
+          callback_data: `admin_flights_tournament_${t.id}`,
+        }])
+        keyboard.push([{ text: '◀️ Назад', callback_data: 'admin_back' }])
+
+        await bot.editMessageText('🗑️ <b>Выберите турнир для удаления фото флайтов:</b>', {
+          chat_id: query.message.chat.id,
+          message_id: query.message.message_id,
+          parse_mode: 'HTML',
+          reply_markup: { inline_keyboard: keyboard },
+        })
+        return
+      }
+
+      // ── Select tournament for flights management ──────────────────────────
+      if (data?.startsWith('admin_flights_tournament_')) {
+        const tournamentId = parseInt(data.replace('admin_flights_tournament_', ''), 10)
+        await bot.answerCallbackQuery(query.id)
+
+        const { rows: [tournament] } = await db.query(
+          'SELECT id, name, date, flights_photos FROM tournaments WHERE id = $1',
+          [tournamentId]
+        )
+
+        if (!tournament || !tournament.flights_photos || tournament.flights_photos.length === 0) {
+          await bot.answerCallbackQuery(query.id, { text: '❌ Фото не найдены', show_alert: true })
+          return
+        }
+
+        // Build keyboard with delete buttons for each photo
+        const keyboard = tournament.flights_photos.map((fileId, idx) => [{
+          text: `🗑️ Удалить фото ${idx + 1}`,
+          callback_data: `admin_delete_flight_${tournamentId}_${idx}`,
+        }])
+        keyboard.push([{ text: '◀️ Назад', callback_data: 'admin_manage_flights' }])
+
+        await bot.editMessageText(
+          `📸 <b>${tournament.name}</b>\n\nФото флайтов: ${tournament.flights_photos.length}\n\nВыберите фото для удаления:`,
+          {
+            chat_id: query.message.chat.id,
+            message_id: query.message.message_id,
+            parse_mode: 'HTML',
+            reply_markup: { inline_keyboard: keyboard },
+          }
+        )
+
+        // Send all photos so admin can see which one to delete
+        for (let i = 0; i < tournament.flights_photos.length; i++) {
+          try {
+            await bot.sendPhoto(query.message.chat.id, tournament.flights_photos[i], {
+              caption: `Фото ${i + 1}`,
+            })
+          } catch (err) {
+            console.error('[bot-admin] Error sending photo:', err.message)
+          }
+        }
+        return
+      }
+
+      // ── Delete specific flight photo ──────────────────────────────────────
+      if (data?.startsWith('admin_delete_flight_')) {
+        const parts = data.replace('admin_delete_flight_', '').split('_')
+        const tournamentId = parseInt(parts[0], 10)
+        const photoIndex = parseInt(parts[1], 10)
+
+        await bot.answerCallbackQuery(query.id)
+
+        try {
+          // Get current photos
+          const { rows: [tournament] } = await db.query(
+            'SELECT flights_photos FROM tournaments WHERE id = $1',
+            [tournamentId]
+          )
+
+          if (!tournament || !tournament.flights_photos || photoIndex >= tournament.flights_photos.length) {
+            await bot.answerCallbackQuery(query.id, { text: '❌ Фото не найдено', show_alert: true })
+            return
+          }
+
+          // Remove photo at index
+          const updatedPhotos = tournament.flights_photos.filter((_, idx) => idx !== photoIndex)
+
+          // Update database
+          await db.query(
+            'UPDATE tournaments SET flights_photos = $1 WHERE id = $2',
+            [JSON.stringify(updatedPhotos), tournamentId]
+          )
+
+          await bot.editMessageText(
+            `✅ Фото ${photoIndex + 1} успешно удалено!\n\nОсталось фото: ${updatedPhotos.length}`,
+            {
+              chat_id: query.message.chat.id,
+              message_id: query.message.message_id,
+              reply_markup: {
+                inline_keyboard: [
+                  [{ text: '◀️ Назад к списку турниров', callback_data: 'admin_manage_flights' }],
+                  [{ text: '◀️ Главное меню', callback_data: 'admin_back' }],
+                ],
+              },
+            }
+          )
+        } catch (err) {
+          console.error('[bot-admin] Error deleting photo:', err.message)
+          await bot.answerCallbackQuery(query.id, { text: '❌ Ошибка удаления', show_alert: true })
+        }
         return
       }
 
@@ -579,6 +715,18 @@ export function setupAdminCommands(bot) {
             message_id: statusMsg.message_id,
           })
           return true
+        }
+
+        // Save photo file_id to tournament
+        try {
+          await db.query(
+            `UPDATE tournaments
+             SET flights_photos = COALESCE(flights_photos, '[]'::jsonb) || $1::jsonb
+             WHERE id = $2`,
+            [JSON.stringify([photo.file_id]), session.tournamentId]
+          )
+        } catch (err) {
+          console.error('[bot-admin] Save photo file_id error:', err.message)
         }
 
         // Save to database
