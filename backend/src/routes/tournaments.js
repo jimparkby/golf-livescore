@@ -8,13 +8,15 @@ const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN
 
 /**
  * GET /api/tournaments/:id
- * Get tournament details
+ * Get tournament details (accepts both numeric ID and slug)
  */
 router.get('/:id', async (req, res) => {
   try {
     const { id } = req.params
+
+    // Try to get by slug first, then by numeric ID
     const { rows: [tournament] } = await db.query(
-      'SELECT * FROM tournaments WHERE id = $1',
+      'SELECT * FROM tournaments WHERE slug = $1 OR id::text = $1',
       [id]
     )
 
@@ -31,13 +33,15 @@ router.get('/:id', async (req, res) => {
 
 /**
  * GET /api/tournaments/:id/flights-photos
- * Get flights photos for a tournament
+ * Get flights photos for a tournament (accepts both numeric ID and slug)
  */
 router.get('/:id/flights-photos', async (req, res) => {
   try {
     const { id } = req.params
+
+    // Try to get by slug first, then by numeric ID
     const { rows: [tournament] } = await db.query(
-      'SELECT flights_photos FROM tournaments WHERE id = $1',
+      'SELECT flights_photos FROM tournaments WHERE slug = $1 OR id::text = $1',
       [id]
     )
 
@@ -56,7 +60,7 @@ router.get('/:id/flights-photos', async (req, res) => {
 
 /**
  * DELETE /api/tournaments/:id/flights-photos/:fileId
- * Delete a specific flight photo from tournament
+ * Delete a specific flight photo from tournament (accepts both numeric ID and slug)
  */
 router.delete('/:id/flights-photos/:fileId', async (req, res) => {
   try {
@@ -70,7 +74,7 @@ router.delete('/:id/flights-photos/:fileId', async (req, res) => {
          FROM jsonb_array_elements(flights_photos) elem
          WHERE elem::text != $1::text
        )
-       WHERE id = $2`,
+       WHERE slug = $2 OR id::text = $2`,
       [JSON.stringify(fileId), id]
     )
 
