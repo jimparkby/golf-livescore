@@ -1,12 +1,25 @@
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Calendar, MapPin, Award, Image as ImageIcon, Trophy, Users } from "lucide-react";
+import { ArrowLeft, Calendar, MapPin, Award, Image as ImageIcon, Trophy, Users, Brain } from "lucide-react";
 import { TOURNAMENTS } from "@/lib/tournaments";
 import { getTournamentData } from "@/lib/tournament-data";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { useState, useEffect } from "react";
 
-type Tab = "info" | "results" | "nominations" | "photos" | "flights";
+type Tab = "info" | "results" | "nominations" | "photos" | "flights" | "predictions";
+
+type Prediction = {
+  playerName: string;
+  probability: number;
+  confidence: "low" | "medium" | "high";
+  analysis?: string;
+  stats?: {
+    totalTournaments: number;
+    wins: number;
+    top3Finishes: number;
+    avgPlace: number;
+  };
+};
 
 const TournamentInfoPage = () => {
   const { id } = useParams<{ id: string }>();
@@ -15,6 +28,8 @@ const TournamentInfoPage = () => {
   const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
   const [flightsPhotos, setFlightsPhotos] = useState<string[]>([]);
   const [loadingFlights, setLoadingFlights] = useState(false);
+  const [predictions, setPredictions] = useState<Prediction[]>([]);
+  const [loadingPredictions, setLoadingPredictions] = useState(false);
 
   const tournament = TOURNAMENTS.find((t) => t.id === id);
   const tournamentData = id ? getTournamentData(id) : null;
@@ -50,6 +65,36 @@ const TournamentInfoPage = () => {
 
     loadFlightsPhotos();
   }, [id, tournamentData]);
+
+  // Load AI predictions when flights photos exist
+  useEffect(() => {
+    const loadPredictions = async () => {
+      if (!id || flightsPhotos.length === 0) return;
+
+      setLoadingPredictions(true);
+      try {
+        console.log('[TournamentInfo] Loading predictions for tournament:', id);
+        const response = await fetch(`/api/predictions/tournament/${id}`);
+        console.log('[TournamentInfo] Predictions response status:', response.status);
+        if (response.ok) {
+          const data = await response.json();
+          console.log('[TournamentInfo] Predictions data:', data);
+          setPredictions(data.predictions || []);
+        } else {
+          console.error('[TournamentInfo] Failed to load predictions:', response.statusText);
+        }
+      } catch (error) {
+        console.error("[TournamentInfo] Error loading predictions:", error);
+      } finally {
+        setLoadingPredictions(false);
+      }
+    };
+
+    // Only load predictions if we have flights photos
+    if (flightsPhotos.length > 0) {
+      loadPredictions();
+    }
+  }, [id, flightsPhotos.length]);
 
   if (!tournament) {
     return (
@@ -140,17 +185,30 @@ const TournamentInfoPage = () => {
             </>
           )}
           {flightsPhotos.length > 0 && (
-            <button
-              onClick={() => setActiveTab("flights")}
-              className={cn(
-                "px-4 py-2 rounded-lg text-sm font-semibold whitespace-nowrap transition-colors",
-                activeTab === "flights"
-                  ? "bg-action text-primary-foreground"
-                  : "bg-muted/50 text-muted-foreground hover:bg-muted"
-              )}
-            >
-              Флайты
-            </button>
+            <>
+              <button
+                onClick={() => setActiveTab("flights")}
+                className={cn(
+                  "px-4 py-2 rounded-lg text-sm font-semibold whitespace-nowrap transition-colors",
+                  activeTab === "flights"
+                    ? "bg-action text-primary-foreground"
+                    : "bg-muted/50 text-muted-foreground hover:bg-muted"
+                )}
+              >
+                Флайты
+              </button>
+              <button
+                onClick={() => setActiveTab("predictions")}
+                className={cn(
+                  "px-4 py-2 rounded-lg text-sm font-semibold whitespace-nowrap transition-colors",
+                  activeTab === "predictions"
+                    ? "bg-action text-primary-foreground"
+                    : "bg-muted/50 text-muted-foreground hover:bg-muted"
+                )}
+              >
+                AI Прогноз
+              </button>
+            </>
           )}
         </div>
       )}
@@ -302,6 +360,78 @@ const TournamentInfoPage = () => {
               ))}
             </div>
           </div>
+        </Card>
+      )}
+
+      {/* Predictions Tab */}
+      {activeTab === "predictions" && (
+        <Card className="overflow-hidden shadow-soft">
+          <div className="px-4 py-3 bg-muted/50 border-b border-border">
+            <div className="flex items-center gap-2">
+              <Brain className="h-4 w-4 text-action" />
+              <div className="text-sm font-bold text-foreground">
+                AI Прогноз шансов на победу
+              </div>
+            </div>
+            <div className="text-xs text-muted-foreground mt-1">
+              На основе исторических данных и статистики
+            </div>
+          </div>
+          {loadingPredictions ? (
+            <div className="p-8 text-center text-muted-foreground text-sm">
+              Анализирую данные участников...
+            </div>
+          ) : predictions.length === 0 ? (
+            <div className="p-8 text-center text-muted-foreground text-sm">
+              Недостаточно данных для прогноза
+            </div>
+          ) : (
+            <div className="divide-y divide-border">
+              {predictions.map((pred, index) => {
+                const confidenceColor =
+                  pred.confidence === "high" ? "text-green-500" :
+                  pred.confidence === "medium" ? "text-yellow-500" : "text-red-500";
+
+                const confidenceEmoji =
+                  pred.confidence === "high" ? "🟢" :
+                  pred.confidence === "medium" ? "🟡" : "🔴";
+
+                return (
+                  <div key={index} className="px-4 py-3 flex items-center gap-3">
+                    <div className="w-8 shrink-0 text-center">
+                      {index === 0 && <span className="text-xl">🥇</span>}
+                      {index === 1 && <span className="text-xl">🥈</span>}
+                      {index === 2 && <span className="text-xl">🥉</span>}
+                      {index > 2 && (
+                        <span className="text-sm font-bold text-muted-foreground">{index + 1}</span>
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-medium truncate">{pred.playerName}</div>
+                      {pred.stats && (
+                        <div className="text-xs text-muted-foreground">
+                          {pred.stats.totalTournaments} турниров · {pred.stats.wins} побед
+                        </div>
+                      )}
+                      {pred.analysis && (
+                        <div className="text-xs text-muted-foreground mt-1 line-clamp-2">
+                          {pred.analysis}
+                        </div>
+                      )}
+                    </div>
+                    <div className="text-right shrink-0">
+                      <div className="text-lg font-bold text-action">
+                        {pred.probability.toFixed(0)}%
+                      </div>
+                      <div className={cn("text-xs", confidenceColor)}>
+                        {confidenceEmoji}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </Card>
       )}
 
