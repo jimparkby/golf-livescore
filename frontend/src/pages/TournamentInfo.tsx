@@ -26,20 +26,30 @@ const TournamentInfoPage = () => {
 
       setLoadingFlights(true);
       try {
+        console.log('[TournamentInfo] Loading flights photos for tournament:', id);
         const response = await fetch(`/api/tournaments/${id}/flights-photos`);
+        console.log('[TournamentInfo] Response status:', response.status);
         if (response.ok) {
           const data = await response.json();
+          console.log('[TournamentInfo] Flights photos data:', data);
           setFlightsPhotos(data.photos || []);
+
+          // If no tournament data but we have flights photos, switch to flights tab
+          if (!tournamentData && data.photos && data.photos.length > 0) {
+            setActiveTab("flights");
+          }
+        } else {
+          console.error('[TournamentInfo] Failed to load flights photos:', response.statusText);
         }
       } catch (error) {
-        console.error("Error loading flights photos:", error);
+        console.error("[TournamentInfo] Error loading flights photos:", error);
       } finally {
         setLoadingFlights(false);
       }
     };
 
     loadFlightsPhotos();
-  }, [id]);
+  }, [id, tournamentData]);
 
   if (!tournament) {
     return (
@@ -79,7 +89,7 @@ const TournamentInfoPage = () => {
       </div>
 
       {/* Tabs */}
-      {hasData && (
+      {(hasData || flightsPhotos.length > 0) && (
         <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
           <button
             onClick={() => setActiveTab("info")}
@@ -92,39 +102,43 @@ const TournamentInfoPage = () => {
           >
             О турнире
           </button>
-          <button
-            onClick={() => setActiveTab("results")}
-            className={cn(
-              "px-4 py-2 rounded-lg text-sm font-semibold whitespace-nowrap transition-colors",
-              activeTab === "results"
-                ? "bg-action text-primary-foreground"
-                : "bg-muted/50 text-muted-foreground hover:bg-muted"
-            )}
-          >
-            Результаты
-          </button>
-          <button
-            onClick={() => setActiveTab("nominations")}
-            className={cn(
-              "px-4 py-2 rounded-lg text-sm font-semibold whitespace-nowrap transition-colors",
-              activeTab === "nominations"
-                ? "bg-action text-primary-foreground"
-                : "bg-muted/50 text-muted-foreground hover:bg-muted"
-            )}
-          >
-            Номинации
-          </button>
-          <button
-            onClick={() => setActiveTab("photos")}
-            className={cn(
-              "px-4 py-2 rounded-lg text-sm font-semibold whitespace-nowrap transition-colors",
-              activeTab === "photos"
-                ? "bg-action text-primary-foreground"
-                : "bg-muted/50 text-muted-foreground hover:bg-muted"
-            )}
-          >
-            Фотогалерея
-          </button>
+          {hasData && (
+            <>
+              <button
+                onClick={() => setActiveTab("results")}
+                className={cn(
+                  "px-4 py-2 rounded-lg text-sm font-semibold whitespace-nowrap transition-colors",
+                  activeTab === "results"
+                    ? "bg-action text-primary-foreground"
+                    : "bg-muted/50 text-muted-foreground hover:bg-muted"
+                )}
+              >
+                Результаты
+              </button>
+              <button
+                onClick={() => setActiveTab("nominations")}
+                className={cn(
+                  "px-4 py-2 rounded-lg text-sm font-semibold whitespace-nowrap transition-colors",
+                  activeTab === "nominations"
+                    ? "bg-action text-primary-foreground"
+                    : "bg-muted/50 text-muted-foreground hover:bg-muted"
+                )}
+              >
+                Номинации
+              </button>
+              <button
+                onClick={() => setActiveTab("photos")}
+                className={cn(
+                  "px-4 py-2 rounded-lg text-sm font-semibold whitespace-nowrap transition-colors",
+                  activeTab === "photos"
+                    ? "bg-action text-primary-foreground"
+                    : "bg-muted/50 text-muted-foreground hover:bg-muted"
+                )}
+              >
+                Фотогалерея
+              </button>
+            </>
+          )}
           {flightsPhotos.length > 0 && (
             <button
               onClick={() => setActiveTab("flights")}
@@ -337,7 +351,7 @@ const TournamentInfoPage = () => {
       )}
 
       {/* No Data Message */}
-      {!hasData && (
+      {!hasData && flightsPhotos.length === 0 && (
         <Card className="p-6 text-center shadow-soft">
           <div className="text-4xl mb-3">🏆</div>
           <div className="text-sm font-semibold text-foreground mb-1">Турнир запланирован</div>
