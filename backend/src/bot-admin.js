@@ -423,6 +423,40 @@ export function setupAdminCommands(bot) {
         return
       }
 
+      // ── Continue adding photos ─────────────────────────────────────────────
+      if (data === 'admin_continue') {
+        await bot.answerCallbackQuery(query.id, { text: '📸 Отправьте следующее фото', show_alert: false })
+        return
+      }
+
+      // ── Finish input ───────────────────────────────────────────────────────
+      if (data === 'admin_finish') {
+        await bot.answerCallbackQuery(query.id)
+        const session = getSession(telegramId)
+
+        let finishText = '✅ <b>Ввод завершён!</b>\n\n'
+        if (session?.totalSaved > 0) {
+          finishText += `Всего обработано: ${session.totalProcessed}\n`
+          finishText += `Сохранено записей: ${session.totalSaved}`
+        } else {
+          finishText += 'Данные сохранены.'
+        }
+
+        clearSession(telegramId)
+
+        await bot.editMessageText(finishText, {
+          chat_id: query.message.chat.id,
+          message_id: query.message.message_id,
+          parse_mode: 'HTML',
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: '◀️ В главное меню', callback_data: 'admin_back' }],
+            ],
+          },
+        })
+        return
+      }
+
       // ── Back to main menu ──────────────────────────────────────────────────
       if (data === 'admin_back') {
         await bot.answerCallbackQuery(query.id)
@@ -441,6 +475,7 @@ export function setupAdminCommands(bot) {
           reply_markup: {
             inline_keyboard: [
               [{ text: '📊 Ввести результаты турнира', callback_data: 'admin_tournament_results' }],
+              [{ text: '🗑️ Удалить фото флайтов', callback_data: 'admin_manage_flights' }],
               [{ text: '🏆 Таблицы лидеров', callback_data: 'admin_leaderboards' }],
               [{ text: '🤖 AI-анализ шансов на победу', callback_data: 'admin_ai_analysis' }],
               [{ text: '❌ Закрыть', callback_data: 'admin_close' }],
