@@ -30,6 +30,8 @@ const TournamentInfoPage = () => {
   const [loadingFlights, setLoadingFlights] = useState(false);
   const [predictions, setPredictions] = useState<Prediction[]>([]);
   const [loadingPredictions, setLoadingPredictions] = useState(false);
+  const [predictionsCalculating, setPredictionsCalculating] = useState(false);
+  const [predictionsMessage, setPredictionsMessage] = useState<string | null>(null);
 
   const tournament = TOURNAMENTS.find((t) => t.id === id);
   const tournamentData = id ? getTournamentData(id) : null;
@@ -72,6 +74,7 @@ const TournamentInfoPage = () => {
       if (!id || flightsPhotos.length === 0) return;
 
       setLoadingPredictions(true);
+      setPredictionsMessage(null);
       try {
         console.log('[TournamentInfo] Loading predictions for tournament:', id);
         const response = await fetch(`/api/predictions/tournament/${id}`);
@@ -80,6 +83,8 @@ const TournamentInfoPage = () => {
           const data = await response.json();
           console.log('[TournamentInfo] Predictions data:', data);
           setPredictions(data.predictions || []);
+          setPredictionsCalculating(data.calculating || false);
+          setPredictionsMessage(data.message || null);
         } else {
           console.error('[TournamentInfo] Failed to load predictions:', response.statusText);
         }
@@ -95,6 +100,27 @@ const TournamentInfoPage = () => {
       loadPredictions();
     }
   }, [id, flightsPhotos.length]);
+
+  // Function to manually refresh predictions
+  const refreshPredictions = async () => {
+    if (!id) return;
+
+    setLoadingPredictions(true);
+    setPredictionsMessage(null);
+    try {
+      const response = await fetch(`/api/predictions/tournament/${id}`);
+      if (response.ok) {
+        const data = await response.json();
+        setPredictions(data.predictions || []);
+        setPredictionsCalculating(data.calculating || false);
+        setPredictionsMessage(data.message || null);
+      }
+    } catch (error) {
+      console.error("[TournamentInfo] Error refreshing predictions:", error);
+    } finally {
+      setLoadingPredictions(false);
+    }
+  };
 
   if (!tournament) {
     return (
@@ -381,11 +407,24 @@ const TournamentInfoPage = () => {
             <div className="p-8 text-center">
               <div className="text-4xl mb-3">🤖</div>
               <div className="text-sm font-semibold text-foreground mb-1">
-                Анализирую данные участников...
+                Загружаю прогнозы...
               </div>
-              <div className="text-xs text-muted-foreground">
-                Это может занять до минуты
+            </div>
+          ) : predictionsCalculating || (predictions.length === 0 && predictionsMessage) ? (
+            <div className="p-8 text-center">
+              <div className="text-4xl mb-3">⏳</div>
+              <div className="text-sm font-semibold text-foreground mb-2">
+                AI анализирует участников
               </div>
+              <div className="text-xs text-muted-foreground mb-4">
+                {predictionsMessage || 'Анализ запущен. Это займет несколько минут.'}
+              </div>
+              <button
+                onClick={refreshPredictions}
+                className="px-4 py-2 bg-action text-primary-foreground rounded-lg text-sm font-semibold hover:opacity-90 transition-opacity"
+              >
+                Обновить
+              </button>
             </div>
           ) : predictions.length === 0 ? (
             <div className="p-8 text-center text-muted-foreground text-sm">

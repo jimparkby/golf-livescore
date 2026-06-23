@@ -1,6 +1,7 @@
 import { db } from './db.js'
 import { parseParticipantsPhoto, parseTournamentResultsPhoto } from './services/adminPhotoParser.js'
 import { calculateWinProbability, getLeaderboards, getPlayerProfile } from './services/winProbabilityAI.js'
+import { calculateAndSavePredictions } from './services/predictionsCalculator.js'
 
 // Load admin IDs from environment variable
 const ADMIN_IDS = (process.env.ADMIN_TELEGRAM_IDS || '')
@@ -437,9 +438,19 @@ export function setupAdminCommands(bot) {
         let finishText = '✅ <b>Ввод завершён!</b>\n\n'
         if (session?.totalSaved > 0) {
           finishText += `Всего обработано: ${session.totalProcessed}\n`
-          finishText += `Сохранено записей: ${session.totalSaved}`
+          finishText += `Сохранено записей: ${session.totalSaved}\n\n`
         } else {
-          finishText += 'Данные сохранены.'
+          finishText += 'Данные сохранены.\n\n'
+        }
+
+        // If this was participants input, start AI predictions calculation
+        if (session?.action === 'participants' && session?.tournamentId) {
+          finishText += '🤖 <i>Запускаю AI-анализ шансов на победу...</i>'
+
+          // Start background calculation (don't wait)
+          calculateAndSavePredictions(session.tournamentId).catch(err =>
+            console.error('[bot-admin] Predictions calculation failed:', err)
+          )
         }
 
         clearSession(telegramId)
