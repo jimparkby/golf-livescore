@@ -1,6 +1,6 @@
 import { db } from './db.js'
 import { parseParticipantsPhoto, parseTournamentResultsPhoto } from './services/adminPhotoParser.js'
-import { getLeaderboards } from './services/winProbabilityAI.js'
+import { getLeaderboards, recalculatePredictionsForUpcomingTournaments } from './services/winProbabilityAI.js'
 import { calculateAndSavePredictions } from './services/predictionsCalculator.js'
 
 // Load admin IDs from environment variable
@@ -507,7 +507,14 @@ export function setupAdminCommands(bot) {
             await Promise.race([queryPromise, timeoutPromise])
 
             console.log('[bot-admin] Player statistics refreshed successfully')
-            finishText += '📊 <i>Таблица лидеров обновлена!</i>\n\n'
+            finishText += '📊 <i>Таблица лидеров обновлена!</i>\n'
+
+            // Recalculate predictions for upcoming tournaments with updated statistics
+            console.log('[bot-admin] Starting predictions recalculation for upcoming tournaments')
+            recalculatePredictionsForUpcomingTournaments().catch(err =>
+              console.error('[bot-admin] Failed to recalculate predictions:', err)
+            )
+            finishText += '🤖 <i>Пересчитываю прогнозы для предстоящих турниров...</i>\n\n'
           } catch (err) {
             console.error('[bot-admin] Failed to refresh player statistics:', err.message)
             console.error('[bot-admin] Error stack:', err.stack)

@@ -84,12 +84,19 @@ export async function calculateWinProbability(playerName, tournamentId) {
 
     // Check if we have enough data
     if (!playerStats || historicalResults.length === 0) {
+      // Return minimal analysis based on tournament registration only
       return {
         playerName,
-        probability: null,
+        probability: 5, // Low baseline probability for new players
         confidence: 'low',
-        message: 'Недостаточно данных для анализа. Игрок не участвовал в предыдущих турнирах.',
-        recommendations: ['Пригласите игрока поучаствовать в нескольких турнирах для получения статистики'],
+        analysis: 'Игрок зарегистрирован на турнир. Данные о предыдущих выступлениях отсутствуют, вероятность рассчитана как базовая для новых участников.',
+        recommendations: [],
+        stats: {
+          totalTournaments: 0,
+          wins: 0,
+          top3Finishes: 0,
+          avgPlace: null,
+        },
       }
     }
 
@@ -111,24 +118,37 @@ export async function calculateWinProbability(playerName, tournamentId) {
 ПОСЛЕДНИЕ РЕЗУЛЬТАТЫ (${historicalResults.length} турниров):
 ${historicalResults.map((r, i) => `${i + 1}. ${r.tournament_name} (${new Date(r.tournament_date).toLocaleDateString('ru-RU')})
    - Место: ${r.place} в группе "${r.group_name}"
-   - Формат: ${r.format}
+   - Формат: ${r.format || 'н/д'}
    - Результат: ${r.net ? `net ${r.net}` : r.score ? `score ${r.score}` : 'н/д'}`).join('\n')}
 
 ПРЕДСТОЯЩИЙ ТУРНИР:
 ${tournament.name} - ${new Date(tournament.date).toLocaleDateString('ru-RU')}
 
+ВАЖНЫЕ ПРАВИЛА ДЛЯ АНАЛИЗА:
+1. Анализ должен быть основан ТОЛЬКО на конкретных фактах и цифрах
+2. НЕ используй субъективные формулировки типа "слабый опыт", "ограниченный опыт", "недостаточно данных"
+3. Вместо этого ОБЯЗАТЕЛЬНО указывай конкретные результаты и турниры
+4. Формат анализа: "Занял [место] на [название турнира] с результатом [score/net]. [Другие конкретные факты]"
+5. Если игрок участвовал всего в 1-2 турнирах, указывай его конкретные результаты в них
+6. Вероятность должна быть основана на win rate и позициях в топ-3
+
+ПРИМЕРЫ ХОРОШЕГО АНАЛИЗА:
+- "Занял 10-е место на турнире Skolkovo Open с результатом net 25 в формате Stableford. В общей статистике показывает стабильное среднее место 8.5."
+- "Выиграл 2 из 5 турниров (win rate 40%), включая первое место на Pestovo Classic. Стабильно попадает в топ-3 (3 раза из 5)."
+- "Занял 3-е место на PiterGolf Championship и 7-е на Tseleevo Cup. Средний результат net 23, что соответствует HCP около 15."
+
 ЗАДАЧА:
-1. Оцени вероятность победы игрока (0-100%)
-2. Укажи уровень уверенности: low/medium/high
-3. Дай короткий анализ (2-3 предложения на русском)
-4. Предложи 2-3 рекомендации для улучшения шансов
+1. Оцени вероятность победы на основе: win rate × 0.4 + (top3_finishes/total_tournaments) × 0.3 + позиция_в_последних_турнирах × 0.3
+2. Укажи уровень уверенности: high если >20 турниров, medium если 5-20, low если <5
+3. Дай анализ (2-3 предложения) с КОНКРЕТНЫМИ турнирами и результатами
+4. НЕ предлагай рекомендации, вместо этого укажи сильные/слабые стороны на основе данных
 
 Верни ответ СТРОГО в JSON формате:
 {
   "probability": <число от 0 до 100>,
   "confidence": "<low|medium|high>",
-  "analysis": "<короткий анализ на русском>",
-  "recommendations": ["<рекомендация 1>", "<рекомендация 2>"]
+  "analysis": "<короткий анализ с конкретными турнирами и результатами>",
+  "recommendations": []
 }`
 
     // Call OpenRouter API with Claude
@@ -225,6 +245,80 @@ export async function getLeaderboards() {
   } catch (error) {
     console.error('Error getting leaderboards:', error)
     throw error
+  }
+}
+
+/**
+ * Recalculate predictions for all upcoming tournaments after new results
+ * This should be called after tournament results are entered to update probabilities
+ * @returns {Promise<void>}
+ */
+export async function recalculatePredictionsForUpcomingTournaments() {
+  try {
+    console.log('[winProbabilityAI] Recalculating predictions for upcoming tournaments')
+
+    // Get all upcoming tournaments that have participants registered
+    const { rows: upcomingTournaments } = await db.query(
+      `SELECT DISTINCT t.id, t.name, t.date
+       FROM tournaments t
+       INNER JOIN tournament_predictions tp ON t.id = tp.tournament_id
+       WHERE t.date >= CURRENT_DATE
+       ORDER BY t.date
+       LIMIT 10`
+    )
+
+    if (upcomingTournaments.length === 0) {
+      console.log('[winProbabilityAI] No upcoming tournaments with predictions to recalculate')
+      return
+    }
+
+    console.log(`[winProbabilityAI] Found ${upcomingTournaments.length} upcoming tournaments`)
+
+    for (const tournament of upcomingTournaments) {
+      // Get all players with existing predictions for this tournament
+      const { rows: players } = await db.query(
+        `SELECT DISTINCT player_name FROM tournament_predictions
+         WHERE tournament_id = $1`,
+        [tournament.id]
+      )
+
+      console.log(`[winProbabilityAI] Recalculating ${players.length} predictions for ${tournament.name}`)
+
+      for (const player of players) {
+        try {
+          const probability = await calculateWinProbability(player.player_name, tournament.id)
+
+          if (probability && probability.probability !== null) {
+            await db.query(
+              `UPDATE tournament_predictions
+               SET probability = $1,
+                   confidence = $2,
+                   analysis = $3,
+                   stats = $4,
+                   updated_at = CURRENT_TIMESTAMP
+               WHERE tournament_id = $5 AND player_name = $6`,
+              [
+                probability.probability,
+                probability.confidence,
+                probability.analysis,
+                JSON.stringify(probability.stats),
+                tournament.id,
+                player.player_name
+              ]
+            )
+          }
+
+          // Small delay to avoid rate limiting
+          await new Promise(resolve => setTimeout(resolve, 100))
+        } catch (error) {
+          console.error(`[winProbabilityAI] Error recalculating for ${player.player_name}:`, error.message)
+        }
+      }
+    }
+
+    console.log('[winProbabilityAI] Predictions recalculation completed')
+  } catch (error) {
+    console.error('[winProbabilityAI] Error recalculating predictions:', error)
   }
 }
 
