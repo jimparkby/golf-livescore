@@ -65,6 +65,7 @@ export function setupAdminCommands(bot) {
         reply_markup: {
           inline_keyboard: [
             [{ text: '📊 Ввести результаты турнира', callback_data: 'admin_tournament_results' }],
+            [{ text: '👥 Ввести участников турнира', callback_data: 'admin_participants_list' }],
             [{ text: '🗑️ Удалить фото флайтов', callback_data: 'admin_manage_flights' }],
             [{ text: '🏆 Таблицы лидеров', callback_data: 'admin_leaderboards' }],
             [{ text: '❌ Закрыть', callback_data: 'admin_close' }],
@@ -321,7 +322,6 @@ export function setupAdminCommands(bot) {
           parse_mode: 'HTML',
           reply_markup: {
             inline_keyboard: [
-              [{ text: '👥 Ввести участников турнира', callback_data: 'admin_participants' }],
               [{ text: '❌ Отмена', callback_data: 'admin_back' }],
             ],
           },
@@ -329,25 +329,62 @@ export function setupAdminCommands(bot) {
         return
       }
 
-      // ── Enter participants ─────────────────────────────────────────────────
-      if (data === 'admin_participants') {
+      // ── Enter participants list ────────────────────────────────────────────
+      if (data === 'admin_participants_list') {
         await bot.answerCallbackQuery(query.id)
 
-        const currentSession = getSession(telegramId)
-        const tournamentId = currentSession?.tournamentId
+        // Get list of tournaments (upcoming first, then past)
+        const { rows: tournaments } = await db.query(`
+          SELECT id, name, date
+          FROM tournaments
+          ORDER BY
+            CASE WHEN date >= CURRENT_DATE THEN 0 ELSE 1 END,
+            CASE WHEN date >= CURRENT_DATE THEN date END ASC,
+            CASE WHEN date < CURRENT_DATE THEN date END DESC
+          LIMIT 20
+        `)
 
-        if (!tournamentId) {
-          await bot.answerCallbackQuery(query.id, {
-            text: '❌ Сначала выберите турнир через "Ввести результаты турнира"',
-            show_alert: true
+        if (tournaments.length === 0) {
+          await bot.editMessageText('❌ Нет доступных турниров в базе данных.', {
+            chat_id: query.message.chat.id,
+            message_id: query.message.message_id,
+            reply_markup: {
+              inline_keyboard: [[{ text: '◀️ Назад', callback_data: 'admin_back' }]],
+            },
           })
           return
         }
+
+        // Build tournament selection keyboard
+        const keyboard = tournaments.map(t => [{
+          text: `${t.name} (${new Date(t.date).toLocaleDateString('ru-RU')})`,
+          callback_data: `admin_participants_tournament_${t.id}`,
+        }])
+        keyboard.push([{ text: '◀️ Назад', callback_data: 'admin_back' }])
+
+        await bot.editMessageText('👥 <b>Выберите турнир для ввода участников:</b>', {
+          chat_id: query.message.chat.id,
+          message_id: query.message.message_id,
+          parse_mode: 'HTML',
+          reply_markup: { inline_keyboard: keyboard },
+        })
+        return
+      }
+
+      // ── Select tournament for participants ────────────────────────────────
+      if (data?.startsWith('admin_participants_tournament_')) {
+        const tournamentId = parseInt(data.replace('admin_participants_tournament_', ''), 10)
+        await bot.answerCallbackQuery(query.id)
 
         const { rows: [tournament] } = await db.query(
           'SELECT id, name, date FROM tournaments WHERE id = $1',
           [tournamentId]
         )
+
+        if (!tournament) {
+          await bot.answerCallbackQuery(query.id, { text: '❌ Турнир не найден', show_alert: true })
+          return
+        }
 
         setSession(telegramId, {
           action: 'participants',
@@ -485,6 +522,7 @@ export function setupAdminCommands(bot) {
           reply_markup: {
             inline_keyboard: [
               [{ text: '📊 Ввести результаты турнира', callback_data: 'admin_tournament_results' }],
+              [{ text: '👥 Ввести участников турнира', callback_data: 'admin_participants_list' }],
               [{ text: '🗑️ Удалить фото флайтов', callback_data: 'admin_manage_flights' }],
               [{ text: '🏆 Таблицы лидеров', callback_data: 'admin_leaderboards' }],
               [{ text: '❌ Закрыть', callback_data: 'admin_close' }],
