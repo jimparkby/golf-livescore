@@ -582,7 +582,7 @@ const TournamentInfoPage = () => {
                           <div className="flex-1 min-w-0">
                             <div className="text-sm font-medium truncate">{pred.playerName}</div>
                             <div className="text-xs text-muted-foreground">
-                              HCP: {pred.playerHcp ? pred.playerHcp.toFixed(1) : 'н/д'}
+                              HCP: {pred.playerHcp ? Number(pred.playerHcp).toFixed(1) : 'н/д'}
                               {pred.stats && (
                                 <> · {pred.stats.totalTournaments} турниров · {pred.stats.wins} побед</>
                               )}
