@@ -4,6 +4,7 @@ import { TOURNAMENTS } from "@/lib/tournaments";
 import { getTournamentData } from "@/lib/tournament-data";
 import { Card } from "@/components/ui/card";
 import { Plus, Image } from "lucide-react";
+import Leaderboard from "@/components/Leaderboard";
 
 const TournamentsPage = () => {
   const navigate = useNavigate();
@@ -36,6 +37,8 @@ const TournamentsPage = () => {
         </button>
       </div>
 
+      {/* Leaderboard */}
+      <Leaderboard />
 
       {/* Calendar */}
       {grouped.map(([month, items]) => (
