@@ -489,6 +489,17 @@ export function setupAdminCommands(bot) {
           )
         }
 
+        // If this was tournament results input, refresh player statistics
+        if (session?.action === 'tournament_results' && session?.tournamentId) {
+          try {
+            await db.query('SELECT refresh_player_statistics_for_tournament($1)', [session.tournamentId])
+            console.log('[bot-admin] Player statistics refreshed for tournament', session.tournamentId)
+            finishText += '📊 <i>Таблица лидеров обновлена!</i>\n\n'
+          } catch (err) {
+            console.error('[bot-admin] Failed to refresh player statistics:', err.message)
+          }
+        }
+
         clearSession(telegramId)
 
         await bot.editMessageText(finishText, {
