@@ -468,8 +468,11 @@ export function setupAdminCommands(bot) {
 
       // ── Finish input ───────────────────────────────────────────────────────
       if (data === 'admin_finish') {
+        console.log('[bot-admin] Finish button pressed by', telegramId)
         await bot.answerCallbackQuery(query.id)
+        console.log('[bot-admin] Callback query answered')
         const session = getSession(telegramId)
+        console.log('[bot-admin] Session retrieved:', session ? `action=${session.action}, tournamentId=${session.tournamentId}` : 'no session')
 
         let finishText = '✅ <b>Ввод завершён!</b>\n\n'
         if (session?.totalSaved > 0) {
@@ -492,15 +495,29 @@ export function setupAdminCommands(bot) {
         // If this was tournament results input, refresh player statistics
         if (session?.action === 'tournament_results' && session?.tournamentId) {
           try {
-            await db.query('SELECT refresh_player_statistics_for_tournament($1)', [session.tournamentId])
-            console.log('[bot-admin] Player statistics refreshed for tournament', session.tournamentId)
+            console.log('[bot-admin] Attempting to refresh player statistics for tournament', session.tournamentId)
+
+            // Add timeout to prevent hanging
+            const timeoutPromise = new Promise((_, reject) =>
+              setTimeout(() => reject(new Error('Database query timeout')), 10000)
+            )
+
+            const queryPromise = db.query('SELECT refresh_player_statistics_for_tournament($1)', [session.tournamentId])
+
+            await Promise.race([queryPromise, timeoutPromise])
+
+            console.log('[bot-admin] Player statistics refreshed successfully')
             finishText += '📊 <i>Таблица лидеров обновлена!</i>\n\n'
           } catch (err) {
             console.error('[bot-admin] Failed to refresh player statistics:', err.message)
+            console.error('[bot-admin] Error stack:', err.stack)
+            // Continue processing even if refresh fails - don't block user interaction
+            finishText += '<i>Результаты сохранены. Статистика обновится автоматически.</i>\n\n'
           }
         }
 
         clearSession(telegramId)
+        console.log('[bot-admin] Session cleared, sending finish message')
 
         await bot.editMessageText(finishText, {
           chat_id: query.message.chat.id,
@@ -512,6 +529,7 @@ export function setupAdminCommands(bot) {
             ],
           },
         })
+        console.log('[bot-admin] Finish message sent successfully')
         return
       }
 
