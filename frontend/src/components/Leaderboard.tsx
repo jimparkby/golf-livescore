@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Card } from "@/components/ui/card";
-import { Trophy, TrendingUp } from "lucide-react";
+import { Trophy } from "lucide-react";
 
 type LeaderboardPlayer = {
   player_name: string;
@@ -63,7 +63,7 @@ const Leaderboard = () => {
         </div>
       </div>
 
-      <div className="p-4 space-y-4">
+      <div className="p-4">
         {/* Top by Wins */}
         <div>
           <div className="flex items-center gap-1.5 mb-2">
@@ -79,27 +79,6 @@ const Leaderboard = () => {
                 <div className="flex-1 font-medium text-foreground truncate">{player.player_name}</div>
                 <div className="text-muted-foreground">
                   <span className="font-bold text-action">{player.first_places}</span> wins
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Top by HCP */}
-        <div>
-          <div className="flex items-center gap-1.5 mb-2">
-            <TrendingUp className="h-3.5 w-3.5 text-action" />
-            <div className="text-xs font-semibold text-foreground/80 uppercase tracking-wider">Top by HCP</div>
-          </div>
-          <div className="space-y-1">
-            {data.topByHcp.slice(0, 5).map((player, i) => (
-              <div key={player.player_name} className="flex items-center gap-2 text-xs">
-                <div className="w-5 text-muted-foreground font-semibold text-right">
-                  {i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `${i + 1}.`}
-                </div>
-                <div className="flex-1 font-medium text-foreground truncate">{player.player_name}</div>
-                <div className="text-muted-foreground">
-                  <span className="font-bold text-action">{player.estimated_hcp}</span> HCP
                 </div>
               </div>
             ))}
