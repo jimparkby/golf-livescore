@@ -8,36 +8,44 @@ export const db = new Pool({
   user: process.env.DB_USER,
   password: process.env.DB_PASSWORD,
   ssl: { rejectUnauthorized: false },
+  // Connection pool settings
+  max: 20, // Maximum number of clients in the pool
+  idleTimeoutMillis: 30000, // Close idle clients after 30 seconds
+  connectionTimeoutMillis: 10000, // Return error after 10 seconds if no connection available
+  query_timeout: 30000, // Query timeout 30 seconds
 })
 
-db.query(`ALTER TABLE rounds ADD COLUMN IF NOT EXISTS current_hole INTEGER`)
-  .catch((err) => console.error('[db] migration error:', err.message))
+// Run migrations sequentially to avoid overwhelming the connection pool
+async function runMigrations() {
+  const migrations = [
+    { name: 'current_hole', query: `ALTER TABLE rounds ADD COLUMN IF NOT EXISTS current_hole INTEGER` },
+    { name: 'photo_url', query: `ALTER TABLE users ADD COLUMN IF NOT EXISTS photo_url TEXT` },
+    { name: 'made_by', query: `ALTER TABLE hole_scores ADD COLUMN IF NOT EXISTS made_by TEXT` },
+    { name: 'teams', query: `ALTER TABLE rounds ADD COLUMN IF NOT EXISTS teams JSONB` },
+    { name: 'hole_scores_index', query: `CREATE UNIQUE INDEX IF NOT EXISTS hole_scores_unique_idx ON hole_scores (round_id, player_id, hole)` },
+    { name: 'format', query: `ALTER TABLE rounds ADD COLUMN IF NOT EXISTS format TEXT` },
+    { name: 'holes_mode', query: `ALTER TABLE rounds ADD COLUMN IF NOT EXISTS holes_mode TEXT` },
+    { name: 'pending_scorecards', query: `CREATE TABLE IF NOT EXISTS pending_scorecards (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      scores JSONB NOT NULL,
+      course_name TEXT,
+      holes_count INTEGER DEFAULT 18,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+      expires_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() + INTERVAL '24 hours',
+      status TEXT DEFAULT 'pending'
+    )` }
+  ]
 
-db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS photo_url TEXT`)
-  .catch((err) => console.error('[db] photo_url migration error:', err.message))
+  for (const migration of migrations) {
+    try {
+      await db.query(migration.query)
+      console.log(`[db] Migration '${migration.name}' completed`)
+    } catch (err) {
+      console.error(`[db] Migration '${migration.name}' error:`, err.message)
+    }
+  }
+}
 
-db.query(`ALTER TABLE hole_scores ADD COLUMN IF NOT EXISTS made_by TEXT`)
-  .catch((err) => console.error('[db] made_by migration error:', err.message))
-
-db.query(`ALTER TABLE rounds ADD COLUMN IF NOT EXISTS teams JSONB`)
-  .catch((err) => console.error('[db] teams migration error:', err.message))
-
-db.query(`CREATE UNIQUE INDEX IF NOT EXISTS hole_scores_unique_idx ON hole_scores (round_id, player_id, hole)`)
-  .catch((err) => console.error('[db] hole_scores index error:', err.message))
-
-db.query(`ALTER TABLE rounds ADD COLUMN IF NOT EXISTS format TEXT`)
-  .catch((err) => console.error('[db] format migration error:', err.message))
-
-db.query(`ALTER TABLE rounds ADD COLUMN IF NOT EXISTS holes_mode TEXT`)
-  .catch((err) => console.error('[db] holes_mode migration error:', err.message))
-
-db.query(`CREATE TABLE IF NOT EXISTS pending_scorecards (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  scores JSONB NOT NULL,
-  course_name TEXT,
-  holes_count INTEGER DEFAULT 18,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  expires_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() + INTERVAL '24 hours',
-  status TEXT DEFAULT 'pending'
-)`).catch((err) => console.error('[db] pending_scorecards migration error:', err.message))
+// Run migrations in background without blocking
+runMigrations().catch(err => console.error('[db] Migrations failed:', err))
