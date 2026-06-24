@@ -34,7 +34,9 @@ async function runMigrations() {
       created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
       expires_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() + INTERVAL '24 hours',
       status TEXT DEFAULT 'pending'
-    )` }
+    )` },
+    { name: 'hcp_group', query: `ALTER TABLE tournament_predictions ADD COLUMN IF NOT EXISTS hcp_group TEXT` },
+    { name: 'player_hcp', query: `ALTER TABLE tournament_predictions ADD COLUMN IF NOT EXISTS player_hcp NUMERIC` }
   ]
 
   for (const migration of migrations) {

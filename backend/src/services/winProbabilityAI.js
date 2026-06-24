@@ -5,6 +5,7 @@
 
 import https from 'https'
 import { db } from '../db.js'
+import { getHcpGroup, detectGender } from '../utils/hcpGroups.js'
 
 /**
  * Call OpenRouter AI API
@@ -289,19 +290,33 @@ export async function recalculatePredictionsForUpcomingTournaments() {
           const probability = await calculateWinProbability(player.player_name, tournament.id)
 
           if (probability && probability.probability !== null) {
+            // Get player HCP from statistics
+            const { rows: [playerStats] } = await db.query(
+              `SELECT estimated_hcp FROM player_statistics WHERE player_name = $1`,
+              [player.player_name]
+            )
+
+            const playerHcp = playerStats?.estimated_hcp || 36
+            const gender = detectGender(player.player_name)
+            const hcpGroup = getHcpGroup(playerHcp, gender)
+
             await db.query(
               `UPDATE tournament_predictions
                SET probability = $1,
                    confidence = $2,
                    analysis = $3,
                    stats = $4,
+                   hcp_group = $5,
+                   player_hcp = $6,
                    updated_at = CURRENT_TIMESTAMP
-               WHERE tournament_id = $5 AND player_name = $6`,
+               WHERE tournament_id = $7 AND player_name = $8`,
               [
                 probability.probability,
                 probability.confidence,
                 probability.analysis,
                 JSON.stringify(probability.stats),
+                hcpGroup,
+                playerHcp,
                 tournament.id,
                 player.player_name
               ]

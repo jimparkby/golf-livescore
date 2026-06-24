@@ -1,6 +1,7 @@
 import express from 'express'
 import { db } from '../db.js'
 import { calculateAndSavePredictions } from '../services/predictionsCalculator.js'
+import { getAllHcpGroups } from '../utils/hcpGroups.js'
 
 const router = express.Router()
 
@@ -40,26 +41,53 @@ router.get('/tournament/:id', async (req, res) => {
 
     // Check for cached predictions
     const { rows: cachedPredictions } = await db.query(
-      `SELECT player_name, probability, confidence, analysis, stats
+      `SELECT player_name, probability, confidence, analysis, stats, hcp_group, player_hcp
        FROM tournament_predictions
        WHERE tournament_id = $1
-       ORDER BY probability DESC`,
+       ORDER BY hcp_group, probability DESC`,
       [tournament.id]
     )
 
     if (cachedPredictions.length > 0) {
       console.log(`[predictions] Returning ${cachedPredictions.length} cached predictions`)
 
-      return res.json({
-        tournament: tournament.name,
-        tournamentDate: tournament.date,
-        predictions: cachedPredictions.map(p => ({
+      // Group predictions by HCP group and get top 3 in each
+      const groupedPredictions = {}
+      const allHcpGroups = getAllHcpGroups()
+
+      // Initialize all groups
+      allHcpGroups.forEach(group => {
+        groupedPredictions[group] = []
+      })
+
+      // Fill groups with predictions
+      cachedPredictions.forEach(p => {
+        const groupName = p.hcp_group || 'Man A HCP по 13,5' // Default group
+        if (!groupedPredictions[groupName]) {
+          groupedPredictions[groupName] = []
+        }
+        groupedPredictions[groupName].push({
           playerName: p.player_name,
           probability: parseFloat(p.probability),
           confidence: p.confidence,
           analysis: p.analysis,
           stats: p.stats,
-        })),
+          playerHcp: p.player_hcp,
+        })
+      })
+
+      // Get top 3 from each group
+      const groups = Object.entries(groupedPredictions)
+        .filter(([_, predictions]) => predictions.length > 0)
+        .map(([groupName, predictions]) => ({
+          groupName,
+          predictions: predictions.slice(0, 3) // Top 3 only
+        }))
+
+      return res.json({
+        tournament: tournament.name,
+        tournamentDate: tournament.date,
+        groups,
         totalParticipants: cachedPredictions.length,
         totalAnalyzed: cachedPredictions.length,
         cached: true,

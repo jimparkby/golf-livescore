@@ -7,6 +7,7 @@ import https from 'https'
 import { db } from '../db.js'
 import { calculateWinProbability } from './winProbabilityAI.js'
 import { parseParticipantsPhoto } from './adminPhotoParser.js'
+import { getHcpGroup, detectGender } from '../utils/hcpGroups.js'
 
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN
 
@@ -104,16 +105,28 @@ export async function calculateAndSavePredictions(tournamentId) {
         const probability = await calculateWinProbability(playerName, tournament.id)
 
         if (probability && probability.probability !== null) {
+          // Get player HCP from statistics
+          const { rows: [playerStats] } = await db.query(
+            `SELECT estimated_hcp FROM player_statistics WHERE player_name = $1`,
+            [playerName]
+          )
+
+          const playerHcp = playerStats?.estimated_hcp || 36 // Default to max HCP if not found
+          const gender = detectGender(playerName)
+          const hcpGroup = getHcpGroup(playerHcp, gender)
+
           await db.query(
             `INSERT INTO tournament_predictions
-             (tournament_id, player_name, probability, confidence, analysis, stats)
-             VALUES ($1, $2, $3, $4, $5, $6)
+             (tournament_id, player_name, probability, confidence, analysis, stats, hcp_group, player_hcp)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
              ON CONFLICT (tournament_id, player_name)
              DO UPDATE SET
                probability = $3,
                confidence = $4,
                analysis = $5,
                stats = $6,
+               hcp_group = $7,
+               player_hcp = $8,
                updated_at = CURRENT_TIMESTAMP`,
             [
               tournament.id,
@@ -121,7 +134,9 @@ export async function calculateAndSavePredictions(tournamentId) {
               probability.probability,
               probability.confidence,
               probability.analysis,
-              JSON.stringify(probability.stats)
+              JSON.stringify(probability.stats),
+              hcpGroup,
+              playerHcp
             ]
           )
           calculated++
