@@ -115,8 +115,10 @@ export function setupAdminCommands(bot) {
           ORDER BY date DESC
           LIMIT 20
         `)
+        console.log('[bot-admin] Tournaments with flights fetched:', tournaments.length)
 
         if (tournaments.length === 0) {
+          console.log('[bot-admin] No flights, sending empty message')
           await bot.editMessageText('ℹ️ Нет турниров с фото флайтов.', {
             chat_id: query.message.chat.id,
             message_id: query.message.message_id,
@@ -124,22 +126,26 @@ export function setupAdminCommands(bot) {
               inline_keyboard: [[{ text: '◀️ Назад', callback_data: 'admin_back' }]],
             },
           })
+          console.log('[bot-admin] Empty flights message sent')
           return
         }
 
         // Build tournament selection keyboard
+        console.log('[bot-admin] Building flights keyboard')
         const keyboard = tournaments.map(t => [{
           text: `${t.name} (${t.flights_photos.length} фото)`,
           callback_data: `admin_flights_tournament_${t.id}`,
         }])
         keyboard.push([{ text: '◀️ Назад', callback_data: 'admin_back' }])
 
+        console.log('[bot-admin] Sending flights selection message')
         await bot.editMessageText('🗑️ <b>Выберите турнир для удаления фото флайтов:</b>', {
           chat_id: query.message.chat.id,
           message_id: query.message.message_id,
           parse_mode: 'HTML',
           reply_markup: { inline_keyboard: keyboard },
         })
+        console.log('[bot-admin] Flights selection message sent successfully')
         return
       }
 
@@ -253,8 +259,10 @@ export function setupAdminCommands(bot) {
             CASE WHEN date < CURRENT_DATE THEN date END DESC
           LIMIT 20
         `)
+        console.log('[bot-admin] Tournaments fetched for results:', tournaments.length)
 
         if (tournaments.length === 0) {
+          console.log('[bot-admin] No tournaments, sending empty message')
           await bot.editMessageText('❌ Нет доступных турниров в базе данных.', {
             chat_id: query.message.chat.id,
             message_id: query.message.message_id,
@@ -262,22 +270,26 @@ export function setupAdminCommands(bot) {
               inline_keyboard: [[{ text: '◀️ Назад', callback_data: 'admin_back' }]],
             },
           })
+          console.log('[bot-admin] Empty message sent')
           return
         }
 
         // Build tournament selection keyboard
+        console.log('[bot-admin] Building keyboard with', tournaments.length, 'tournaments')
         const keyboard = tournaments.map(t => [{
           text: `${t.name} (${new Date(t.date).toLocaleDateString('ru-RU')})`,
           callback_data: `admin_tournament_${t.id}`,
         }])
         keyboard.push([{ text: '◀️ Назад', callback_data: 'admin_back' }])
 
+        console.log('[bot-admin] Sending tournament selection message')
         await bot.editMessageText('📊 <b>Выберите турнир:</b>', {
           chat_id: query.message.chat.id,
           message_id: query.message.message_id,
           parse_mode: 'HTML',
           reply_markup: { inline_keyboard: keyboard },
         })
+        console.log('[bot-admin] Tournament selection message sent successfully')
         return
       }
 
@@ -350,8 +362,10 @@ export function setupAdminCommands(bot) {
             CASE WHEN date < CURRENT_DATE THEN date END DESC
           LIMIT 20
         `)
+        console.log('[bot-admin] Tournaments fetched for participants:', tournaments.length)
 
         if (tournaments.length === 0) {
+          console.log('[bot-admin] No tournaments, sending empty message')
           await bot.editMessageText('❌ Нет доступных турниров в базе данных.', {
             chat_id: query.message.chat.id,
             message_id: query.message.message_id,
@@ -359,22 +373,26 @@ export function setupAdminCommands(bot) {
               inline_keyboard: [[{ text: '◀️ Назад', callback_data: 'admin_back' }]],
             },
           })
+          console.log('[bot-admin] Empty message sent')
           return
         }
 
         // Build tournament selection keyboard
+        console.log('[bot-admin] Building participants keyboard')
         const keyboard = tournaments.map(t => [{
           text: `${t.name} (${new Date(t.date).toLocaleDateString('ru-RU')})`,
           callback_data: `admin_participants_tournament_${t.id}`,
         }])
         keyboard.push([{ text: '◀️ Назад', callback_data: 'admin_back' }])
 
+        console.log('[bot-admin] Sending participants selection message')
         await bot.editMessageText('👥 <b>Выберите турнир для ввода участников:</b>', {
           chat_id: query.message.chat.id,
           message_id: query.message.message_id,
           parse_mode: 'HTML',
           reply_markup: { inline_keyboard: keyboard },
         })
+        console.log('[bot-admin] Participants selection message sent successfully')
         return
       }
 
@@ -602,6 +620,7 @@ export function setupAdminCommands(bot) {
             text += `   HCP: ${p.estimated_hcp} | Top-3: ${p.top3_finishes}\n`
           })
 
+          console.log('[bot-admin] Sending leaderboards message, length:', text.length)
           await bot.editMessageText(text, {
             chat_id: query.message.chat.id,
             message_id: query.message.message_id,
@@ -610,8 +629,10 @@ export function setupAdminCommands(bot) {
               inline_keyboard: [[{ text: '◀️ Назад', callback_data: 'admin_back' }]],
             },
           })
+          console.log('[bot-admin] Leaderboards message sent successfully')
         } catch (err) {
-          console.error('[bot-admin] Leaderboards error:', err)
+          console.error('[bot-admin] Leaderboards error:', err.message)
+          console.error('[bot-admin] Leaderboards stack:', err.stack)
           await bot.answerCallbackQuery(query.id, { text: '❌ Ошибка загрузки статистики', show_alert: true })
         }
         return
