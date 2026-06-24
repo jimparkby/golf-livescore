@@ -83,6 +83,7 @@ export function setupAdminCommands(bot) {
     if (!telegramId) return
 
     const data = query.data
+    console.log('[bot-admin] Callback query received:', { telegramId, data })
 
     // Check admin access
     if (data?.startsWith('admin_') && !isAdmin(telegramId)) {
@@ -101,7 +102,9 @@ export function setupAdminCommands(bot) {
 
       // ── Manage flights photos ──────────────────────────────────────────────
       if (data === 'admin_manage_flights') {
+        console.log('[bot-admin] Processing admin_manage_flights')
         await bot.answerCallbackQuery(query.id)
+        console.log('[bot-admin] Callback answered, fetching tournaments with flights')
 
         // Get tournaments with flights photos
         const { rows: tournaments } = await db.query(`
@@ -236,7 +239,9 @@ export function setupAdminCommands(bot) {
 
       // ── Enter tournament results ───────────────────────────────────────────
       if (data === 'admin_tournament_results') {
+        console.log('[bot-admin] Processing admin_tournament_results')
         await bot.answerCallbackQuery(query.id)
+        console.log('[bot-admin] Callback answered, fetching tournaments')
 
         // Get list of tournaments (upcoming first, then past)
         const { rows: tournaments } = await db.query(`
@@ -331,7 +336,9 @@ export function setupAdminCommands(bot) {
 
       // ── Enter participants list ────────────────────────────────────────────
       if (data === 'admin_participants_list') {
+        console.log('[bot-admin] Processing admin_participants_list')
         await bot.answerCallbackQuery(query.id)
+        console.log('[bot-admin] Callback answered, fetching tournaments')
 
         // Get list of tournaments (upcoming first, then past)
         const { rows: tournaments } = await db.query(`
@@ -570,10 +577,13 @@ export function setupAdminCommands(bot) {
 
       // ── Leaderboards ───────────────────────────────────────────────────────
       if (data === 'admin_leaderboards') {
+        console.log('[bot-admin] Processing admin_leaderboards')
         await bot.answerCallbackQuery(query.id)
+        console.log('[bot-admin] Callback answered, fetching leaderboards')
 
         try {
           const { topByWins, topByHcp } = await getLeaderboards()
+          console.log('[bot-admin] Leaderboards fetched:', { topByWins: topByWins?.length, topByHcp: topByHcp?.length })
 
           let text = '🏆 <b>Таблицы лидеров</b>\n\n'
 
@@ -608,8 +618,14 @@ export function setupAdminCommands(bot) {
       }
 
     } catch (err) {
-      console.error('[bot-admin] callback_query error:', err.message)
-      await bot.answerCallbackQuery(query.id, { text: '❌ Произошла ошибка', show_alert: true })
+      console.error('[bot-admin] callback_query error for data:', query.data)
+      console.error('[bot-admin] Error message:', err.message)
+      console.error('[bot-admin] Error stack:', err.stack)
+      try {
+        await bot.answerCallbackQuery(query.id, { text: '❌ Произошла ошибка', show_alert: true })
+      } catch (answerErr) {
+        console.error('[bot-admin] Failed to answer callback query:', answerErr.message)
+      }
     }
   })
 
