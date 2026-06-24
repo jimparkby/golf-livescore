@@ -95,23 +95,37 @@ export async function calculateAndSavePredictions(tournamentId) {
       }
     }
 
-    const uniqueNames = [...new Set(allParticipants.map(p => p.name))]
-    console.log(`[predictionsCalc] Calculating for ${uniqueNames.length} participants`)
+    // Create map of participants by name (use last occurrence if duplicates)
+    const participantsMap = new Map()
+    allParticipants.forEach(p => participantsMap.set(p.name, p))
+
+    console.log(`[predictionsCalc] Calculating for ${participantsMap.size} participants`)
 
     let calculated = 0
 
-    for (const playerName of uniqueNames) {
+    for (const [playerName, participant] of participantsMap) {
       try {
         const probability = await calculateWinProbability(playerName, tournament.id)
 
         if (probability && probability.probability !== null) {
-          // Get player HCP from statistics
-          const { rows: [playerStats] } = await db.query(
-            `SELECT estimated_hcp FROM player_statistics WHERE player_name = $1`,
-            [playerName]
-          )
+          // Use HCP from flights photo if available, otherwise from statistics
+          let playerHcp = participant.handicap
 
-          const playerHcp = playerStats?.estimated_hcp || 36 // Default to max HCP if not found
+          // If no HCP from photo or HCP is 0, try to get from player statistics
+          if (!playerHcp || playerHcp === 0) {
+            const { rows: [playerStats] } = await db.query(
+              `SELECT estimated_hcp FROM player_statistics WHERE player_name = $1`,
+              [playerName]
+            )
+            playerHcp = playerStats?.estimated_hcp || null
+          }
+
+          // Skip players without HCP data
+          if (!playerHcp || playerHcp === 0) {
+            console.log(`[predictionsCalc] Skipping ${playerName} - no HCP data (photo: ${participant.handicap}, db: not found)`)
+            continue
+          }
+
           const gender = detectGender(playerName)
           const hcpGroup = getHcpGroup(playerHcp, gender)
 
@@ -142,7 +156,7 @@ export async function calculateAndSavePredictions(tournamentId) {
           calculated++
 
           if (calculated % 10 === 0) {
-            console.log(`[predictionsCalc] Progress: ${calculated}/${uniqueNames.length}`)
+            console.log(`[predictionsCalc] Progress: ${calculated}/${participantsMap.size}`)
           }
         }
 
@@ -152,7 +166,7 @@ export async function calculateAndSavePredictions(tournamentId) {
       }
     }
 
-    console.log(`[predictionsCalc] Completed: ${calculated}/${uniqueNames.length} predictions saved`)
+    console.log(`[predictionsCalc] Completed: ${calculated}/${participantsMap.size} predictions saved`)
   } catch (error) {
     console.error('[predictionsCalc] Calculation error:', error)
   } finally {

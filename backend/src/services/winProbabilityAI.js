@@ -296,7 +296,13 @@ export async function recalculatePredictionsForUpcomingTournaments() {
               [player.player_name]
             )
 
-            const playerHcp = playerStats?.estimated_hcp || 36
+            // Skip players without HCP data
+            if (!playerStats || playerStats.estimated_hcp === null) {
+              console.log(`[winProbabilityAI] Skipping ${player.player_name} - no HCP data`)
+              continue
+            }
+
+            const playerHcp = playerStats.estimated_hcp
             const gender = detectGender(player.player_name)
             const hcpGroup = getHcpGroup(playerHcp, gender)
 

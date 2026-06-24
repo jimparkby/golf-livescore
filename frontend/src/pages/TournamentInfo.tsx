@@ -538,16 +538,7 @@ const TournamentInfoPage = () => {
                     </div>
                   </div>
                   <div className="divide-y divide-border">
-                    {group.predictions.map((pred, index) => {
-                      const confidenceColor =
-                        pred.confidence === "high" ? "text-green-500" :
-                        pred.confidence === "medium" ? "text-yellow-500" : "text-red-500";
-
-                      const confidenceEmoji =
-                        pred.confidence === "high" ? "🟢" :
-                        pred.confidence === "medium" ? "🟡" : "🔴";
-
-                      return (
+                    {group.predictions.map((pred, index) => (
                         <div key={index} className="px-4 py-3 flex items-center gap-3 bg-card">
                           <div className="w-8 shrink-0 text-center">
                             {index === 0 && <span className="text-xl">🥇</span>}
@@ -568,17 +559,8 @@ const TournamentInfoPage = () => {
                               </div>
                             )}
                           </div>
-                          <div className="text-right shrink-0">
-                            <div className="text-lg font-bold text-action">
-                              {pred.probability.toFixed(0)}%
-                            </div>
-                            <div className={cn("text-xs", confidenceColor)}>
-                              {confidenceEmoji}
-                            </div>
-                          </div>
                         </div>
-                      );
-                    })}
+                      ))}
                   </div>
                 </div>
               ))}
