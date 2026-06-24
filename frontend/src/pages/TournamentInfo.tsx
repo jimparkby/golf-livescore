@@ -13,12 +13,18 @@ type Prediction = {
   probability: number;
   confidence: "low" | "medium" | "high";
   analysis?: string;
+  playerHcp?: number;
   stats?: {
     totalTournaments: number;
     wins: number;
     top3Finishes: number;
     avgPlace: number;
   };
+};
+
+type PredictionGroup = {
+  groupName: string;
+  predictions: Prediction[];
 };
 
 const TournamentInfoPage = () => {
@@ -28,7 +34,7 @@ const TournamentInfoPage = () => {
   const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
   const [flightsPhotos, setFlightsPhotos] = useState<string[]>([]);
   const [loadingFlights, setLoadingFlights] = useState(false);
-  const [predictions, setPredictions] = useState<Prediction[]>([]);
+  const [predictionGroups, setPredictionGroups] = useState<PredictionGroup[]>([]);
   const [loadingPredictions, setLoadingPredictions] = useState(false);
   const [predictionsCalculating, setPredictionsCalculating] = useState(false);
   const [predictionsMessage, setPredictionsMessage] = useState<string | null>(null);
@@ -117,7 +123,7 @@ const TournamentInfoPage = () => {
         if (response.ok) {
           const data = await response.json();
           console.log('[TournamentInfo] Predictions data:', data);
-          setPredictions(data.predictions || []);
+          setPredictionGroups(data.groups || []);
           setPredictionsCalculating(data.calculating || false);
           setPredictionsMessage(data.message || null);
         } else {
@@ -146,7 +152,7 @@ const TournamentInfoPage = () => {
       const response = await fetch(`/api/predictions/tournament/${id}`);
       if (response.ok) {
         const data = await response.json();
-        setPredictions(data.predictions || []);
+        setPredictionGroups(data.groups || []);
         setPredictionsCalculating(data.calculating || false);
         setPredictionsMessage(data.message || null);
       }
@@ -501,7 +507,7 @@ const TournamentInfoPage = () => {
                 Загружаю прогнозы...
               </div>
             </div>
-          ) : predictionsCalculating || (predictions.length === 0 && predictionsMessage) ? (
+          ) : predictionsCalculating || (predictionGroups.length === 0 && predictionsMessage) ? (
             <div className="p-8 text-center">
               <div className="text-4xl mb-3">⏳</div>
               <div className="text-sm font-semibold text-foreground mb-2">
@@ -517,63 +523,66 @@ const TournamentInfoPage = () => {
                 Обновить
               </button>
             </div>
-          ) : predictions.length === 0 ? (
+          ) : predictionGroups.length === 0 ? (
             <div className="p-8 text-center text-muted-foreground text-sm">
               Недостаточно данных для прогноза
             </div>
           ) : (
-            <>
-              <div className="px-4 py-2 bg-muted/30 border-b border-border">
-                <div className="text-xs text-muted-foreground">
-                  Проанализировано участников: {predictions.length}
-                </div>
-              </div>
-              <div className="divide-y divide-border">
-                {predictions.map((pred, index) => {
-                const confidenceColor =
-                  pred.confidence === "high" ? "text-green-500" :
-                  pred.confidence === "medium" ? "text-yellow-500" : "text-red-500";
-
-                const confidenceEmoji =
-                  pred.confidence === "high" ? "🟢" :
-                  pred.confidence === "medium" ? "🟡" : "🔴";
-
-                return (
-                  <div key={index} className="px-4 py-3 flex items-center gap-3">
-                    <div className="w-8 shrink-0 text-center">
-                      {index === 0 && <span className="text-xl">🥇</span>}
-                      {index === 1 && <span className="text-xl">🥈</span>}
-                      {index === 2 && <span className="text-xl">🥉</span>}
-                      {index > 2 && (
-                        <span className="text-sm font-bold text-muted-foreground">{index + 1}</span>
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="text-sm font-medium truncate">{pred.playerName}</div>
-                      {pred.stats && (
-                        <div className="text-xs text-muted-foreground">
-                          {pred.stats.totalTournaments} турниров · {pred.stats.wins} побед
-                        </div>
-                      )}
-                      {pred.analysis && (
-                        <div className="text-xs text-muted-foreground mt-1 line-clamp-2">
-                          {pred.analysis}
-                        </div>
-                      )}
-                    </div>
-                    <div className="text-right shrink-0">
-                      <div className="text-lg font-bold text-action">
-                        {pred.probability.toFixed(0)}%
-                      </div>
-                      <div className={cn("text-xs", confidenceColor)}>
-                        {confidenceEmoji}
-                      </div>
+            <div className="space-y-4 p-4">
+              {predictionGroups.map((group, groupIdx) => (
+                <div key={groupIdx} className="border border-border rounded-lg overflow-hidden">
+                  <div className="px-4 py-2.5 bg-muted/50 border-b border-border">
+                    <div className="text-sm font-bold text-foreground">{group.groupName}</div>
+                    <div className="text-xs text-muted-foreground mt-0.5">
+                      Топ-3 претендентов
                     </div>
                   </div>
-                );
-              })}
-              </div>
-            </>
+                  <div className="divide-y divide-border">
+                    {group.predictions.map((pred, index) => {
+                      const confidenceColor =
+                        pred.confidence === "high" ? "text-green-500" :
+                        pred.confidence === "medium" ? "text-yellow-500" : "text-red-500";
+
+                      const confidenceEmoji =
+                        pred.confidence === "high" ? "🟢" :
+                        pred.confidence === "medium" ? "🟡" : "🔴";
+
+                      return (
+                        <div key={index} className="px-4 py-3 flex items-center gap-3 bg-card">
+                          <div className="w-8 shrink-0 text-center">
+                            {index === 0 && <span className="text-xl">🥇</span>}
+                            {index === 1 && <span className="text-xl">🥈</span>}
+                            {index === 2 && <span className="text-xl">🥉</span>}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="text-sm font-medium truncate">{pred.playerName}</div>
+                            <div className="text-xs text-muted-foreground">
+                              HCP: {pred.playerHcp ? pred.playerHcp.toFixed(1) : 'н/д'}
+                              {pred.stats && (
+                                <> · {pred.stats.totalTournaments} турниров · {pred.stats.wins} побед</>
+                              )}
+                            </div>
+                            {pred.analysis && (
+                              <div className="text-xs text-muted-foreground mt-1 line-clamp-2">
+                                {pred.analysis}
+                              </div>
+                            )}
+                          </div>
+                          <div className="text-right shrink-0">
+                            <div className="text-lg font-bold text-action">
+                              {pred.probability.toFixed(0)}%
+                            </div>
+                            <div className={cn("text-xs", confidenceColor)}>
+                              {confidenceEmoji}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
           )}
         </Card>
       )}
