@@ -7,6 +7,27 @@ const router = express.Router()
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN
 
 /**
+ * GET /api/tournaments/list/with-results
+ * Get list of tournament IDs/slugs that have results
+ */
+router.get('/list/with-results', async (req, res) => {
+  try {
+    const { rows: tournaments } = await db.query(`
+      SELECT DISTINCT t.id, t.slug
+      FROM tournaments t
+      INNER JOIN tournament_results tr ON t.id = tr.tournament_id
+    `)
+
+    const tournamentIds = tournaments.map(t => t.slug || t.id.toString())
+
+    res.json({ tournaments: tournamentIds })
+  } catch (error) {
+    console.error('Error getting tournaments with results:', error)
+    res.status(500).json({ error: 'Failed to get tournaments with results' })
+  }
+})
+
+/**
  * GET /api/tournaments/:id
  * Get tournament details (accepts both numeric ID and slug)
  */
@@ -28,6 +49,64 @@ router.get('/:id', async (req, res) => {
   } catch (error) {
     console.error('Error getting tournament:', error)
     res.status(500).json({ error: 'Failed to get tournament' })
+  }
+})
+
+/**
+ * GET /api/tournaments/:id/results
+ * Get tournament results (accepts both numeric ID and slug)
+ */
+router.get('/:id/results', async (req, res) => {
+  try {
+    const { id } = req.params
+
+    // Get tournament first
+    const { rows: [tournament] } = await db.query(
+      'SELECT id, name, date FROM tournaments WHERE slug = $1 OR id::text = $1',
+      [id]
+    )
+
+    if (!tournament) {
+      return res.status(404).json({ error: 'Tournament not found' })
+    }
+
+    // Get results grouped by group_name
+    const { rows: results } = await db.query(
+      `SELECT * FROM tournament_results
+       WHERE tournament_id = $1
+       ORDER BY COALESCE(group_name, ''), place ASC`,
+      [tournament.id]
+    )
+
+    // Group results by group_name
+    const groupedResults = {}
+    results.forEach(result => {
+      const groupName = result.group_name || 'Общий зачет'
+      if (!groupedResults[groupName]) {
+        groupedResults[groupName] = []
+      }
+      groupedResults[groupName].push({
+        place: result.place,
+        player_name: result.player_name,
+        score: result.score,
+      })
+    })
+
+    res.json({
+      tournament: {
+        id: tournament.id,
+        name: tournament.name,
+        date: tournament.date,
+      },
+      groups: Object.entries(groupedResults).map(([groupName, results]) => ({
+        name: groupName,
+        results,
+      })),
+      hasResults: results.length > 0,
+    })
+  } catch (error) {
+    console.error('Error getting tournament results:', error)
+    res.status(500).json({ error: 'Failed to get tournament results' })
   }
 })
 

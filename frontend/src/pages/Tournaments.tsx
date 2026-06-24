@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { TOURNAMENTS } from "@/lib/tournaments";
 import { getTournamentData } from "@/lib/tournament-data";
@@ -8,6 +8,19 @@ import Leaderboard from "@/components/Leaderboard";
 
 const TournamentsPage = () => {
   const navigate = useNavigate();
+  const [tournamentsWithResults, setTournamentsWithResults] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    // Fetch list of tournaments with results from API
+    fetch("/api/tournaments/list/with-results")
+      .then(res => res.json())
+      .then(data => {
+        if (data.tournaments) {
+          setTournamentsWithResults(new Set(data.tournaments));
+        }
+      })
+      .catch(err => console.error("Failed to fetch tournaments with results:", err));
+  }, []);
 
   const grouped = useMemo(() => {
     const map = new Map<string, typeof TOURNAMENTS>();
@@ -59,7 +72,7 @@ const TournamentsPage = () => {
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="text-sm font-medium leading-snug">{t.name}</div>
-                  {getTournamentData(t.id) && (
+                  {(getTournamentData(t.id) || tournamentsWithResults.has(t.id)) && (
                     <div className="flex items-center gap-1 mt-1">
                       <Image className="h-3 w-3 text-action" />
                       <span className="text-[10px] text-action font-semibold uppercase tracking-wider">
