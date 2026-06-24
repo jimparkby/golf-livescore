@@ -36,7 +36,17 @@ async function runMigrations() {
       status TEXT DEFAULT 'pending'
     )` },
     { name: 'hcp_group', query: `ALTER TABLE tournament_predictions ADD COLUMN IF NOT EXISTS hcp_group TEXT` },
-    { name: 'player_hcp', query: `ALTER TABLE tournament_predictions ADD COLUMN IF NOT EXISTS player_hcp NUMERIC` }
+    { name: 'player_hcp', query: `ALTER TABLE tournament_predictions ADD COLUMN IF NOT EXISTS player_hcp NUMERIC` },
+    { name: 'tournament_results', query: `CREATE TABLE IF NOT EXISTS tournament_results (
+      id SERIAL PRIMARY KEY,
+      tournament_id INTEGER NOT NULL REFERENCES tournaments(id) ON DELETE CASCADE,
+      player_name TEXT NOT NULL,
+      place INTEGER NOT NULL,
+      score INTEGER NOT NULL,
+      group_name TEXT,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+      UNIQUE(tournament_id, player_name, group_name)
+    )` }
   ]
 
   for (const migration of migrations) {
