@@ -26,6 +26,14 @@ router.get('/tournament/:id', async (req, res) => {
 
     // Check if we need to recalculate
     if (recalculate) {
+      // Delete old predictions first
+      console.log(`[predictions] Deleting old predictions for tournament ${tournament.id}`)
+      await db.query(
+        'DELETE FROM tournament_predictions WHERE tournament_id = $1',
+        [tournament.id]
+      )
+      console.log(`[predictions] Old predictions deleted`)
+
       // Start background calculation (don't wait)
       calculateAndSavePredictions(tournament.id).catch(err =>
         console.error('[predictions] Background calculation failed:', err)

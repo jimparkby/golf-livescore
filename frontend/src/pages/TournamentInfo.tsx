@@ -163,6 +163,28 @@ const TournamentInfoPage = () => {
     }
   };
 
+  // Function to force recalculate predictions (deletes old data first)
+  const recalculatePredictions = async () => {
+    if (!id) return;
+
+    setLoadingPredictions(true);
+    setPredictionsMessage(null);
+    setPredictionGroups([]);
+    try {
+      const response = await fetch(`/api/predictions/tournament/${id}?recalculate=true`);
+      if (response.ok) {
+        const data = await response.json();
+        setPredictionGroups(data.groups || []);
+        setPredictionsCalculating(data.calculating || false);
+        setPredictionsMessage(data.message || null);
+      }
+    } catch (error) {
+      console.error("[TournamentInfo] Error recalculating predictions:", error);
+    } finally {
+      setLoadingPredictions(false);
+    }
+  };
+
   if (!tournament) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -490,14 +512,26 @@ const TournamentInfoPage = () => {
       {activeTab === "predictions" && (
         <Card className="overflow-hidden shadow-soft">
           <div className="px-4 py-3 bg-muted/50 border-b border-border">
-            <div className="flex items-center gap-2">
-              <Brain className="h-4 w-4 text-action" />
-              <div className="text-sm font-bold text-foreground">
-                Наш прогноз шансов на победу
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="flex items-center gap-2">
+                  <Brain className="h-4 w-4 text-action" />
+                  <div className="text-sm font-bold text-foreground">
+                    Наш прогноз шансов на победу
+                  </div>
+                </div>
+                <div className="text-xs text-muted-foreground mt-1">
+                  На основе исторических данных и статистики
+                </div>
               </div>
-            </div>
-            <div className="text-xs text-muted-foreground mt-1">
-              На основе исторических данных и статистики
+              {predictionGroups.length > 0 && !loadingPredictions && (
+                <button
+                  onClick={recalculatePredictions}
+                  className="px-3 py-1.5 bg-action/10 text-action rounded-lg text-xs font-semibold hover:bg-action/20 transition-colors"
+                >
+                  Пересчитать
+                </button>
+              )}
             </div>
           </div>
           {loadingPredictions ? (
