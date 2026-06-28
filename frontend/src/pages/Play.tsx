@@ -883,7 +883,7 @@ const scoreLabelColor = (score: number, par: number) => {
 
 const RoundPlayer = ({ onExit, onCancel }: { onExit: () => void; onCancel: () => void }) => {
   const { t } = useTranslation();
-  const { activeRound, enterScore, finishRound, setRoundPhoto, syncRound, setCurrentHole, refreshActiveRound } = useGolf();
+  const { activeRound, enterScore, finishRound, setRoundPhoto, syncRound, setCurrentHole, refreshActiveRound, profile } = useGolf();
 
   // Poll partner scores every 15s when there are other registered players
   useEffect(() => {
