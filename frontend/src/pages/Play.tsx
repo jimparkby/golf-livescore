@@ -7,12 +7,10 @@ import { useGolf, type Player, type Round, type HolesMode } from "@/store/golfSt
 import { calcCourseHcpForMode, holeRankInSet, holeStrokesInSet } from "@/lib/handicap";
 import { compressImage } from "@/lib/imageUtils";
 import { api, BASE } from "@/lib/api";
-import { ChevronLeft, ChevronRight, Plus, X, PlayCircle, Flag, Camera, Check, Search, Share2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, X, PlayCircle, Flag, Camera, Check, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useTranslation } from "@/hooks/useTranslation";
-import { useIsMobile } from "@/hooks/use-mobile";
-import { generateStoryImage, shareToInstagram } from "@/lib/instagramStory";
 import heroImg from "@/assets/golfminsk/hero.jpg";
 import photo1 from "@/assets/golfminsk/photo1.jpg";
 import photo2 from "@/assets/golfminsk/photo2.jpg";
@@ -1150,32 +1148,6 @@ const RoundPlayer = ({ onExit, onCancel }: { onExit: () => void; onCancel: () =>
         </div>
 
         <div className="px-5 pt-4 space-y-3" style={{ paddingBottom: "max(env(safe-area-inset-bottom), 24px)" }}>
-          {/* Instagram Share - только mobile */}
-          {isMobile && (
-            <button
-              onClick={handleShareInstagram}
-              disabled={isGeneratingStory}
-              className="w-full h-14 rounded-2xl font-bold text-base flex items-center justify-center gap-3 transition-transform active:scale-[0.98]"
-              style={{
-                background: 'linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%)',
-                color: '#fff',
-                opacity: isGeneratingStory ? 0.6 : 1,
-              }}
-            >
-              {isGeneratingStory ? (
-                <>
-                  <div className="h-5 w-5 rounded-full border-2 border-white border-t-transparent animate-spin" />
-                  {t.sharingRound}
-                </>
-              ) : (
-                <>
-                  <Share2 className="h-5 w-5" strokeWidth={2.5} />
-                  {t.shareToInstagram}
-                </>
-              )}
-            </button>
-          )}
-
           <button
             onClick={onExit}
             className="w-full h-14 rounded-2xl font-black text-base uppercase tracking-wider active:scale-[0.98] transition-transform"

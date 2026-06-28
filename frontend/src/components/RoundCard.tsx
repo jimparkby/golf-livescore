@@ -1,7 +1,7 @@
 import { useRef } from "react";
 import { type Round } from "@/store/golfStore";
 import { COURSES } from "@/lib/courses";
-import { Camera, Trash2 } from "lucide-react";
+import { Camera, Trash2, Share2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { compressImage } from "@/lib/imageUtils";
 
@@ -23,9 +23,10 @@ type Props = {
   playerHcp: number;
   onDelete?: () => void;
   onAddPhoto?: (url: string) => void;
+  onShare?: () => void;
 };
 
-const RoundCard = ({ round, profilePhoto, playerName, playerHcp, onDelete, onAddPhoto }: Props) => {
+const RoundCard = ({ round, profilePhoto, playerName, playerHcp, onDelete, onAddPhoto, onShare }: Props) => {
   const fileRef = useRef<HTMLInputElement>(null);
   const course = COURSES.find((c) => c.id === round.courseId);
   const me = round.players.find((p) => p.isMe) ?? round.players[0];
@@ -142,6 +143,20 @@ const RoundCard = ({ round, profilePhoto, playerName, playerHcp, onDelete, onAdd
             </button>
             <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFile} />
           </>
+        )}
+        {onShare && (
+          <button
+            onClick={onShare}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-full text-xs font-semibold transition-colors"
+            style={{
+              background: "linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%)",
+              color: "#fff",
+              border: "none"
+            }}
+          >
+            <Share2 className="h-3.5 w-3.5" />
+            Share
+          </button>
         )}
         <div className="flex-1" />
         {onDelete && (
