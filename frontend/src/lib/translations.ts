@@ -148,6 +148,12 @@ type Translations = {
   selectTee: string;
   suggested: string;
   tee: string;
+
+  // Instagram Share
+  shareToInstagram: string;
+  sharingRound: string;
+  shareSuccess: string;
+  shareFailed: string;
 };
 
 export const translations: Record<Language, Translations> = {
@@ -299,6 +305,12 @@ export const translations: Record<Language, Translations> = {
     selectTee: "Select Tee",
     suggested: "Sug.",
     tee: "Tee",
+
+    // Instagram Share
+    shareToInstagram: "Share to Instagram Story",
+    sharingRound: "Generating story...",
+    shareSuccess: "Shared to Instagram!",
+    shareFailed: "Failed to share. Please try again.",
   },
 
   ru: {
@@ -449,5 +461,11 @@ export const translations: Record<Language, Translations> = {
     selectTee: "Выберите тии",
     suggested: "Рек.",
     tee: "Тии",
+
+    // Instagram Share
+    shareToInstagram: "Поделиться в Stories",
+    sharingRound: "Создание сторис...",
+    shareSuccess: "Опубликовано в Instagram!",
+    shareFailed: "Ошибка публикации. Попробуйте снова.",
   },
 };
