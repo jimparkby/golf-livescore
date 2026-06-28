@@ -64,8 +64,9 @@ router.post('/pregame', requireAuth, async (req, res, next) => {
 
     let comment
     if (rounds.length === 0) {
+      const clubName = currentCourse?.name?.split(' · ')[1] || currentCourse?.name || ''
       comment = currentCourse
-        ? `⛳ Удачи в первом раунде на ${currentCourse.name}, ${name}! С чего-то нужно начинать.`
+        ? `⛳ Удачи в первом раунде на ${clubName}, ${name}! С чего-то нужно начинать.`
         : `⛳ Удачи в первом раунде, ${name}! С чего-то нужно начинать.`
     } else {
       const recent = rounds.slice(0, 10)
@@ -111,10 +112,12 @@ router.post('/pregame', requireAuth, async (req, res, next) => {
         .slice(0, 3)
         .map(h => `лунка ${h.hole} (+${h.avg.toFixed(1)} к пару)`)
 
+      // Извлечь название клуба без поля (например "Golf Club Minsk" вместо "Championship · Golf Club Minsk")
+      const clubName = currentCourse?.name?.split(' · ')[1] || currentCourse?.name || ''
       const courseContext = currentCourse
         ? (relevantRounds.length > 0
-            ? `\nСегодня на поле: ${currentCourse.name} (статистика на этом поле)`
-            : `\nСегодня на поле: ${currentCourse.name} (новое поле для тебя)`)
+            ? `\nСегодня на поле: ${clubName} (статистика на этом поле)`
+            : `\nСегодня на поле: ${clubName} (новое поле для тебя)`)
         : ''
 
       const prompt = `Ты опытный гольф-тренер. Игрок ${name} сейчас собирается на поле, напиши ему короткое сообщение в Telegram.
@@ -124,7 +127,7 @@ router.post('/pregame', requireAuth, async (req, res, next) => {
 ${roundStats}
 ${weakHoles.length > 0 ? `\nПроблемные лунки по истории: ${weakHoles.join(', ')}` : ''}
 
-Напиши 2-3 предложения максимум. Используй конкретные числа из статистики — тренд счётов, слабые лунки, прогресс. ${currentCourse ? `Учти что игрок сегодня на ${currentCourse.name}.` : ''} Говори как реальный тренер который следит за игрой, не как бот по скрипту. Можно добавить один конкретный совет на сегодня. Отвечай на русском. Без приветствия типа "Привет!" — сразу к делу.`
+Напиши 2-3 предложения максимум. Используй конкретные числа из статистики — тренд счётов, слабые лунки, прогресс. ${currentCourse ? `Учти что игрок сегодня на ${clubName}.` : ''} Говори как реальный тренер который следит за игрой, не как бот по скрипту. Можно добавить один конкретный совет на сегодня. Отвечай на русском. Без приветствия типа "Привет!" — сразу к делу.`
 
       comment = await callOpenRouter(prompt)
     }
