@@ -1079,12 +1079,15 @@ const RoundPlayer = ({ onExit, onCancel }: { onExit: () => void; onCancel: () =>
       setIsGeneratingStory(true);
       toast.info(t.sharingRound);
       try {
+        console.log('[Instagram] Starting generation...', { round: completedRound.id });
         const blob = await generateStoryImage(completedRound, profile);
+        console.log('[Instagram] Generated blob:', blob.size, 'bytes');
         await shareToInstagram(blob);
         toast.success(t.shareSuccess);
       } catch (err) {
-        console.error(err);
-        toast.error(t.shareFailed);
+        console.error('[Instagram] Error:', err);
+        const errorMsg = err instanceof Error ? err.message : 'Unknown error';
+        toast.error(`${t.shareFailed}: ${errorMsg}`);
       } finally {
         setIsGeneratingStory(false);
       }
