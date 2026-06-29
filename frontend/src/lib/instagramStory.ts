@@ -24,6 +24,15 @@ export async function generateStoryImage(
   const vpColor = vsPar < 0 ? '#22c55e' : vsPar === 0 ? '#ffffff' : '#f87171';
   const playerName = `${profile.firstName} ${profile.lastName}`.trim() || 'Player';
   const courseName = round.courseName.split(' · ')[0];
+  const clubName = round.courseName.split(' · ')[1] || '';
+
+  // Форматировать дату
+  const date = new Date(round.date);
+  const dateStr = date.toLocaleDateString('ru-RU', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric'
+  });
 
   // Создать canvas
   const canvas = document.createElement('canvas');
@@ -35,53 +44,113 @@ export async function generateStoryImage(
     throw new Error('Canvas context not available');
   }
 
-  // Фон
-  ctx.fillStyle = '#000000';
+  // Фон с градиентом
+  const bgGradient = ctx.createLinearGradient(0, 0, 0, STORY_HEIGHT);
+  bgGradient.addColorStop(0, '#0a0a0a');
+  bgGradient.addColorStop(1, '#1a1a1a');
+  ctx.fillStyle = bgGradient;
   ctx.fillRect(0, 0, STORY_WIDTH, STORY_HEIGHT);
+
+  // Основная карточка с фото и счётом
+  const cardY = 360;
+  const cardWidth = 960;
+  const cardX = (STORY_WIDTH - cardWidth) / 2;
 
   // Если есть фото раунда, загрузить и нарисовать
   if (round.photoUrl) {
     try {
       const img = await loadImage(round.photoUrl);
 
-      // Рассчитать размеры для фото (центрированное, aspect ratio 4:3)
-      const photoHeight = 720; // Максимальная высота
+      // Рассчитать размеры для фото с закругленными углами
+      const photoHeight = 720;
       const photoWidth = photoHeight * (4/3);
       const photoX = (STORY_WIDTH - photoWidth) / 2;
-      const photoY = 400; // Отступ сверху
+      const photoY = cardY;
+
+      // Создать clipping path для закругленных углов
+      ctx.save();
+      ctx.beginPath();
+      ctx.moveTo(photoX + 24, photoY);
+      ctx.lineTo(photoX + photoWidth - 24, photoY);
+      ctx.quadraticCurveTo(photoX + photoWidth, photoY, photoX + photoWidth, photoY + 24);
+      ctx.lineTo(photoX + photoWidth, photoY + photoHeight - 24);
+      ctx.quadraticCurveTo(photoX + photoWidth, photoY + photoHeight, photoX + photoWidth - 24, photoY + photoHeight);
+      ctx.lineTo(photoX + 24, photoY + photoHeight);
+      ctx.quadraticCurveTo(photoX, photoY + photoHeight, photoX, photoY + photoHeight - 24);
+      ctx.lineTo(photoX, photoY + 24);
+      ctx.quadraticCurveTo(photoX, photoY, photoX + 24, photoY);
+      ctx.closePath();
+      ctx.clip();
 
       // Нарисовать фото
       ctx.drawImage(img, photoX, photoY, photoWidth, photoHeight);
+      ctx.restore();
 
-      // Затемнение снизу
-      const gradient = ctx.createLinearGradient(photoX, photoY + photoHeight, photoX, photoY + photoHeight - 200);
-      gradient.addColorStop(0, 'rgba(0,0,0,0.85)');
+      // Градиент затемнения снизу
+      const gradient = ctx.createLinearGradient(photoX, photoY + photoHeight, photoX, photoY + photoHeight - 250);
+      gradient.addColorStop(0, 'rgba(0,0,0,0.9)');
       gradient.addColorStop(1, 'rgba(0,0,0,0)');
       ctx.fillStyle = gradient;
+      ctx.save();
+      ctx.beginPath();
+      ctx.moveTo(photoX + 24, photoY);
+      ctx.lineTo(photoX + photoWidth - 24, photoY);
+      ctx.quadraticCurveTo(photoX + photoWidth, photoY, photoX + photoWidth, photoY + 24);
+      ctx.lineTo(photoX + photoWidth, photoY + photoHeight - 24);
+      ctx.quadraticCurveTo(photoX + photoWidth, photoY + photoHeight, photoX + photoWidth - 24, photoY + photoHeight);
+      ctx.lineTo(photoX + 24, photoY + photoHeight);
+      ctx.quadraticCurveTo(photoX, photoY + photoHeight, photoX, photoY + photoHeight - 24);
+      ctx.lineTo(photoX, photoY + 24);
+      ctx.quadraticCurveTo(photoX, photoY, photoX + 24, photoY);
+      ctx.closePath();
+      ctx.clip();
       ctx.fillRect(photoX, photoY, photoWidth, photoHeight);
+      ctx.restore();
 
-      // Счёт поверх фото (правый верхний угол)
-      ctx.fillStyle = 'rgba(0,0,0,0.7)';
-      roundRect(ctx, photoX + photoWidth - 180, photoY + 30, 150, 120, 16);
+      // Карточка со счётом (правый верхний угол)
+      const scoreCardX = photoX + photoWidth - 200;
+      const scoreCardY = photoY + 40;
 
+      // Фон карточки со счётом
+      ctx.fillStyle = 'rgba(0,0,0,0.85)';
+      ctx.shadowColor = 'rgba(0,0,0,0.3)';
+      ctx.shadowBlur = 20;
+      ctx.shadowOffsetY = 10;
+      roundRect(ctx, scoreCardX, scoreCardY, 160, 140, 20);
+      ctx.shadowBlur = 0;
+      ctx.shadowOffsetY = 0;
+
+      // Счёт
       ctx.fillStyle = '#ffffff';
-      ctx.font = 'bold 64px -apple-system, sans-serif';
+      ctx.font = 'bold 72px -apple-system, sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText(String(total), photoX + photoWidth - 105, photoY + 95);
+      ctx.fillText(String(total), scoreCardX + 80, scoreCardY + 75);
 
+      // vs Par
       ctx.fillStyle = vpColor;
-      ctx.font = 'bold 28px -apple-system, sans-serif';
-      ctx.fillText(vpText, photoX + photoWidth - 105, photoY + 130);
+      ctx.font = 'bold 32px -apple-system, sans-serif';
+      ctx.fillText(vpText, scoreCardX + 80, scoreCardY + 115);
 
-      // Название курса внизу фото
+      // Информация о курсе внизу фото
+      const courseInfoY = photoY + photoHeight - 50;
+
+      // Название курса
       ctx.fillStyle = 'rgba(255,255,255,0.6)';
       ctx.font = '600 18px -apple-system, sans-serif';
       ctx.textAlign = 'left';
-      ctx.fillText(courseName.toUpperCase(), photoX + 30, photoY + photoHeight - 80);
+      ctx.letterSpacing = '2px';
+      ctx.fillText(courseName.toUpperCase(), photoX + 40, courseInfoY - 35);
+      ctx.letterSpacing = '0px';
 
       ctx.fillStyle = '#ffffff';
-      ctx.font = 'bold 26px -apple-system, sans-serif';
-      ctx.fillText(courseName, photoX + 30, photoY + photoHeight - 45);
+      ctx.font = 'bold 32px -apple-system, sans-serif';
+      ctx.fillText(clubName || courseName, photoX + 40, courseInfoY);
+
+      // Rating / Slope справа
+      ctx.fillStyle = 'rgba(255,255,255,0.5)';
+      ctx.font = '500 18px -apple-system, sans-serif';
+      ctx.textAlign = 'right';
+      ctx.fillText(`⛳ ${round.rating} / ${round.slope}`, photoX + photoWidth - 40, courseInfoY);
 
     } catch (err) {
       console.warn('Failed to load photo:', err);
@@ -89,37 +158,110 @@ export async function generateStoryImage(
     }
   }
 
-  // Счёт (большой, в центре если нет фото)
+  // Карточка со счётом (если нет фото)
   if (!round.photoUrl) {
+    const centerY = 700;
+
+    // Большая карточка со счётом
+    const scoreCardWidth = 800;
+    const scoreCardHeight = 500;
+    const scoreCardX = (STORY_WIDTH - scoreCardWidth) / 2;
+    const scoreCardY = centerY - scoreCardHeight / 2;
+
+    // Фон карточки с градиентом
+    const cardGradient = ctx.createLinearGradient(scoreCardX, scoreCardY, scoreCardX, scoreCardY + scoreCardHeight);
+    cardGradient.addColorStop(0, 'rgba(30,30,30,0.95)');
+    cardGradient.addColorStop(1, 'rgba(20,20,20,0.95)');
+    ctx.fillStyle = cardGradient;
+    ctx.shadowColor = 'rgba(0,0,0,0.5)';
+    ctx.shadowBlur = 40;
+    ctx.shadowOffsetY = 20;
+    roundRect(ctx, scoreCardX, scoreCardY, scoreCardWidth, scoreCardHeight, 32);
+    ctx.shadowBlur = 0;
+    ctx.shadowOffsetY = 0;
+
+    // Счёт
     ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 140px -apple-system, sans-serif';
+    ctx.font = 'bold 160px -apple-system, sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText(String(total), STORY_WIDTH / 2, STORY_HEIGHT / 2);
+    ctx.fillText(String(total), STORY_WIDTH / 2, scoreCardY + 180);
 
+    // vs Par
     ctx.fillStyle = vpColor;
-    ctx.font = 'bold 56px -apple-system, sans-serif';
-    ctx.fillText(vpText, STORY_WIDTH / 2, STORY_HEIGHT / 2 + 80);
+    ctx.font = 'bold 64px -apple-system, sans-serif';
+    ctx.fillText(vpText, STORY_WIDTH / 2, scoreCardY + 260);
 
+    // Разделитель
+    ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(scoreCardX + 100, scoreCardY + 310);
+    ctx.lineTo(scoreCardX + scoreCardWidth - 100, scoreCardY + 310);
+    ctx.stroke();
+
+    // Название курса
+    ctx.fillStyle = 'rgba(255,255,255,0.6)';
+    ctx.font = '600 20px -apple-system, sans-serif';
+    ctx.letterSpacing = '2px';
+    ctx.fillText(courseName.toUpperCase(), STORY_WIDTH / 2, scoreCardY + 360);
+    ctx.letterSpacing = '0px';
+
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 28px -apple-system, sans-serif';
+    ctx.fillText(clubName || courseName, STORY_WIDTH / 2, scoreCardY + 395);
+
+    // Rating / Slope
     ctx.fillStyle = 'rgba(255,255,255,0.5)';
-    ctx.font = '600 24px -apple-system, sans-serif';
-    ctx.fillText(courseName, STORY_WIDTH / 2, STORY_HEIGHT / 2 + 140);
+    ctx.font = '500 20px -apple-system, sans-serif';
+    ctx.fillText(`⛳ ${round.rating} / ${round.slope}`, STORY_WIDTH / 2, scoreCardY + 440);
   }
 
-  // Имя игрока вверху
-  ctx.fillStyle = 'rgba(255,255,255,0.4)';
-  ctx.font = '600 16px -apple-system, sans-serif';
-  ctx.textAlign = 'center';
-  ctx.fillText('ROUND COMPLETED', STORY_WIDTH / 2, 250);
+  // Верхняя секция с информацией об игроке
+  const topY = 180;
 
+  // Заголовок
+  ctx.fillStyle = 'rgba(255,255,255,0.5)';
+  ctx.font = '700 20px -apple-system, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.letterSpacing = '4px';
+  ctx.fillText('⛳ РАУНД ЗАВЕРШЁН', STORY_WIDTH / 2, topY);
+  ctx.letterSpacing = '0px';
+
+  // Имя игрока
   ctx.fillStyle = '#ffffff';
-  ctx.font = 'bold 32px -apple-system, sans-serif';
-  ctx.fillText(playerName, STORY_WIDTH / 2, 290);
+  ctx.font = 'bold 48px -apple-system, sans-serif';
+  ctx.fillText(playerName, STORY_WIDTH / 2, topY + 60);
+
+  // HCP
+  if (profile.hcp !== undefined && profile.hcp !== null) {
+    ctx.fillStyle = 'rgba(255,255,255,0.6)';
+    ctx.font = '600 24px -apple-system, sans-serif';
+    ctx.fillText(`HCP ${profile.hcp}`, STORY_WIDTH / 2, topY + 95);
+  }
+
+  // Дата
+  ctx.fillStyle = 'rgba(255,255,255,0.4)';
+  ctx.font = '500 18px -apple-system, sans-serif';
+  ctx.fillText(dateStr, STORY_WIDTH / 2, topY + 130);
 
   // Watermark внизу
-  ctx.fillStyle = 'rgba(255,255,255,0.3)';
-  ctx.font = '600 22px -apple-system, sans-serif';
+  const watermarkY = STORY_HEIGHT - 120;
+
+  // Фон для watermark
+  ctx.fillStyle = 'rgba(255,255,255,0.05)';
+  roundRect(ctx, STORY_WIDTH / 2 - 300, watermarkY - 35, 600, 70, 16);
+
+  // Текст watermark
+  ctx.fillStyle = 'rgba(255,255,255,0.4)';
+  ctx.font = '700 18px -apple-system, sans-serif';
   ctx.textAlign = 'center';
-  ctx.fillText('⛳ GOLF • Made with Golf Livescore', STORY_WIDTH / 2, STORY_HEIGHT - 100);
+  ctx.letterSpacing = '2px';
+  ctx.fillText('GOLF LIVESCORE', STORY_WIDTH / 2, watermarkY);
+  ctx.letterSpacing = '0px';
+
+  ctx.fillStyle = 'rgba(255,255,255,0.25)';
+  ctx.font = '500 16px -apple-system, sans-serif';
+  ctx.fillText('Track • Share • Compete', STORY_WIDTH / 2, watermarkY + 25);
 
   // Конвертировать в blob
   return new Promise((resolve, reject) => {
