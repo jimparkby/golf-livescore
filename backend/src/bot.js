@@ -96,20 +96,20 @@ if (!token) {
   bot.onText(/\/start/, async (msg) => {
     console.log('[bot] /start from', msg.from?.id)
     const text = [
-      `GolfMinsk Live — live scoring right in Telegram`,
+      `GolfMinsk Live — онлайн-счёт прямо в Telegram`,
       ``,
-      `⛳ Track your score in real time`,
-      `📊 Follow your stats and progress`,
-      `🏆 Join Golf Club Minsk tournaments`,
+      `⛳ Ведите счёт в режиме реального времени`,
+      `📊 Следите за своей статистикой и прогрессом`,
+      `🏆 Участвуйте в турнирах Golf Club Minsk`,
       ``,
-      `GolfMinsk Live. Your golf assistant.`,
+      `GolfMinsk Live. Ваш гольф-ассистент.`,
     ].join('\n')
     try {
       await bot.sendMessage(msg.chat.id, text, {
         parse_mode: 'HTML',
         reply_markup: {
           inline_keyboard: [
-            [{ text: '⛳ Open GolfMinsk Live', web_app: { url: webAppUrl } }],
+            [{ text: '⛳ Открыть GolfMinsk Live', web_app: { url: webAppUrl } }],
           ],
         },
       })
