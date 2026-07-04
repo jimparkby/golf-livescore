@@ -49,20 +49,21 @@ export function calcDifferential(adjustedGross: number, courseRating: number, sl
   return Math.round(((adjustedGross - courseRating) * (113 / slope)) * 10) / 10;
 }
 
-// Handicap Index: average of best N differentials × 0.96 (WHS adjustment factor), capped at 54.0
+// Handicap Index: average of all best differentials (up to 8) × 0.96 (WHS adjustment factor), capped at 54.0
 export function calcHandicapIndex(diffs: number[]): number | null {
   const n = diffs.length;
   if (n < 3) return null;
-  const useCount = DIFF_USE_COUNT[Math.min(n, 20)] ?? 8;
+  // Always use all available differentials (up to 8)
+  const useCount = Math.min(n, 8);
   const sorted = [...diffs].sort((a, b) => a - b);
   const best = sorted.slice(0, useCount);
   const avg = best.reduce((s, d) => s + d, 0) / best.length;
   return Math.min(54.0, Math.round(avg * 0.96 * 10) / 10);
 }
 
-// How many differentials are used in calculation
+// How many differentials are used in calculation (all up to 8)
 export function diffUseCount(totalRounds: number): number {
-  return DIFF_USE_COUNT[Math.min(totalRounds, 20)] ?? 8;
+  return Math.min(totalRounds, 8);
 }
 
 // Rounds to go before first HCP calculation
@@ -78,8 +79,7 @@ export function getDifferentials(
   storedHcp: number,
 ): ScoreDifferential[] {
   const completed = rounds
-    .filter((r) => r.completed && (r.scores[playerId]?.length ?? 0) > 0)
-    .slice(0, 20);
+    .filter((r) => r.completed && (r.scores[playerId]?.length ?? 0) > 0);
 
   const result: ScoreDifferential[] = completed.map((r) => {
     const course = COURSES.find((c) => c.id === r.courseId);
@@ -120,10 +120,10 @@ export function getDifferentials(
     };
   });
 
-  // Mark the best N differentials as "used"
+  // Mark the best N differentials as "used" (all up to 8)
   const n = result.length;
   if (n >= 3) {
-    const useCount = DIFF_USE_COUNT[Math.min(n, 20)] ?? 8;
+    const useCount = Math.min(n, 8);
     const sortedByDiff = [...result].sort((a, b) => a.differential - b.differential);
     const usedIds = new Set(sortedByDiff.slice(0, useCount).map((x) => x.roundId));
     result.forEach((r) => { r.isUsed = usedIds.has(r.roundId); });

@@ -48,9 +48,10 @@ const ProfilePage = () => {
   const diffs = useMemo(() => getDifferentials(rounds, "me", profile.hcp), [rounds, profile.hcp]);
   const hcpIndex = calcHandicapIndex(diffs.map((d) => d.differential));
 
-  // Auto-apply calculated HCP to profile whenever it changes
+  // Auto-apply calculated HCP to profile whenever it changes (only when we have 3+ rounds)
   useEffect(() => {
-    const target = hcpIndex ?? 0;
+    if (hcpIndex === null) return; // Keep initial HCP (36.0) until we have 3+ rounds
+    const target = hcpIndex;
     if (Math.abs(target - profile.hcp) < 0.1) return;
     updateProfile({ hcp: target });
     const token = localStorage.getItem('golf_jwt');

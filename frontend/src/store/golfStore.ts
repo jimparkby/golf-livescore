@@ -149,7 +149,7 @@ const defaultProfile: Profile = {
   lastName: "",
   username: "",
   initials: "",
-  hcp: 0,
+  hcp: 36.0,
   homeClub: "Golf Club Minsk",
   email: "",
   city: "Minsk, Belarus",
