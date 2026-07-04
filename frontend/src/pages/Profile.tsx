@@ -110,7 +110,6 @@ const ProfilePage = () => {
     setSyncingHDID(true);
     try {
       const token = localStorage.getItem('golf_jwt');
-      console.log('[HDID] Syncing for:', profile.firstName, profile.lastName);
       const res = await fetch(`${BASE}/api/profile/sync-hdid`, {
         method: "POST",
         headers: {
@@ -118,9 +117,7 @@ const ProfilePage = () => {
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
       });
-      console.log('[HDID] Response status:', res.status);
       const data = await res.json();
-      console.log('[HDID] Response data:', data);
       if (!res.ok) {
         toast.error(data.errorRu || data.error || "Ошибка синхронизации");
         return;
@@ -128,7 +125,6 @@ const ProfilePage = () => {
       updateProfile({ hcp: data.hcp });
       toast.success(`HCP обновлен: ${data.hcp.toFixed(1)} (HDID: ${data.hdid_name})`);
     } catch (err) {
-      console.error('[HDID] Error:', err);
       toast.error("Ошибка подключения к серверу");
     } finally {
       setSyncingHDID(false);
