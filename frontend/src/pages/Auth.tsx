@@ -27,15 +27,20 @@ const BOT_USERNAME = import.meta.env.VITE_TG_BOT_USERNAME ?? 'golflivescorebot'
 
 export default function AuthPage() {
   const { signIn } = useAuth()
-  const [status, setStatus] = useState<'idle' | 'loading' | 'error'>('idle')
+  const [status, setStatus] = useState<'idle' | 'loading' | 'error' | 'name_input'>('idle')
   const [error, setError] = useState('')
+  const [errorRu, setErrorRu] = useState('')
+  const [firstName, setFirstName] = useState('')
+  const [lastName, setLastName] = useState('')
 
   const tgUser = window.Telegram?.WebApp?.initDataUnsafe?.user
   const isInTelegram = Boolean(tgUser?.id)
 
-  const authWithTelegram = async () => {
+  const authWithTelegram = async (providedFirstName?: string, providedLastName?: string) => {
     if (!tgUser?.id) return
     setStatus('loading')
+    setError('')
+    setErrorRu('')
     try {
       const res = await fetch(`${BASE}/api/auth/telegram`, {
         method: 'POST',
@@ -43,19 +48,39 @@ export default function AuthPage() {
         body: JSON.stringify({
           telegram_id: tgUser.id,
           username: tgUser.username ?? null,
-          first_name: tgUser.first_name ?? '',
-          last_name: tgUser.last_name ?? '',
+          first_name: providedFirstName || tgUser.first_name || '',
+          last_name: providedLastName || tgUser.last_name || '',
           photo_url: tgUser.photo_url ?? null,
         }),
       })
-      let data: Record<string, string> = {}
+      let data: Record<string, any> = {}
       try { data = await res.json() } catch { /* non-json */ }
-      if (!res.ok) throw new Error(data.error ?? `Server error (${res.status})`)
+
+      if (!res.ok) {
+        // Check if we need name input
+        if (data.requiresNameInput) {
+          setError(data.error ?? 'Please enter your full name')
+          setErrorRu(data.errorRu ?? '')
+          setStatus('name_input')
+          return
+        }
+        throw new Error(data.errorRu || data.error || `Server error (${res.status})`)
+      }
       await signIn(data.jwt)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error')
       setStatus('error')
     }
+  }
+
+  const handleNameSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!firstName.trim() || !lastName.trim()) {
+      setError('Please enter both first and last name')
+      setErrorRu('Пожалуйста, введите имя и фамилию')
+      return
+    }
+    authWithTelegram(firstName.trim(), lastName.trim())
   }
 
   useEffect(() => {
@@ -86,12 +111,53 @@ export default function AuthPage() {
             <div className="h-8 w-8 rounded-full border-2 border-action border-t-transparent animate-spin" />
             <div className="text-sm opacity-70">Logging in via Telegram…</div>
           </div>
+        ) : status === 'name_input' ? (
+          <div className="flex flex-col items-center gap-4">
+            <div className="text-primary-foreground text-sm px-4">
+              <p className="font-semibold mb-2">Введите ваши имя и фамилию</p>
+              <p className="text-xs opacity-70">
+                Для доступа введите имя и фамилию <strong>на английском</strong> как в Golf Club Minsk
+              </p>
+            </div>
+            {(error || errorRu) && (
+              <div className="text-red-400 text-sm px-4 break-words">
+                {errorRu || error}
+              </div>
+            )}
+            <form onSubmit={handleNameSubmit} className="w-full space-y-3">
+              <input
+                type="text"
+                placeholder="First Name (English)"
+                value={firstName}
+                onChange={(e) => setFirstName(e.target.value)}
+                className="w-full px-4 py-3 rounded-xl bg-white/10 text-primary-foreground placeholder:text-primary-foreground/50 border border-white/20 focus:border-action focus:outline-none"
+                autoCapitalize="words"
+                autoComplete="given-name"
+              />
+              <input
+                type="text"
+                placeholder="Last Name (English)"
+                value={lastName}
+                onChange={(e) => setLastName(e.target.value)}
+                className="w-full px-4 py-3 rounded-xl bg-white/10 text-primary-foreground placeholder:text-primary-foreground/50 border border-white/20 focus:border-action focus:outline-none"
+                autoCapitalize="words"
+                autoComplete="family-name"
+              />
+              <button
+                type="submit"
+                disabled={!firstName.trim() || !lastName.trim()}
+                className="w-full bg-action hover:bg-action/90 disabled:bg-action/50 text-white font-semibold px-6 py-3.5 rounded-2xl text-sm transition-colors"
+              >
+                Продолжить
+              </button>
+            </form>
+          </div>
         ) : status === 'error' ? (
           <div className="flex flex-col items-center gap-4">
             <div className="text-red-400 text-sm px-4 break-words">{error}</div>
             {isInTelegram ? (
               <button
-                onClick={authWithTelegram}
+                onClick={() => authWithTelegram()}
                 className="inline-flex items-center gap-2 bg-[#2AABEE] text-white font-semibold px-6 py-3.5 rounded-2xl text-sm"
               >
                 Try again

@@ -18,6 +18,7 @@ export const db = new Pool({
 // Run migrations sequentially to avoid overwhelming the connection pool
 async function runMigrations() {
   const migrations = [
+    { name: 'pg_trgm', query: `CREATE EXTENSION IF NOT EXISTS pg_trgm` },
     { name: 'current_hole', query: `ALTER TABLE rounds ADD COLUMN IF NOT EXISTS current_hole INTEGER` },
     { name: 'photo_url', query: `ALTER TABLE users ADD COLUMN IF NOT EXISTS photo_url TEXT` },
     { name: 'made_by', query: `ALTER TABLE hole_scores ADD COLUMN IF NOT EXISTS made_by TEXT` },
@@ -46,6 +47,15 @@ async function runMigrations() {
       group_name TEXT,
       created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
       UNIQUE(tournament_id, player_name, group_name)
+    )` },
+    { name: 'hdid_members', query: `CREATE TABLE IF NOT EXISTS hdid_members (
+      id SERIAL PRIMARY KEY,
+      last_name TEXT NOT NULL,
+      first_name TEXT NOT NULL,
+      hcp NUMERIC NOT NULL,
+      gender TEXT NOT NULL,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+      UNIQUE(last_name, first_name)
     )` }
   ]
 
