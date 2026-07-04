@@ -56,7 +56,8 @@ async function runMigrations() {
       gender TEXT NOT NULL,
       created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
       UNIQUE(last_name, first_name)
-    )` }
+    )` },
+    { name: 'last_hdid_sync', query: `ALTER TABLE users ADD COLUMN IF NOT EXISTS last_hdid_sync TIMESTAMP WITH TIME ZONE` }
   ]
 
   for (const migration of migrations) {

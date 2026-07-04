@@ -33,6 +33,7 @@ const ProfilePage = () => {
   const [draft, setDraft] = useState(profile);
   const [showTeePicker, setShowTeePicker] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [syncingHDID, setSyncingHDID] = useState(false);
   const photoInputRef = useRef<HTMLInputElement>(null);
 
   const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -99,6 +100,35 @@ const ProfilePage = () => {
     setEditing(false);
     toast.success(t.profileUpdated);
     syncProfile(draft);
+  };
+
+  const syncWithHDID = async () => {
+    if (!profile.firstName || !profile.lastName) {
+      toast.error("Пожалуйста, укажите имя и фамилию в профиле");
+      return;
+    }
+    setSyncingHDID(true);
+    try {
+      const token = localStorage.getItem('golf_jwt');
+      const res = await fetch(`${BASE}/api/profile/sync-hdid`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        toast.error(data.errorRu || data.error || "Ошибка синхронизации");
+        return;
+      }
+      updateProfile({ hcp: data.hcp });
+      toast.success(`HCP обновлен: ${data.hcp.toFixed(1)} (HDID: ${data.hdid_name})`);
+    } catch (err) {
+      toast.error("Ошибка подключения к серверу");
+    } finally {
+      setSyncingHDID(false);
+    }
   };
 
   const playedTotals = rounds
@@ -341,7 +371,7 @@ const ProfilePage = () => {
       )}
 
       {/* Settings */}
-      <Card className="overflow-hidden shadow-soft">
+      <Card className="overflow-hidden shadow-soft divide-y">
         {/* Default tee */}
         <button
           onClick={() => setShowTeePicker(true)}
@@ -358,6 +388,22 @@ const ProfilePage = () => {
             />
             <span className="text-sm">{TEE_CONFIG[profile.defaultTee].label}</span>
             <ChevronRight className="h-4 w-4" />
+          </div>
+        </button>
+
+        {/* Sync with HDID */}
+        <button
+          onClick={syncWithHDID}
+          disabled={syncingHDID}
+          className="w-full flex items-center justify-between px-5 py-4 hover:bg-accent/50 transition-colors disabled:opacity-50"
+        >
+          <div className="text-sm font-medium">Синхронизировать HCP с HDID</div>
+          <div className="flex items-center gap-2 text-muted-foreground">
+            {syncingHDID ? (
+              <div className="h-4 w-4 rounded-full border-2 border-muted-foreground border-t-transparent animate-spin" />
+            ) : (
+              <ChevronRight className="h-4 w-4" />
+            )}
           </div>
         </button>
       </Card>
