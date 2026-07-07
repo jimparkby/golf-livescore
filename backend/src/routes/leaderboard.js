@@ -10,7 +10,8 @@ const SHEETS = {
   overall: '423773857',      // Рейтинг Общий
   male: '1502832667',        // Рейтинг Мужской (181 игрок)
   female: '1982481909',      // Рейтинг Женский (87 игроков)
-  tournaments: '919363557',  // Результаты Турниров
+  tournaments: '919363557',  // Результаты Турниров (старая вкладка)
+  statistics: '155136095',   // Статистика с номинациями (Longest, Closest)
 }
 
 // Cache for 1 hour
@@ -137,22 +138,86 @@ function parseTournamentsCSV(csvText) {
 }
 
 /**
+ * Parse statistics CSV (Статистика с номинациями)
+ */
+function parseStatisticsCSV(csvText, maleNames, femaleNames) {
+  const lines = csvText.trim().split('\n')
+  if (lines.length < 2) return { longest: [], closest: [] }
+
+  const nominations = []
+
+  // Skip header row
+  for (let i = 1; i < lines.length; i++) {
+    const line = lines[i]
+    if (!line.trim()) continue
+
+    const fields = []
+    let current = ''
+    let inQuotes = false
+
+    for (let j = 0; j < line.length; j++) {
+      const char = line[j]
+      if (char === '"') {
+        inQuotes = !inQuotes
+      } else if (char === ',' && !inQuotes) {
+        fields.push(current.trim())
+        current = ''
+      } else {
+        current += char
+      }
+    }
+    fields.push(current.trim())
+
+    // Format: ФИО, avg eHCP, Количество, Макс, sum Longest, sum Closest, ...
+    if (fields.length >= 6) {
+      const name = fields[0] || ''
+      const longest = parseInt(fields[4]) || 0
+      const closest = parseInt(fields[5]) || 0
+
+      if (name && (longest > 0 || closest > 0)) {
+        const gender = femaleNames.has(name) ? 'female' : 'male'
+        nominations.push({ name, longest, closest, gender })
+      }
+    }
+  }
+
+  // Sort and filter
+  const longest = nominations
+    .filter(n => n.longest > 0)
+    .sort((a, b) => b.longest - a.longest)
+    .slice(0, 20)
+
+  const closest = nominations
+    .filter(n => n.closest > 0)
+    .sort((a, b) => b.closest - a.closest)
+    .slice(0, 20)
+
+  return { longest, closest }
+}
+
+/**
  * Fetch all leaderboard data from Google Sheets
  */
 async function fetchLeaderboard() {
   try {
     // Fetch all sheets in parallel
-    const [overallCSV, maleCSV, femaleCSV, tournamentsCSV] = await Promise.all([
+    const [overallCSV, maleCSV, femaleCSV, tournamentsCSV, statisticsCSV] = await Promise.all([
       fetch(`${SHEETS_BASE}/gviz/tq?tqx=out:csv&gid=${SHEETS.overall}`).then(r => r.text()),
       fetch(`${SHEETS_BASE}/gviz/tq?tqx=out:csv&gid=${SHEETS.male}`).then(r => r.text()),
       fetch(`${SHEETS_BASE}/gviz/tq?tqx=out:csv&gid=${SHEETS.female}`).then(r => r.text()),
       fetch(`${SHEETS_BASE}/gviz/tq?tqx=out:csv&gid=${SHEETS.tournaments}`).then(r => r.text()),
+      fetch(`${SHEETS_BASE}/gviz/tq?tqx=out:csv&gid=${SHEETS.statistics}`).then(r => r.text()),
     ])
 
     // Parse rankings
     const male = parseRankingCSV(maleCSV)
     const female = parseRankingCSV(femaleCSV)
     const tournaments = parseTournamentsCSV(tournamentsCSV)
+
+    // Parse statistics with nominations
+    const femaleNames = new Set(female.map(p => p.name))
+    const maleNames = new Set(male.map(p => p.name))
+    const nominations = parseStatisticsCSV(statisticsCSV, maleNames, femaleNames)
 
     // Create overall ranking from male + female, sorted by rating
     const overall = [...male, ...female].sort((a, b) => b.rating - a.rating)
@@ -170,11 +235,21 @@ async function fetchLeaderboard() {
       tournamentNames,
     }
 
+    // Split nominations by gender
+    const longestMale = nominations.longest.filter(n => n.gender === 'male')
+    const longestFemale = nominations.longest.filter(n => n.gender === 'female')
+    const closestMale = nominations.closest.filter(n => n.gender === 'male')
+    const closestFemale = nominations.closest.filter(n => n.gender === 'female')
+
     return {
       overall,
       male,
       female,
       tournaments,
+      nominations: {
+        longest: { male: longestMale, female: longestFemale },
+        closest: { male: closestMale, female: closestFemale },
+      },
       stats,
       lastUpdated: new Date().toISOString(),
     }
