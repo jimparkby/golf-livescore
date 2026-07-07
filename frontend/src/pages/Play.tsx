@@ -11,6 +11,7 @@ import { ChevronLeft, ChevronRight, Plus, X, PlayCircle, Flag, Camera, Check, Se
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useTranslation } from "@/hooks/useTranslation";
+import { useIsMobile } from "@/hooks/use-mobile";
 import heroImg from "@/assets/golfminsk/hero.jpg";
 import photo1 from "@/assets/golfminsk/photo1.jpg";
 import photo2 from "@/assets/golfminsk/photo2.jpg";
