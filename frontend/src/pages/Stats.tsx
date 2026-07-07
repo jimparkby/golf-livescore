@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { getDifferentials, calcHandicapIndex, diffUseCount, roundsNeeded } from "@/lib/handicap";
 import { COURSES as COURSE_LIST } from "@/lib/courses";
 import RoundCard from "@/components/RoundCard";
+import LeaderboardCard from "@/components/LeaderboardCard";
 import { generateStoryImage, shareToInstagram } from "@/lib/instagramStory";
 import { toast } from "sonner";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -173,6 +174,9 @@ const StatsPage = () => {
           </div>
         </Card>
       )}
+
+      {/* ── Leaderboard ── */}
+      <LeaderboardCard />
 
       {/* ── Round Cards (TheGrint style) ── */}
       <div>
