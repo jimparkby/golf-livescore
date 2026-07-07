@@ -8,11 +8,10 @@ const SHEETS_BASE = 'https://docs.google.com/spreadsheets/d/1EhE7zCe32OvXx4J1zaG
 
 // Sheet IDs (gid)
 const SHEETS = {
-  overall: '423773857',  // Рейтинг Общий
-  // TODO: Add other sheets when gid is provided
-  // male: 'XXXXXX',
-  // female: 'XXXXXX',
-  // tournaments: 'XXXXXX',
+  overall: '423773857',      // Рейтинг Общий
+  male: '1502832667',        // Рейтинг Мужской (181 игрок)
+  female: '1982481909',      // Рейтинг Женский (87 игроков)
+  tournaments: '919363557',  // Результаты Турниров
 }
 
 // Cache for 1 hour
@@ -23,9 +22,9 @@ let cache = {
 }
 
 /**
- * Parse CSV data from Google Sheets
+ * Parse ranking CSV (Рейтинг Общий/Мужской/Женский)
  */
-function parseCSV(csvText) {
+function parseRankingCSV(csvText) {
   const lines = csvText.trim().split('\n')
   if (lines.length < 2) return []
 
@@ -55,7 +54,7 @@ function parseCSV(csvText) {
     fields.push(current.trim())
 
     // Parse player data
-    // Format: Rank, Name, Tournaments, HCP, Rating, Rating (dup), ...
+    // Format: Rank, ФИО, Турниров, Средний HCP, Лучшие 10* турниров
     if (fields.length >= 5) {
       const rank = parseInt(fields[0]) || i
       const name = fields[1] || ''
@@ -63,7 +62,7 @@ function parseCSV(csvText) {
       const hcp = parseFloat(fields[3]?.replace(',', '.')) || 0
       const rating = parseFloat(fields[4]?.replace(',', '.').replace(/\s/g, '')) || 0
 
-      if (name) {
+      if (name && rating > 0) {
         players.push({
           rank,
           name,
@@ -73,58 +72,111 @@ function parseCSV(csvText) {
         })
       }
     }
-
-    // Also parse female players from same row (columns 6-10)
-    if (fields.length >= 10) {
-      const femaleName = fields[6] || ''
-      if (femaleName) {
-        const femaleRank = parseInt(fields[0]) || i
-        const femaleTournaments = parseInt(fields[7]) || 0
-        const femaleHcp = parseFloat(fields[8]?.replace(',', '.')) || 0
-        const femaleRating = parseFloat(fields[9]?.replace(',', '.').replace(/\s/g, '')) || 0
-
-        players.push({
-          rank: femaleRank,
-          name: femaleName,
-          tournaments: femaleTournaments,
-          hcp: parseFloat(femaleHcp.toFixed(1)),
-          rating: Math.round(femaleRating),
-          gender: 'female',
-        })
-      }
-    }
   }
 
   return players
 }
 
 /**
- * Fetch leaderboard data from Google Sheets
+ * Parse tournaments CSV (Результаты Турниров)
+ */
+function parseTournamentsCSV(csvText) {
+  const lines = csvText.trim().split('\n')
+  if (lines.length < 2) return []
+
+  const results = []
+
+  // Skip header row
+  for (let i = 1; i < lines.length; i++) {
+    const line = lines[i]
+    if (!line.trim()) continue
+
+    const fields = []
+    let current = ''
+    let inQuotes = false
+
+    for (let j = 0; j < line.length; j++) {
+      const char = line[j]
+      if (char === '"') {
+        inQuotes = !inQuotes
+      } else if (char === ',' && !inQuotes) {
+        fields.push(current.trim())
+        current = ''
+      } else {
+        current += char
+      }
+    }
+    fields.push(current.trim())
+
+    // Format: Дата, ФИО, Группа, Дней, Турнир, Gender, TeeBox, eHCP, GrossRank, GrossScore, NetRank, NetScore, ...
+    if (fields.length >= 12) {
+      const date = fields[0] || ''
+      const name = fields[1] || ''
+      const group = fields[2] || ''
+      const tournament = fields[4] || ''
+      const gender = fields[5] || ''
+      const hcp = parseFloat(fields[7]?.replace(',', '.')) || 0
+      const grossScore = parseInt(fields[9]) || 0
+      const netScore = parseInt(fields[11]) || 0
+
+      if (name && tournament) {
+        results.push({
+          date,
+          name,
+          group,
+          tournament,
+          gender,
+          hcp: parseFloat(hcp.toFixed(1)),
+          grossScore,
+          netScore,
+        })
+      }
+    }
+  }
+
+  return results
+}
+
+/**
+ * Fetch all leaderboard data from Google Sheets
  */
 async function fetchLeaderboard() {
   try {
-    const url = `${SHEETS_BASE}/gviz/tq?tqx=out:csv&gid=${SHEETS.overall}`
-    const response = await fetch(url)
+    // Fetch all sheets in parallel
+    const [overallCSV, maleCSV, femaleCSV, tournamentsCSV] = await Promise.all([
+      fetch(`${SHEETS_BASE}/gviz/tq?tqx=out:csv&gid=${SHEETS.overall}`).then(r => r.text()),
+      fetch(`${SHEETS_BASE}/gviz/tq?tqx=out:csv&gid=${SHEETS.male}`).then(r => r.text()),
+      fetch(`${SHEETS_BASE}/gviz/tq?tqx=out:csv&gid=${SHEETS.female}`).then(r => r.text()),
+      fetch(`${SHEETS_BASE}/gviz/tq?tqx=out:csv&gid=${SHEETS.tournaments}`).then(r => r.text()),
+    ])
 
-    if (!response.ok) {
-      throw new Error(`Failed to fetch: ${response.status}`)
+    // Parse rankings
+    const male = parseRankingCSV(maleCSV)
+    const female = parseRankingCSV(femaleCSV)
+    const tournaments = parseTournamentsCSV(tournamentsCSV)
+
+    // Create overall ranking from male + female, sorted by rating
+    const overall = [...male, ...female].sort((a, b) => b.rating - a.rating)
+    overall.forEach((p, i) => p.rank = i + 1)
+
+    // Get unique tournament names
+    const tournamentNames = [...new Set(tournaments.map(t => t.tournament))].filter(Boolean)
+
+    // Calculate stats
+    const stats = {
+      totalPlayers: overall.length,
+      malePlayers: male.length,
+      femalePlayers: female.length,
+      totalTournaments: tournamentNames.length,
+      tournamentNames,
     }
 
-    const csvText = await response.text()
-    const players = parseCSV(csvText)
-
-    // Split into male and female
-    const male = players.filter(p => !p.gender).sort((a, b) => b.rating - a.rating)
-    const female = players.filter(p => p.gender === 'female').sort((a, b) => b.rating - a.rating)
-
-    // Re-rank after splitting
-    male.forEach((p, i) => p.rank = i + 1)
-    female.forEach((p, i) => p.rank = i + 1)
-
     return {
-      overall: [...male, ...female].sort((a, b) => b.rating - a.rating).slice(0, 100),
-      male: male.slice(0, 50),
-      female: female.slice(0, 50),
+      overall,
+      male,
+      female,
+      tournaments,
+      stats,
       lastUpdated: new Date().toISOString(),
     }
   } catch (error) {
@@ -161,7 +213,7 @@ router.get('/', async (req, res, next) => {
 
 /**
  * POST /api/leaderboard/refresh
- * Force refresh cache (no auth required for now)
+ * Force refresh cache
  */
 router.post('/refresh', async (req, res, next) => {
   try {
