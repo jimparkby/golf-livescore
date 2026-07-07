@@ -7,14 +7,10 @@ import { getDifferentials, calcHandicapIndex, diffUseCount, roundsNeeded } from 
 import { COURSES as COURSE_LIST } from "@/lib/courses";
 import RoundCard from "@/components/RoundCard";
 import LeaderboardCard from "@/components/LeaderboardCard";
-import { generateStoryImage, shareToInstagram } from "@/lib/instagramStory";
-import { toast } from "sonner";
-import { useIsMobile } from "@/hooks/use-mobile";
 
 const StatsPage = () => {
   const { rounds, profile, deleteRound, setRoundPhoto, updateProfile } = useGolf();
   const [showAllDiffs, setShowAllDiffs] = useState(false);
-  const isMobile = useIsMobile();
 
   const diffs = useMemo(
     () => getDifferentials(rounds, "me", profile.hcp),
@@ -208,17 +204,6 @@ const StatsPage = () => {
                 }
               }}
               onAddPhoto={(url) => setRoundPhoto(r.id, url)}
-              onShare={isMobile ? async () => {
-                try {
-                  toast.info("Generating story...");
-                  const blob = await generateStoryImage(r, profile);
-                  await shareToInstagram(blob);
-                  toast.success("Shared to Instagram!");
-                } catch (err) {
-                  console.error(err);
-                  toast.error("Failed to share");
-                }
-              } : undefined}
             />
           ))}
         </div>
