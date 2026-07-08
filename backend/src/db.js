@@ -67,7 +67,46 @@ async function runMigrations() {
       updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
       UNIQUE(tournament_id, user_id)
     )` },
-    { name: 'tournament_slug', query: `ALTER TABLE tournaments ADD COLUMN IF NOT EXISTS slug TEXT` }
+    { name: 'tournament_slug', query: `ALTER TABLE tournaments ADD COLUMN IF NOT EXISTS slug TEXT` },
+    { name: 'populate_tournament_slugs', query: `
+      UPDATE tournaments SET slug = CASE
+        WHEN name = 'III Весенний Кубок им. Н. Ермашова by БСБК' THEN 'spring-cup-ermashov'
+        WHEN name = 'Hole in One Challenge (Академическое поле)' THEN 'hole-in-one-challenge'
+        WHEN name = 'Whitebird Spring Open Cup' THEN 'whitebird-spring-open'
+        WHEN name = 'Международные соревнования / Minsk Golf Invitational 2026' THEN 'minsk-golf-invitational'
+        WHEN name = 'Международный детский гольф-турнир «Луч»' THEN 'luch-kids'
+        WHEN name = 'XVIII Rookie Cup 2026' THEN 'rookie-cup-18'
+        WHEN name = 'Hardy Cup' THEN 'hardy-cup'
+        WHEN name = 'Pets Day' THEN 'pets-day'
+        WHEN name = 'PRIME LINE CUP' THEN 'prime-line-cup'
+        WHEN name = 'BELAVIA Golf Open 2026' THEN 'belavia-open'
+        WHEN name = 'XIX Rookie Cup 2026' THEN 'rookie-cup-19'
+        WHEN name = 'VIII Кубок Гольф-клуба Минск' THEN 'club-cup-8'
+        WHEN name = 'ФУТГОЛЬФ. Belarus Open' THEN 'futgolf-belarus-open'
+        WHEN name = 'II Кубок Братства: Беларусь — Россия by WhiteBird' THEN 'bratstvo-cup-2'
+        WHEN name = 'Лига Гольфа (РФ) 3 этап, Минск' THEN 'liga-rf-3'
+        WHEN name = 'X Time to Golf 2026 (три клюшки)' THEN 'time-to-golf-10'
+        WHEN name = 'Ladies Golf Open' THEN 'ladies-open'
+        WHEN name = 'AVATR Golf Cup (Belarus-China)' THEN 'avatr-cup'
+        WHEN name = 'Тур «Золотые 50»' THEN 'golden-50'
+        WHEN name = 'Активлизинг Investment Cup' THEN 'activleasing-cup'
+        WHEN name = 'Infinity Golf Cup 2026' THEN 'infinity-cup'
+        WHEN name = 'Лига гольфа (РФ) 4 этап и финал (Москва)' THEN 'liga-rf-4'
+        WHEN name = 'XX Rookie Cup' THEN 'rookie-cup-20'
+        WHEN name = 'XX Belarus Golf Open Cup' THEN 'belarus-open-20'
+        WHEN name = '«Привет» от Гринкипера by Technogym' THEN 'greenkeeper'
+        WHEN name = 'Отбор BMW Golf Cup World Final' THEN 'bmw-qualifier'
+        WHEN name = 'BMW Challenge Cup 2026' THEN 'bmw-challenge'
+        WHEN name = 'Этап Евразийской Лиги Гольфа' THEN 'eurasian-league'
+        WHEN name = 'Minsk Golf InterClub 2026 by Kaspersky' THEN 'interclub-kaspersky'
+        WHEN name = 'Футгольф' THEN 'futgolf-oct'
+        WHEN name = 'Благотворительный турнир БСБК' THEN 'bsbk-charity'
+        WHEN name = 'XXI Rookie Cup' THEN 'rookie-cup-21'
+        WHEN name = 'XXII SUPER Rookie Cup' THEN 'super-rookie-22'
+        ELSE slug
+      END
+      WHERE slug IS NULL
+    ` }
   ]
 
   for (const migration of migrations) {
