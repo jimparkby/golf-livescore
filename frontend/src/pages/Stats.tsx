@@ -6,8 +6,6 @@ import { cn } from "@/lib/utils";
 import { getDifferentials, calcHandicapIndex, diffUseCount, roundsNeeded } from "@/lib/handicap";
 import { COURSES as COURSE_LIST } from "@/lib/courses";
 import RoundCard from "@/components/RoundCard";
-import LeaderboardCard from "@/components/LeaderboardCard";
-import NominationsCard from "@/components/NominationsCard";
 
 const StatsPage = () => {
   const { rounds, profile, deleteRound, setRoundPhoto, updateProfile } = useGolf();
@@ -171,12 +169,6 @@ const StatsPage = () => {
           </div>
         </Card>
       )}
-
-      {/* ── Leaderboard ── */}
-      <LeaderboardCard />
-
-      {/* ── Nominations ── */}
-      <NominationsCard />
 
       {/* ── Round Cards (TheGrint style) ── */}
       <div>
