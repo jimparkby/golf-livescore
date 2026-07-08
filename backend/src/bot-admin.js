@@ -699,16 +699,68 @@ export function setupAdminCommands(bot) {
           text += `🟡 На рассмотрении: ${pending}\n`
           text += `🟠 Ждут оплаты: ${awaiting}\n`
           text += `🟢 Оплачено: ${paid}\n\n`
-          text += `<b>Список участников:</b>\n\n`
+          text += `<b>Нажмите на игрока для изменения статуса:</b>`
 
-          // Add registrations list
-          registrations.forEach((r, i) => {
+          // Build keyboard with player buttons
+          const keyboard = registrations.map(r => {
             const statusEmoji = r.status === 'paid' ? '🟢' : r.status === 'awaiting_payment' ? '🟠' : '🟡'
-            text += `${i + 1}. ${statusEmoji} <b>${r.first_name} ${r.last_name}</b>\n`
-            text += `   HCP ${r.hcp.toFixed(1)} • ${new Date(r.created_at).toLocaleDateString('ru-RU')}\n`
+            return [{
+              text: `${statusEmoji} ${r.first_name} ${r.last_name} (HCP ${r.hcp.toFixed(1)})`,
+              callback_data: `admin_reg_player_${r.id}`
+            }]
           })
+          keyboard.push([{ text: '◀️ Назад к списку', callback_data: 'admin_registrations' }])
 
-          const webAppUrl = process.env.FRONTEND_URL || 'https://your-app-url.com'
+          await bot.editMessageText(text, {
+            chat_id: query.message.chat.id,
+            message_id: query.message.message_id,
+            parse_mode: 'HTML',
+            reply_markup: { inline_keyboard: keyboard },
+          })
+        } catch (err) {
+          console.error('[bot-admin] View registrations error:', err.message)
+          await bot.answerCallbackQuery(query.id, { text: '❌ Ошибка загрузки', show_alert: true })
+        }
+        return
+      }
+
+      // ── Select player to change status ────────────────────────────────────
+      if (data?.startsWith('admin_reg_player_')) {
+        const registrationId = parseInt(data.replace('admin_reg_player_', ''), 10)
+        await bot.answerCallbackQuery(query.id)
+
+        try {
+          // Get registration details
+          const { rows: [registration] } = await db.query(
+            `SELECT
+              tr.id,
+              tr.tournament_id,
+              tr.status,
+              u.first_name,
+              u.last_name,
+              u.hcp
+            FROM tournament_registrations tr
+            JOIN users u ON tr.user_id = u.id
+            WHERE tr.id = $1`,
+            [registrationId]
+          )
+
+          if (!registration) {
+            await bot.answerCallbackQuery(query.id, { text: '❌ Заявка не найдена', show_alert: true })
+            return
+          }
+
+          const statusEmoji = registration.status === 'paid' ? '🟢' : registration.status === 'awaiting_payment' ? '🟠' : '🟡'
+          const statusText = registration.status === 'paid' ? 'Оплачено' : registration.status === 'awaiting_payment' ? 'Ждет оплаты' : 'На рассмотрении'
+
+          const text = [
+            `👤 <b>${registration.first_name} ${registration.last_name}</b>`,
+            `⛳ HCP ${registration.hcp.toFixed(1)}`,
+            '',
+            `Текущий статус: ${statusEmoji} <b>${statusText}</b>`,
+            '',
+            'Выберите новый статус:'
+          ].join('\n')
 
           await bot.editMessageText(text, {
             chat_id: query.message.chat.id,
@@ -716,14 +768,63 @@ export function setupAdminCommands(bot) {
             parse_mode: 'HTML',
             reply_markup: {
               inline_keyboard: [
-                [{ text: '📝 Управление статусами', web_app: { url: `${webAppUrl}/tournament-registrations/${tournamentSlug}` } }],
-                [{ text: '◀️ Назад к списку', callback_data: 'admin_registrations' }]
+                [{ text: '🟡 На рассмотрении', callback_data: `admin_reg_status_${registrationId}_pending_review` }],
+                [{ text: '🟠 Ждет оплаты', callback_data: `admin_reg_status_${registrationId}_awaiting_payment` }],
+                [{ text: '🟢 Оплачено', callback_data: `admin_reg_status_${registrationId}_paid` }],
+                [{ text: '◀️ Назад к списку', callback_data: `admin_reg_tournament_${registration.tournament_id}` }]
               ],
             },
           })
         } catch (err) {
-          console.error('[bot-admin] View registrations error:', err.message)
-          await bot.answerCallbackQuery(query.id, { text: '❌ Ошибка загрузки', show_alert: true })
+          console.error('[bot-admin] Select player error:', err.message)
+          await bot.answerCallbackQuery(query.id, { text: '❌ Ошибка', show_alert: true })
+        }
+        return
+      }
+
+      // ── Change registration status ────────────────────────────────────────
+      if (data?.startsWith('admin_reg_status_')) {
+        const parts = data.replace('admin_reg_status_', '').split('_')
+        const registrationId = parseInt(parts[0], 10)
+        const newStatus = parts.slice(1).join('_') // Handle underscores in status names
+
+        await bot.answerCallbackQuery(query.id)
+
+        try {
+          // Update status
+          const { rows: [registration] } = await db.query(
+            `UPDATE tournament_registrations
+             SET status = $1, updated_at = NOW()
+             WHERE id = $2
+             RETURNING tournament_id, user_id`,
+            [newStatus, registrationId]
+          )
+
+          if (!registration) {
+            await bot.answerCallbackQuery(query.id, { text: '❌ Заявка не найдена', show_alert: true })
+            return
+          }
+
+          const statusEmoji = newStatus === 'paid' ? '🟢' : newStatus === 'awaiting_payment' ? '🟠' : '🟡'
+          const statusText = newStatus === 'paid' ? 'Оплачено' : newStatus === 'awaiting_payment' ? 'Ждет оплаты' : 'На рассмотрении'
+
+          // Show success message and return to tournament list
+          await bot.editMessageText(
+            `✅ Статус изменен на: ${statusEmoji} <b>${statusText}</b>`,
+            {
+              chat_id: query.message.chat.id,
+              message_id: query.message.message_id,
+              parse_mode: 'HTML',
+              reply_markup: {
+                inline_keyboard: [
+                  [{ text: '◀️ Назад к списку', callback_data: `admin_reg_tournament_${registration.tournament_id}` }]
+                ],
+              },
+            }
+          )
+        } catch (err) {
+          console.error('[bot-admin] Change status error:', err.message)
+          await bot.answerCallbackQuery(query.id, { text: '❌ Ошибка изменения статуса', show_alert: true })
         }
         return
       }
