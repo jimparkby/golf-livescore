@@ -168,15 +168,34 @@ function parseStatisticsCSV(csvText, maleNames, femaleNames) {
     }
     fields.push(current.trim())
 
-    // Format: ФИО, avg eHCP, Количество, Макс, sum Longest, sum Closest, ...
-    if (fields.length >= 6) {
-      const name = fields[0] || ''
-      const longest = parseInt(fields[4]) || 0
-      const closest = parseInt(fields[5]) || 0
+    // Format: ФИО (col 0), avg eHCP, Количество, Макс, ФИО (col 4), sum Longest (col 5), "", ФИО (col 7), sum Closest (col 8), ...
+    // We need to parse both Longest and Closest from the same row
+    if (fields.length >= 9) {
+      const nameLongest = fields[4]?.trim() || ''
+      const nameClosest = fields[7]?.trim() || ''
+      const longest = parseInt(fields[5]) || 0
+      const closest = parseInt(fields[8]) || 0
 
-      if (name && (longest > 0 || closest > 0)) {
-        const gender = femaleNames.has(name) ? 'female' : 'male'
-        nominations.push({ name, longest, closest, gender })
+      // Add Longest entry
+      if (nameLongest && longest > 0) {
+        const gender = femaleNames.has(nameLongest) ? 'female' : 'male'
+        const existing = nominations.find(n => n.name === nameLongest)
+        if (existing) {
+          existing.longest = longest
+        } else {
+          nominations.push({ name: nameLongest, longest, closest: 0, gender })
+        }
+      }
+
+      // Add Closest entry
+      if (nameClosest && closest > 0) {
+        const gender = femaleNames.has(nameClosest) ? 'female' : 'male'
+        const existing = nominations.find(n => n.name === nameClosest)
+        if (existing) {
+          existing.closest = closest
+        } else {
+          nominations.push({ name: nameClosest, longest: 0, closest, gender })
+        }
       }
     }
   }

@@ -3,14 +3,11 @@ import { useNavigate } from "react-router-dom";
 import { TOURNAMENTS } from "@/lib/tournaments";
 import { getTournamentData } from "@/lib/tournament-data";
 import { Card } from "@/components/ui/card";
-import { Plus, Image, Trophy, X } from "lucide-react";
-import LeaderboardCard from "@/components/LeaderboardCard";
-import NominationsCard from "@/components/NominationsCard";
+import { Plus, Image, Trophy } from "lucide-react";
 
 const TournamentsPage = () => {
   const navigate = useNavigate();
   const [tournamentsWithResults, setTournamentsWithResults] = useState<Set<string>>(new Set());
-  const [showLeaderboard, setShowLeaderboard] = useState(false);
 
   useEffect(() => {
     // Fetch list of tournaments with results from API
@@ -54,7 +51,7 @@ const TournamentsPage = () => {
 
       {/* Leaderboard Button */}
       <Card
-        onClick={() => setShowLeaderboard(true)}
+        onClick={() => navigate('/leaderboard')}
         className="p-5 shadow-soft cursor-pointer hover:bg-accent/30 transition-colors"
       >
         <div className="flex items-center gap-3">
@@ -102,30 +99,6 @@ const TournamentsPage = () => {
           </div>
         </Card>
       ))}
-
-      {/* Leaderboard Modal */}
-      {showLeaderboard && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200 overflow-y-auto">
-          <div className="min-h-screen px-4 py-6" style={{ paddingTop: 'calc(var(--tg-safe-top) + 1.5rem)', paddingBottom: 'calc(var(--tg-safe-bottom) + 1.5rem)' }}>
-            <div className="max-w-2xl mx-auto space-y-4">
-              {/* Header */}
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-2xl font-bold text-white">Leaderboards 2026</h2>
-                <button
-                  onClick={() => setShowLeaderboard(false)}
-                  className="h-10 w-10 rounded-full bg-white/10 hover:bg-white/20 grid place-items-center transition-colors"
-                >
-                  <X className="h-5 w-5 text-white" />
-                </button>
-              </div>
-
-              {/* Content */}
-              <LeaderboardCard />
-              <NominationsCard />
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
