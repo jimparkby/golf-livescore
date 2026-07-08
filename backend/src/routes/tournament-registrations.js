@@ -1,7 +1,11 @@
 import { Router } from 'express'
 import { db } from '../db.js'
+import { requireAuth } from '../middleware/auth.js'
 
 const router = Router()
+
+// Apply authentication to all routes
+router.use(requireAuth)
 
 /**
  * POST /api/tournament-registrations

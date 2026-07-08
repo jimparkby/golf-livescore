@@ -1,6 +1,6 @@
 import { db } from './db.js'
 import { parseParticipantsPhoto, parseTournamentResultsPhoto } from './services/adminPhotoParser.js'
-import { getLeaderboards, recalculatePredictionsForUpcomingTournaments } from './services/winProbabilityAI.js'
+import { recalculatePredictionsForUpcomingTournaments } from './services/winProbabilityAI.js'
 import { calculateAndSavePredictions } from './services/predictionsCalculator.js'
 
 // Load admin IDs from environment variable
@@ -66,8 +66,8 @@ export function setupAdminCommands(bot) {
           inline_keyboard: [
             [{ text: '📊 Ввести результаты турнира', callback_data: 'admin_tournament_results' }],
             [{ text: '👥 Ввести участников турнира', callback_data: 'admin_participants_list' }],
+            [{ text: '📝 Регистрации на турниры', callback_data: 'admin_registrations' }],
             [{ text: '🗑️ Удалить фото флайтов', callback_data: 'admin_manage_flights' }],
-            [{ text: '🏆 Таблицы лидеров', callback_data: 'admin_leaderboards' }],
             [{ text: '❌ Закрыть', callback_data: 'admin_close' }],
           ],
         },
@@ -584,8 +584,8 @@ export function setupAdminCommands(bot) {
             inline_keyboard: [
               [{ text: '📊 Ввести результаты турнира', callback_data: 'admin_tournament_results' }],
               [{ text: '👥 Ввести участников турнира', callback_data: 'admin_participants_list' }],
+              [{ text: '📝 Регистрации на турниры', callback_data: 'admin_registrations' }],
               [{ text: '🗑️ Удалить фото флайтов', callback_data: 'admin_manage_flights' }],
-              [{ text: '🏆 Таблицы лидеров', callback_data: 'admin_leaderboards' }],
               [{ text: '❌ Закрыть', callback_data: 'admin_close' }],
             ],
           },
@@ -593,47 +593,131 @@ export function setupAdminCommands(bot) {
         return
       }
 
-      // ── Leaderboards ───────────────────────────────────────────────────────
-      if (data === 'admin_leaderboards') {
-        console.log('[bot-admin] Processing admin_leaderboards')
+      // ── Registrations ──────────────────────────────────────────────────────
+      if (data === 'admin_registrations') {
+        console.log('[bot-admin] Processing admin_registrations')
         await bot.answerCallbackQuery(query.id)
-        console.log('[bot-admin] Callback answered, fetching leaderboards')
 
         try {
-          const { topByWins, topByHcp } = await getLeaderboards()
-          console.log('[bot-admin] Leaderboards fetched:', { topByWins: topByWins?.length, topByHcp: topByHcp?.length })
+          // Get tournaments with registrations
+          const { rows: tournaments } = await db.query(`
+            SELECT
+              t.id,
+              t.name,
+              t.date,
+              COUNT(tr.id) as registration_count
+            FROM tournaments t
+            LEFT JOIN tournament_registrations tr ON t.id = tr.tournament_id::integer
+            WHERE t.date >= CURRENT_DATE - INTERVAL '7 days'
+            GROUP BY t.id, t.name, t.date
+            HAVING COUNT(tr.id) > 0
+            ORDER BY t.date DESC
+            LIMIT 20
+          `)
 
-          let text = '🏆 <b>Таблицы лидеров</b>\n\n'
+          if (tournaments.length === 0) {
+            await bot.editMessageText('ℹ️ Нет активных регистраций на турниры.', {
+              chat_id: query.message.chat.id,
+              message_id: query.message.message_id,
+              reply_markup: {
+                inline_keyboard: [[{ text: '◀️ Назад', callback_data: 'admin_back' }]],
+              },
+            })
+            return
+          }
 
-          // Top by wins
-          text += '<b>🥇 Топ-10 по победам:</b>\n'
-          topByWins.slice(0, 10).forEach((p, i) => {
-            const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}.`
-            text += `${medal} <b>${p.player_name}</b>\n`
-            text += `   Побед: ${p.first_places} | Турниров: ${p.total_tournaments} | Win rate: ${p.win_rate}%\n`
+          // Build tournament selection keyboard
+          const keyboard = tournaments.map(t => [{
+            text: `${t.name} (${t.registration_count} ${t.registration_count === 1 ? 'заявка' : 'заявок'})`,
+            callback_data: `admin_reg_tournament_${t.id}`,
+          }])
+          keyboard.push([{ text: '◀️ Назад', callback_data: 'admin_back' }])
+
+          await bot.editMessageText('📝 <b>Выберите турнир для просмотра регистраций:</b>', {
+            chat_id: query.message.chat.id,
+            message_id: query.message.message_id,
+            parse_mode: 'HTML',
+            reply_markup: { inline_keyboard: keyboard },
+          })
+        } catch (err) {
+          console.error('[bot-admin] Registrations error:', err.message)
+          await bot.answerCallbackQuery(query.id, { text: '❌ Ошибка загрузки регистраций', show_alert: true })
+        }
+        return
+      }
+
+      // ── View tournament registrations ─────────────────────────────────────
+      if (data?.startsWith('admin_reg_tournament_')) {
+        const tournamentId = data.replace('admin_reg_tournament_', '')
+        await bot.answerCallbackQuery(query.id)
+
+        try {
+          // Get tournament info
+          const { rows: [tournament] } = await db.query(
+            'SELECT id, name, date FROM tournaments WHERE id = $1',
+            [tournamentId]
+          )
+
+          // Get registrations with user info
+          const { rows: registrations } = await db.query(
+            `SELECT
+              tr.id,
+              tr.status,
+              tr.created_at,
+              u.first_name,
+              u.last_name,
+              u.hcp
+            FROM tournament_registrations tr
+            JOIN users u ON tr.user_id = u.id
+            WHERE tr.tournament_id = $1
+            ORDER BY tr.created_at ASC`,
+            [tournamentId]
+          )
+
+          if (!tournament || registrations.length === 0) {
+            await bot.editMessageText('❌ Регистрации не найдены', {
+              chat_id: query.message.chat.id,
+              message_id: query.message.message_id,
+              reply_markup: {
+                inline_keyboard: [[{ text: '◀️ Назад', callback_data: 'admin_registrations' }]],
+              },
+            })
+            return
+          }
+
+          // Count by status
+          const pending = registrations.filter(r => r.status === 'pending_review').length
+          const awaiting = registrations.filter(r => r.status === 'awaiting_payment').length
+          const paid = registrations.filter(r => r.status === 'paid').length
+
+          // Build message
+          let text = `📝 <b>${tournament.name}</b>\n`
+          text += `📅 ${new Date(tournament.date).toLocaleDateString('ru-RU')}\n\n`
+          text += `<b>Статистика:</b>\n`
+          text += `Всего заявок: ${registrations.length}\n`
+          text += `🟡 На рассмотрении: ${pending}\n`
+          text += `🟠 Ждут оплаты: ${awaiting}\n`
+          text += `🟢 Оплачено: ${paid}\n\n`
+          text += `<b>Список участников:</b>\n\n`
+
+          // Add registrations list
+          registrations.forEach((r, i) => {
+            const statusEmoji = r.status === 'paid' ? '🟢' : r.status === 'awaiting_payment' ? '🟠' : '🟡'
+            text += `${i + 1}. ${statusEmoji} <b>${r.first_name} ${r.last_name}</b>\n`
+            text += `   HCP ${r.hcp.toFixed(1)} • ${new Date(r.created_at).toLocaleDateString('ru-RU')}\n`
           })
 
-          text += '\n<b>🎯 Топ-10 по HCP:</b>\n'
-          topByHcp.slice(0, 10).forEach((p, i) => {
-            const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}.`
-            text += `${medal} <b>${p.player_name}</b>\n`
-            text += `   HCP: ${p.estimated_hcp} | Top-3: ${p.top3_finishes}\n`
-          })
-
-          console.log('[bot-admin] Sending leaderboards message, length:', text.length)
           await bot.editMessageText(text, {
             chat_id: query.message.chat.id,
             message_id: query.message.message_id,
             parse_mode: 'HTML',
             reply_markup: {
-              inline_keyboard: [[{ text: '◀️ Назад', callback_data: 'admin_back' }]],
+              inline_keyboard: [[{ text: '◀️ Назад к списку', callback_data: 'admin_registrations' }]],
             },
           })
-          console.log('[bot-admin] Leaderboards message sent successfully')
         } catch (err) {
-          console.error('[bot-admin] Leaderboards error:', err.message)
-          console.error('[bot-admin] Leaderboards stack:', err.stack)
-          await bot.answerCallbackQuery(query.id, { text: '❌ Ошибка загрузки статистики', show_alert: true })
+          console.error('[bot-admin] View registrations error:', err.message)
+          await bot.answerCallbackQuery(query.id, { text: '❌ Ошибка загрузки', show_alert: true })
         }
         return
       }

@@ -7,6 +7,7 @@ export function requireAuth(req, res, next) {
   }
   try {
     req.user = jwt.verify(header.slice(7), process.env.JWT_SECRET)
+    req.userId = req.user.id // Add userId for convenience
     next()
   } catch {
     res.status(401).json({ error: 'Invalid token' })
