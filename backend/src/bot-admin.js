@@ -605,11 +605,12 @@ export function setupAdminCommands(bot) {
               t.id,
               t.name,
               t.date,
+              t.slug,
               COUNT(tr.id) as registration_count
             FROM tournaments t
-            LEFT JOIN tournament_registrations tr ON t.id::text = tr.tournament_id
+            LEFT JOIN tournament_registrations tr ON COALESCE(t.slug, t.id::text) = tr.tournament_id
             WHERE t.date >= CURRENT_DATE - INTERVAL '7 days'
-            GROUP BY t.id, t.name, t.date
+            GROUP BY t.id, t.name, t.date, t.slug
             HAVING COUNT(tr.id) > 0
             ORDER BY t.date DESC
             LIMIT 20
@@ -629,7 +630,7 @@ export function setupAdminCommands(bot) {
           // Build tournament selection keyboard
           const keyboard = tournaments.map(t => [{
             text: `${t.name} (${t.registration_count} ${t.registration_count === 1 ? 'заявка' : 'заявок'})`,
-            callback_data: `admin_reg_tournament_${t.id}`,
+            callback_data: `admin_reg_tournament_${t.slug || t.id}`,
           }])
           keyboard.push([{ text: '◀️ Назад', callback_data: 'admin_back' }])
 
@@ -648,14 +649,14 @@ export function setupAdminCommands(bot) {
 
       // ── View tournament registrations ─────────────────────────────────────
       if (data?.startsWith('admin_reg_tournament_')) {
-        const tournamentId = data.replace('admin_reg_tournament_', '')
+        const tournamentSlug = data.replace('admin_reg_tournament_', '')
         await bot.answerCallbackQuery(query.id)
 
         try {
-          // Get tournament info
+          // Get tournament info - search by slug or id
           const { rows: [tournament] } = await db.query(
-            'SELECT id, name, date FROM tournaments WHERE id = $1',
-            [tournamentId]
+            'SELECT id, name, date, slug FROM tournaments WHERE slug = $1 OR id::text = $1',
+            [tournamentSlug]
           )
 
           // Get registrations with user info
@@ -671,7 +672,7 @@ export function setupAdminCommands(bot) {
             JOIN users u ON tr.user_id = u.id
             WHERE tr.tournament_id = $1
             ORDER BY tr.created_at ASC`,
-            [tournamentId]
+            [tournamentSlug]
           )
 
           if (!tournament || registrations.length === 0) {
@@ -715,7 +716,7 @@ export function setupAdminCommands(bot) {
             parse_mode: 'HTML',
             reply_markup: {
               inline_keyboard: [
-                [{ text: '📝 Управление статусами', web_app: { url: `${webAppUrl}/tournament-registrations/${tournamentId}` } }],
+                [{ text: '📝 Управление статусами', web_app: { url: `${webAppUrl}/tournament-registrations/${tournamentSlug}` } }],
                 [{ text: '◀️ Назад к списку', callback_data: 'admin_registrations' }]
               ],
             },

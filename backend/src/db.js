@@ -66,7 +66,8 @@ async function runMigrations() {
       created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
       updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
       UNIQUE(tournament_id, user_id)
-    )` }
+    )` },
+    { name: 'tournament_slug', query: `ALTER TABLE tournaments ADD COLUMN IF NOT EXISTS slug TEXT` }
   ]
 
   for (const migration of migrations) {
