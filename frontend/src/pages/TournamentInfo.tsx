@@ -6,7 +6,6 @@ import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { useState, useEffect } from "react";
 import { api } from "@/lib/api";
-import { toast } from "sonner";
 
 type Tab = "info" | "results" | "nominations" | "photos" | "flights" | "predictions";
 
@@ -218,10 +217,8 @@ const TournamentInfoPage = () => {
     try {
       const result = await api.post('/api/tournament-registrations', { tournamentId: id });
       setMyRegistration(result);
-      toast.success('Заявка отправлена на рассмотрение');
     } catch (error: any) {
       console.error('[TournamentInfo] Error registering:', error);
-      toast.error(error.message || 'Ошибка при регистрации');
     } finally {
       setRegistering(false);
     }
@@ -234,10 +231,8 @@ const TournamentInfoPage = () => {
     try {
       await api.delete(`/api/tournament-registrations/${myRegistration.id}`);
       setMyRegistration(null);
-      toast.success('Регистрация отменена');
     } catch (error: any) {
       console.error('[TournamentInfo] Error canceling registration:', error);
-      toast.error(error.message || 'Ошибка при отмене регистрации');
     }
   };
 
@@ -459,7 +454,7 @@ const TournamentInfoPage = () => {
                     {/* Payment Button (visual only, for awaiting_payment status) */}
                     {myRegistration.status === 'awaiting_payment' && (
                       <button
-                        onClick={() => toast.info('Оплата будет доступна позже')}
+                        onClick={() => {}}
                         className="w-full h-11 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-colors"
                         style={{ background: "rgba(34,197,94,0.12)", border: "1.5px solid rgba(34,197,94,0.3)", color: "#22c55e" }}
                       >

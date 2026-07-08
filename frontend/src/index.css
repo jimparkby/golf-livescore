@@ -252,8 +252,16 @@ All colors MUST be HSL.
 
 /* Hide all toast notifications */
 [data-sonner-toaster],
+[data-sonner-toast],
 .sonner,
 [role="status"],
-[data-toast-viewport] {
+[data-toast-viewport],
+[data-radix-toast-viewport],
+ol[data-sonner-toaster] {
   display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  position: absolute !important;
+  left: -9999px !important;
 }

@@ -28,6 +28,19 @@
 
   <body>
     <div id="root"></div>
+    <!-- Disable all toast notifications globally -->
+    <script>
+      window.toast = {
+        success: function() {},
+        error: function() {},
+        info: function() {},
+        warning: function() {},
+        loading: function() {},
+        promise: function() { return Promise.resolve(); },
+        custom: function() {},
+        dismiss: function() {}
+      };
+    </script>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script>
       // Apply Telegram safe area CSS variables before React mounts so toasts
