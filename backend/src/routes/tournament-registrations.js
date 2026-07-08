@@ -4,14 +4,11 @@ import { requireAuth } from '../middleware/auth.js'
 
 const router = Router()
 
-// Apply authentication to all routes
-router.use(requireAuth)
-
 /**
  * POST /api/tournament-registrations
  * Register current user for a tournament
  */
-router.post('/', async (req, res, next) => {
+router.post('/', requireAuth, async (req, res, next) => {
   try {
     const { tournamentId } = req.body
     const userId = req.userId
@@ -48,7 +45,7 @@ router.post('/', async (req, res, next) => {
  * GET /api/tournament-registrations/my
  * Get all registrations for current user
  */
-router.get('/my', async (req, res, next) => {
+router.get('/my', requireAuth, async (req, res, next) => {
   try {
     const userId = req.userId
 
@@ -126,7 +123,7 @@ router.patch('/:id/status', async (req, res, next) => {
  * DELETE /api/tournament-registrations/:id
  * Cancel registration
  */
-router.delete('/:id', async (req, res, next) => {
+router.delete('/:id', requireAuth, async (req, res, next) => {
   try {
     const { id } = req.params
     const userId = req.userId
