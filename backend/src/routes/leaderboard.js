@@ -294,7 +294,7 @@ router.post('/refresh', async (req, res, next) => {
     const data = await fetchLeaderboard()
     cache.data = data
     cache.timestamp = Date.now()
-    res.json({ success: true, data })
+    res.json(data)
   } catch (err) {
     next(err)
   }

@@ -75,6 +75,8 @@ export default function LeaderboardCard() {
   // Show top 20 by default, all if expanded or searching
   const visiblePlayers = showAll || searchQuery ? filteredPlayers : filteredPlayers.slice(0, 20)
 
+  console.log('[LeaderboardCard] showAll:', showAll, 'visiblePlayers:', visiblePlayers.length, 'filteredPlayers:', filteredPlayers.length)
+
   if (loading) {
     return (
       <Card className="p-6 shadow-soft">
@@ -90,6 +92,8 @@ export default function LeaderboardCard() {
 
   const allPlayers = data[tab]
   const hasMore = filteredPlayers.length > 20
+
+  console.log('[LeaderboardCard] hasMore:', hasMore, 'searchQuery:', searchQuery, 'button should show:', !searchQuery && hasMore)
 
   return (
     <Card className="overflow-hidden shadow-soft">
@@ -163,7 +167,10 @@ export default function LeaderboardCard() {
       </div>
 
       {/* Table */}
-      <div className="divide-y divide-border max-h-[600px] overflow-y-auto">
+      <div className={cn(
+        "divide-y divide-border overflow-y-auto",
+        showAll ? "max-h-[80vh]" : "max-h-[400px]"
+      )}>
         {visiblePlayers.length === 0 ? (
           <div className="p-8 text-center text-muted-foreground text-sm">
             {searchQuery ? 'Игроки не найдены' : 'Нет данных'}
@@ -211,7 +218,10 @@ export default function LeaderboardCard() {
       {/* Show More / Less */}
       {!searchQuery && hasMore && (
         <button
-          onClick={() => setShowAll(!showAll)}
+          onClick={() => {
+            console.log('[LeaderboardCard] Button clicked, current showAll:', showAll)
+            setShowAll(!showAll)
+          }}
           className="w-full py-3 text-sm font-semibold text-action hover:bg-accent/50 transition-colors border-t border-border"
         >
           {showAll
