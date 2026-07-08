@@ -401,18 +401,6 @@ const TournamentInfoPage = () => {
                     <div className="text-sm font-semibold text-foreground">Golf Club Minsk</div>
                   </div>
                 </div>
-
-                {tournament.fee && (
-                  <div className="flex items-start gap-2 mt-3">
-                    <CreditCard className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />
-                    <div>
-                      <div className="text-xs text-muted-foreground uppercase tracking-wider mb-0.5">
-                        Взнос
-                      </div>
-                      <div className="text-sm font-semibold text-foreground">{tournament.fee} млн</div>
-                    </div>
-                  </div>
-                )}
               </div>
             </div>
           </Card>
