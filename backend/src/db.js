@@ -57,7 +57,16 @@ async function runMigrations() {
       created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
       UNIQUE(last_name, first_name)
     )` },
-    { name: 'last_hdid_sync', query: `ALTER TABLE users ADD COLUMN IF NOT EXISTS last_hdid_sync TIMESTAMP WITH TIME ZONE` }
+    { name: 'last_hdid_sync', query: `ALTER TABLE users ADD COLUMN IF NOT EXISTS last_hdid_sync TIMESTAMP WITH TIME ZONE` },
+    { name: 'tournament_registrations', query: `CREATE TABLE IF NOT EXISTS tournament_registrations (
+      id SERIAL PRIMARY KEY,
+      tournament_id TEXT NOT NULL,
+      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      status TEXT NOT NULL DEFAULT 'pending_review',
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+      updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+      UNIQUE(tournament_id, user_id)
+    )` }
   ]
 
   for (const migration of migrations) {

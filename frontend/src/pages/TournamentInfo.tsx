@@ -1,10 +1,12 @@
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Calendar, MapPin, Award, Image as ImageIcon, Trophy, Users, Brain } from "lucide-react";
+import { ArrowLeft, Calendar, MapPin, Award, Image as ImageIcon, Trophy, Users, Brain, UserPlus, CheckCircle, Clock, CreditCard, X as XIcon } from "lucide-react";
 import { TOURNAMENTS } from "@/lib/tournaments";
 import { getTournamentData } from "@/lib/tournament-data";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { useState, useEffect } from "react";
+import { api } from "@/lib/api";
+import { toast } from "sonner";
 
 type Tab = "info" | "results" | "nominations" | "photos" | "flights" | "predictions";
 
@@ -40,6 +42,9 @@ const TournamentInfoPage = () => {
   const [predictionsMessage, setPredictionsMessage] = useState<string | null>(null);
   const [apiResults, setApiResults] = useState<any>(null);
   const [loadingApiResults, setLoadingApiResults] = useState(false);
+  const [myRegistration, setMyRegistration] = useState<any | null>(null);
+  const [loadingRegistration, setLoadingRegistration] = useState(false);
+  const [registering, setRegistering] = useState(false);
 
   const tournament = TOURNAMENTS.find((t) => t.id === id);
   const tournamentData = id ? getTournamentData(id) : null;
@@ -185,6 +190,80 @@ const TournamentInfoPage = () => {
     }
   };
 
+  // Load registration status
+  useEffect(() => {
+    const loadRegistration = async () => {
+      if (!id) return;
+
+      setLoadingRegistration(true);
+      try {
+        const registrations = await api.get<any[]>('/api/tournament-registrations/my');
+        const myReg = registrations.find((r: any) => r.tournament_id === id);
+        setMyRegistration(myReg || null);
+      } catch (error) {
+        console.error('[TournamentInfo] Error loading registration:', error);
+      } finally {
+        setLoadingRegistration(false);
+      }
+    };
+
+    loadRegistration();
+  }, [id]);
+
+  // Register for tournament
+  const handleRegister = async () => {
+    if (!id) return;
+
+    setRegistering(true);
+    try {
+      const result = await api.post('/api/tournament-registrations', { tournamentId: id });
+      setMyRegistration(result);
+      toast.success('Заявка отправлена на рассмотрение');
+    } catch (error: any) {
+      console.error('[TournamentInfo] Error registering:', error);
+      toast.error(error.message || 'Ошибка при регистрации');
+    } finally {
+      setRegistering(false);
+    }
+  };
+
+  // Cancel registration
+  const handleCancelRegistration = async () => {
+    if (!myRegistration) return;
+
+    try {
+      await api.delete(`/api/tournament-registrations/${myRegistration.id}`);
+      setMyRegistration(null);
+      toast.success('Регистрация отменена');
+    } catch (error: any) {
+      console.error('[TournamentInfo] Error canceling registration:', error);
+      toast.error(error.message || 'Ошибка при отмене регистрации');
+    }
+  };
+
+  // Check if registration is closed (1 day before tournament)
+  const isRegistrationClosed = () => {
+    if (!tournament) return true;
+
+    // Parse tournament date (format: "26" or "26-27")
+    const dateStr = tournament.date.split('-')[0]; // Take first date if range
+    const monthMap: Record<string, number> = {
+      'Январь': 0, 'Февраль': 1, 'Март': 2, 'Апрель': 3,
+      'Май': 4, 'Июнь': 5, 'Июль': 6, 'Август': 7,
+      'Сентябрь': 8, 'Октябрь': 9, 'Ноябрь': 10, 'Декабрь': 11
+    };
+    const month = monthMap[tournament.month];
+    const day = parseInt(dateStr);
+    const year = 2026; // Hardcoded year from tournaments
+
+    const tournamentDate = new Date(year, month, day);
+    const now = new Date();
+    const oneDayBefore = new Date(tournamentDate);
+    oneDayBefore.setDate(oneDayBefore.getDate() - 1);
+
+    return now >= oneDayBefore;
+  };
+
   if (!tournament) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -221,6 +300,14 @@ const TournamentInfoPage = () => {
           </div>
           <h1 className="text-xl sm:text-2xl font-bold mt-0.5 leading-tight">{tournament.name}</h1>
         </div>
+        {/* Admin: View Registrations */}
+        <button
+          onClick={() => navigate(`/tournament-registrations/${id}`)}
+          className="h-10 px-4 rounded-xl bg-action/10 hover:bg-action/20 flex items-center gap-2 transition-colors shrink-0"
+        >
+          <Users className="h-4 w-4 text-action" />
+          <span className="text-sm font-semibold text-action">Регистрации</span>
+        </button>
       </div>
 
       {/* Tabs */}
@@ -305,30 +392,116 @@ const TournamentInfoPage = () => {
 
       {/* Info Tab */}
       {activeTab === "info" && (
-        <Card className="p-5 shadow-soft">
-          <div className="flex items-start gap-4">
-            <div className="flex-1 min-w-0">
-              <div className="flex items-start gap-2 mb-3">
-                <Calendar className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />
-                <div>
-                  <div className="text-sm font-semibold text-foreground">
-                    {tournament.date} {tournament.month} · {tournament.day}
+        <div className="space-y-4">
+          <Card className="p-5 shadow-soft">
+            <div className="flex items-start gap-4">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-start gap-2 mb-3">
+                  <Calendar className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />
+                  <div>
+                    <div className="text-sm font-semibold text-foreground">
+                      {tournament.date} {tournament.month} · {tournament.day}
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              <div className="flex items-start gap-2">
-                <MapPin className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />
-                <div>
-                  <div className="text-xs text-muted-foreground uppercase tracking-wider mb-0.5">
-                    Место проведения
+                <div className="flex items-start gap-2">
+                  <MapPin className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />
+                  <div>
+                    <div className="text-xs text-muted-foreground uppercase tracking-wider mb-0.5">
+                      Место проведения
+                    </div>
+                    <div className="text-sm font-semibold text-foreground">Golf Club Minsk</div>
                   </div>
-                  <div className="text-sm font-semibold text-foreground">Golf Club Minsk</div>
                 </div>
+
+                {tournament.fee && (
+                  <div className="flex items-start gap-2 mt-3">
+                    <CreditCard className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />
+                    <div>
+                      <div className="text-xs text-muted-foreground uppercase tracking-wider mb-0.5">
+                        Взнос
+                      </div>
+                      <div className="text-sm font-semibold text-foreground">{tournament.fee} млн</div>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
-          </div>
-        </Card>
+          </Card>
+
+          {/* Registration Card */}
+          <Card className="p-5 shadow-soft">
+            <div className="flex items-start gap-3">
+              <div className="flex-1 min-w-0">
+                <div className="font-bold text-lg mb-2">Регистрация</div>
+
+                {loadingRegistration ? (
+                  <div className="text-sm text-muted-foreground">Загрузка...</div>
+                ) : isRegistrationClosed() ? (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Clock className="h-4 w-4" />
+                    <span>Регистрация закрыта</span>
+                  </div>
+                ) : myRegistration ? (
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle className="h-4 w-4 text-action" />
+                      <span className="text-sm font-semibold text-action">Вы зарегистрированы</span>
+                    </div>
+
+                    {/* Status Badge */}
+                    <div className="flex items-center gap-2">
+                      <div className={cn(
+                        "px-3 py-1.5 rounded-full text-xs font-semibold",
+                        myRegistration.status === 'pending_review' && "bg-yellow-500/20 text-yellow-700",
+                        myRegistration.status === 'awaiting_payment' && "bg-orange-500/20 text-orange-700",
+                        myRegistration.status === 'paid' && "bg-green-500/20 text-green-700"
+                      )}>
+                        {myRegistration.status === 'pending_review' && 'Заявка на рассмотрении'}
+                        {myRegistration.status === 'awaiting_payment' && 'Ожидает оплаты'}
+                        {myRegistration.status === 'paid' && 'Оплачено'}
+                      </div>
+                    </div>
+
+                    {/* Payment Button (visual only, for awaiting_payment status) */}
+                    {myRegistration.status === 'awaiting_payment' && (
+                      <button
+                        onClick={() => toast.info('Оплата будет доступна позже')}
+                        className="w-full h-11 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-colors"
+                        style={{ background: "rgba(34,197,94,0.12)", border: "1.5px solid rgba(34,197,94,0.3)", color: "#22c55e" }}
+                      >
+                        <CreditCard className="h-4 w-4" />
+                        Оплатить
+                      </button>
+                    )}
+
+                    {/* Cancel Button */}
+                    {myRegistration.status === 'pending_review' && (
+                      <button
+                        onClick={handleCancelRegistration}
+                        className="text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
+                      >
+                        <XIcon className="h-3 w-3" />
+                        Отменить регистрацию
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  <button
+                    onClick={handleRegister}
+                    disabled={registering}
+                    className="w-full h-11 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
+                    style={{ background: "rgba(34,197,94,0.12)", border: "1.5px solid rgba(34,197,94,0.3)", color: "#22c55e" }}
+                  >
+                    <UserPlus className="h-4 w-4" strokeWidth={2.5} />
+                    {registering ? 'Отправка...' : 'Записаться'}
+                  </button>
+                )}
+              </div>
+            </div>
+          </Card>
+        </div>
       )}
 
       {/* Results Tab */}

@@ -17,6 +17,7 @@ import StatsPage from "./pages/Stats";
 import StatisticsPage from "./pages/Statistics";
 import ProfilePage from "./pages/Profile";
 import LeaderboardPage from "./pages/Leaderboard";
+import TournamentRegistrationsPage from "./pages/TournamentRegistrations";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -51,6 +52,7 @@ function AppRoutes() {
         <Route path="/statistics" element={<StatisticsPage />} />
         <Route path="/profile" element={<ProfilePage />} />
         <Route path="/leaderboard" element={<LeaderboardPage />} />
+        <Route path="/tournament-registrations/:id" element={<TournamentRegistrationsPage />} />
       </Route>
       <Route path="*" element={<NotFound />} />
     </Routes>
