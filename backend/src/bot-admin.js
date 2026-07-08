@@ -607,7 +607,7 @@ export function setupAdminCommands(bot) {
               t.date,
               COUNT(tr.id) as registration_count
             FROM tournaments t
-            LEFT JOIN tournament_registrations tr ON t.id = tr.tournament_id::integer
+            LEFT JOIN tournament_registrations tr ON t.id::text = tr.tournament_id
             WHERE t.date >= CURRENT_DATE - INTERVAL '7 days'
             GROUP BY t.id, t.name, t.date
             HAVING COUNT(tr.id) > 0
@@ -707,12 +707,17 @@ export function setupAdminCommands(bot) {
             text += `   HCP ${r.hcp.toFixed(1)} • ${new Date(r.created_at).toLocaleDateString('ru-RU')}\n`
           })
 
+          const webAppUrl = process.env.FRONTEND_URL || 'https://your-app-url.com'
+
           await bot.editMessageText(text, {
             chat_id: query.message.chat.id,
             message_id: query.message.message_id,
             parse_mode: 'HTML',
             reply_markup: {
-              inline_keyboard: [[{ text: '◀️ Назад к списку', callback_data: 'admin_registrations' }]],
+              inline_keyboard: [
+                [{ text: '📝 Управление статусами', web_app: { url: `${webAppUrl}/tournament-registrations/${tournamentId}` } }],
+                [{ text: '◀️ Назад к списку', callback_data: 'admin_registrations' }]
+              ],
             },
           })
         } catch (err) {

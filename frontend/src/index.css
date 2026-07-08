@@ -249,3 +249,11 @@ All colors MUST be HSL.
     font-weight: 600;
   }
 }
+
+/* Hide all toast notifications */
+[data-sonner-toaster],
+.sonner,
+[role="status"],
+[data-toast-viewport] {
+  display: none !important;
+}
