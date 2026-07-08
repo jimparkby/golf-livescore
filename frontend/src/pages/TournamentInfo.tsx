@@ -300,14 +300,6 @@ const TournamentInfoPage = () => {
           </div>
           <h1 className="text-xl sm:text-2xl font-bold mt-0.5 leading-tight">{tournament.name}</h1>
         </div>
-        {/* Admin: View Registrations */}
-        <button
-          onClick={() => navigate(`/tournament-registrations/${id}`)}
-          className="h-10 px-4 rounded-xl bg-action/10 hover:bg-action/20 flex items-center gap-2 transition-colors shrink-0"
-        >
-          <Users className="h-4 w-4 text-action" />
-          <span className="text-sm font-semibold text-action">Регистрации</span>
-        </button>
       </div>
 
       {/* Tabs */}
