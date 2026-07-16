@@ -24,15 +24,12 @@ const AppLayout = () => {
   const location = useLocation();
   const isPlayTab = location.pathname === "/";
 
-  const { profile, rounds, activeRound, frequent } = useGolf();
-  const allOthersRounds = useOthersRounds();
-
-  // Show only rounds from frequent partners (people played with before)
-  const frequentIds = useMemo(() => new Set(frequent.map((f) => f.id)), [frequent]);
-  const othersRounds = useMemo(
-    () => allOthersRounds.filter((r) => r.players.some((p) => !p.isMe && frequentIds.has(p.id))),
-    [allOthersRounds, frequentIds]
-  );
+  const { profile, rounds, activeRound } = useGolf();
+  // Backend already restricts /api/rounds/active to people who actually share a round
+  // with us (see rounds.js), and does so the moment a round starts — no need to also
+  // gate on the local `frequent` list, which only fills in when *we* add a player via
+  // round setup and would otherwise hide a partner's first live round until later.
+  const othersRounds = useOthersRounds();
   const [modalRound, setModalRound] = useState<ActiveRound | null>(null);
 
   const currentUser = useMemo((): CurrentUser => {
