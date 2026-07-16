@@ -25,9 +25,10 @@ const AppLayout = () => {
   const isPlayTab = location.pathname === "/";
 
   const { profile, rounds, activeRound } = useGolf();
-  // /api/rounds/active returns every user's latest round from the last 24h (see
-  // rounds.js) the moment it starts — no client-side gating, so everyone's live
-  // round shows up here, not just people we've played with before.
+  // Backend already restricts /api/rounds/active to people who actually share a round
+  // with us (see rounds.js), and does so the moment a round starts — no need to also
+  // gate on the local `frequent` list, which only fills in when *we* add a player via
+  // round setup and would otherwise hide a partner's first live round until later.
   const othersRounds = useOthersRounds();
   const [modalRound, setModalRound] = useState<ActiveRound | null>(null);
 
