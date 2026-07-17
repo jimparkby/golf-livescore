@@ -25,10 +25,11 @@ const AppLayout = () => {
   const isPlayTab = location.pathname === "/";
 
   const { profile, rounds, activeRound } = useGolf();
-  // Backend already restricts /api/rounds/active to people who actually share a round
-  // with us (see rounds.js), and does so the moment a round starts — no need to also
-  // gate on the local `frequent` list, which only fills in when *we* add a player via
-  // round setup and would otherwise hide a partner's first live round until later.
+  // Backend already restricts /api/rounds/active to people who were added as a
+  // player in that specific round (see rounds.js), and does so the moment the
+  // round starts — no need to also gate on the local `frequent` list, which only
+  // fills in when *we* add a player via round setup and would otherwise hide a
+  // partner's first live round until later.
   const othersRounds = useOthersRounds();
   const [modalRound, setModalRound] = useState<ActiveRound | null>(null);
 
