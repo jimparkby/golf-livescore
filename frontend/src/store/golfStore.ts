@@ -61,6 +61,7 @@ export type Profile = {
   memberSince: string;
   photoUrl?: string;
   defaultTee: TeeColor;
+  isAdmin?: boolean;
 };
 
 export type CustomTournament = {

@@ -1,4 +1,5 @@
 import { useState, useMemo, useRef, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { BASE } from "@/lib/api";
 import { useGolf } from "@/store/golfStore";
 import { useAuth } from "@/hooks/useAuth";
@@ -7,7 +8,7 @@ import { Avatar } from "@/components/PlayerAvatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Pencil, Check, Trophy, Camera, LogOut, Trash2, ChevronRight, X, Calendar } from "lucide-react";
+import { Pencil, Check, Trophy, Camera, LogOut, Trash2, ChevronRight, X, Calendar, Shield } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { getDifferentials, calcHandicapIndex } from "@/lib/handicap";
@@ -15,6 +16,7 @@ import { TEE_CONFIG, type TeeColor } from "@/lib/courses";
 import { compressImage } from "@/lib/imageUtils";
 
 const ProfilePage = () => {
+  const navigate = useNavigate();
   const { profile, updateProfile, rounds } = useGolf();
   const { signOut } = useAuth();
   const [editing, setEditing] = useState(false);
@@ -224,6 +226,21 @@ const ProfilePage = () => {
           </div>
         </button>
       </Card>
+
+      {/* Admin panel */}
+      {profile.isAdmin && (
+        <Card className="overflow-hidden shadow-soft">
+          <button
+            onClick={() => navigate("/admin/official-tournaments")}
+            className="w-full flex items-center justify-between px-5 py-4"
+          >
+            <div className="flex items-center gap-2 text-sm font-medium">
+              <Shield className="h-4 w-4 text-action" /> Admin Panel
+            </div>
+            <ChevronRight className="h-4 w-4 text-muted-foreground" />
+          </button>
+        </Card>
+      )}
 
       {/* Sign out */}
       <button

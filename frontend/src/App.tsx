@@ -12,6 +12,9 @@ import PlayPage from "./pages/Play";
 import TournamentsPage from "./pages/Tournaments";
 import TournamentPlayPage from "./pages/TournamentPlay";
 import CreateTournamentPage from "./pages/CreateTournament";
+import OfficialTournamentPlayPage from "./pages/OfficialTournamentPlay";
+import AdminTournamentsPage from "./pages/AdminTournaments";
+import AdminTournamentDetailPage from "./pages/AdminTournamentDetail";
 import StatsPage from "./pages/Stats";
 import ProfilePage from "./pages/Profile";
 import NotFound from "./pages/NotFound";
@@ -43,6 +46,9 @@ function AppRoutes() {
         <Route path="/tournaments" element={<TournamentsPage />} />
         <Route path="/tournament/:id" element={<TournamentPlayPage />} />
         <Route path="/create-tournament" element={<CreateTournamentPage />} />
+        <Route path="/official-tournament/:id" element={<OfficialTournamentPlayPage />} />
+        <Route path="/admin/official-tournaments" element={<AdminTournamentsPage />} />
+        <Route path="/admin/official-tournament/:id" element={<AdminTournamentDetailPage />} />
         <Route path="/stats" element={<StatsPage />} />
         <Route path="/profile" element={<ProfilePage />} />
       </Route>

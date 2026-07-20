@@ -41,3 +41,55 @@ db.query(`CREATE TABLE IF NOT EXISTS pending_scorecards (
   expires_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() + INTERVAL '24 hours',
   status TEXT DEFAULT 'pending'
 )`).catch((err) => console.error('[db] pending_scorecards migration error:', err.message))
+
+db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS is_admin BOOLEAN DEFAULT false`)
+  .catch((err) => console.error('[db] is_admin migration error:', err.message))
+
+// ── Official tournaments ────────────────────────────────────────────────────
+// Chained (not fire-and-forget) because tournament_registrations/tournament_groups
+// have FK dependencies on official_tournaments — with a connection pool, unawaited
+// parallel CREATE TABLEs could otherwise race ahead of the table they reference.
+
+db.query(`CREATE TABLE IF NOT EXISTS official_tournaments (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT NOT NULL,
+  course_id TEXT,
+  tee TEXT DEFAULT 'yellow',
+  course_name TEXT,
+  rating NUMERIC DEFAULT 72,
+  slope INTEGER DEFAULT 113,
+  date DATE NOT NULL,
+  start_time TIMESTAMP WITH TIME ZONE NOT NULL,
+  holes_mode TEXT DEFAULT '18',
+  handicap_allowance_pct INTEGER DEFAULT 80,
+  flight_count INTEGER DEFAULT 3,
+  group_size INTEGER DEFAULT 4,
+  status TEXT DEFAULT 'draft',
+  created_by UUID REFERENCES users(id),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+)`)
+  .then(() => db.query(`CREATE TABLE IF NOT EXISTS tournament_registrations (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tournament_id UUID NOT NULL REFERENCES official_tournaments(id) ON DELETE CASCADE,
+    user_id UUID REFERENCES users(id),
+    guest_name TEXT,
+    hcp NUMERIC NOT NULL DEFAULT 0,
+    paid BOOLEAN DEFAULT false,
+    paid_at TIMESTAMP WITH TIME ZONE,
+    access_code TEXT,
+    checked_in BOOLEAN DEFAULT false,
+    checked_in_at TIMESTAMP WITH TIME ZONE,
+    group_id UUID,
+    flight_label TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    UNIQUE(tournament_id, user_id)
+  )`))
+  .then(() => db.query(`CREATE TABLE IF NOT EXISTS tournament_groups (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tournament_id UUID NOT NULL REFERENCES official_tournaments(id) ON DELETE CASCADE,
+    flight_label TEXT NOT NULL,
+    group_number INTEGER NOT NULL,
+    round_id TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+  )`))
+  .catch((err) => console.error('[db] official tournaments migration error:', err.message))
