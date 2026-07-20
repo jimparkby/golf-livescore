@@ -1,6 +1,6 @@
 import { useRef } from "react";
 import { type Round } from "@/store/golfStore";
-import { COURSES } from "@/lib/courses";
+import { COURSES, getAllCourses } from "@/lib/courses";
 import { Camera, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { compressImage } from "@/lib/imageUtils";
@@ -27,7 +27,7 @@ type Props = {
 
 const RoundCard = ({ round, profilePhoto, playerName, playerHcp, onDelete, onAddPhoto }: Props) => {
   const fileRef = useRef<HTMLInputElement>(null);
-  const course = COURSES.find((c) => c.id === round.courseId);
+  const course = getAllCourses().find((c) => c.id === round.courseId);
   const me = round.players.find((p) => p.isMe) ?? round.players[0];
   const myScores = me ? (round.scores[me.id] ?? []) : [];
 

@@ -298,12 +298,22 @@ router.post('/', requireAuth, async (req, res, next) => {
 
 router.delete('/:id', requireAuth, async (req, res, next) => {
   try {
-    await db.query(
-      'DELETE FROM rounds WHERE id = $1 AND user_id = $2',
+    await db.query('BEGIN')
+    const { rows } = await db.query(
+      'SELECT id FROM rounds WHERE id = $1 AND user_id = $2',
       [req.params.id, req.user.userId]
     )
+    if (rows.length) {
+      await db.query('DELETE FROM hole_scores WHERE round_id = $1', [req.params.id])
+      await db.query('DELETE FROM round_players WHERE round_id = $1', [req.params.id])
+      await db.query('DELETE FROM rounds WHERE id = $1', [req.params.id])
+    }
+    await db.query('COMMIT')
     res.json({ success: true })
-  } catch (err) { next(err) }
+  } catch (err) {
+    await db.query('ROLLBACK')
+    next(err)
+  }
 })
 
 // ── PUT /api/rounds/:id/photo ─────────────────────────────────────────────────
