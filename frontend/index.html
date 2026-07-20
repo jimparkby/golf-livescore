@@ -3,6 +3,9 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
     <title>GolfMinsk Live — скоринг, турниры и статистика</title>
     <meta name="description" content="Live-скоринг для Golf Club Minsk: ведите счёт раундов на 18 лунок, следите за турнирами 2026 и статистикой." />
     <meta name="author" content="Golf Club Minsk" />
@@ -25,6 +28,19 @@
 
   <body>
     <div id="root"></div>
+    <!-- Disable all toast notifications globally -->
+    <script>
+      window.toast = {
+        success: function() {},
+        error: function() {},
+        info: function() {},
+        warning: function() {},
+        loading: function() {},
+        promise: function() { return Promise.resolve(); },
+        custom: function() {},
+        dismiss: function() {}
+      };
+    </script>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script>
       // Apply Telegram safe area CSS variables before React mounts so toasts

@@ -1,7 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
-import { Toaster as Sonner } from "@/components/ui/sonner";
-import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import AppLayout from "@/components/AppLayout";
@@ -10,13 +8,17 @@ import DemoPage from "./pages/Demo";
 import AuthPage from "./pages/Auth";
 import PlayPage from "./pages/Play";
 import TournamentsPage from "./pages/Tournaments";
+import TournamentInfoPage from "./pages/TournamentInfo";
 import TournamentPlayPage from "./pages/TournamentPlay";
 import CreateTournamentPage from "./pages/CreateTournament";
 import OfficialTournamentPlayPage from "./pages/OfficialTournamentPlay";
 import AdminTournamentsPage from "./pages/AdminTournaments";
 import AdminTournamentDetailPage from "./pages/AdminTournamentDetail";
 import StatsPage from "./pages/Stats";
+import StatisticsPage from "./pages/Statistics";
 import ProfilePage from "./pages/Profile";
+import LeaderboardPage from "./pages/Leaderboard";
+import TournamentRegistrationsPage from "./pages/TournamentRegistrations";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -44,13 +46,17 @@ function AppRoutes() {
       <Route element={<AppLayout />}>
         <Route path="/" element={<PlayPage />} />
         <Route path="/tournaments" element={<TournamentsPage />} />
+        <Route path="/tournament-info/:id" element={<TournamentInfoPage />} />
         <Route path="/tournament/:id" element={<TournamentPlayPage />} />
         <Route path="/create-tournament" element={<CreateTournamentPage />} />
         <Route path="/official-tournament/:id" element={<OfficialTournamentPlayPage />} />
         <Route path="/admin/official-tournaments" element={<AdminTournamentsPage />} />
         <Route path="/admin/official-tournament/:id" element={<AdminTournamentDetailPage />} />
         <Route path="/stats" element={<StatsPage />} />
+        <Route path="/statistics" element={<StatisticsPage />} />
         <Route path="/profile" element={<ProfilePage />} />
+        <Route path="/leaderboard" element={<LeaderboardPage />} />
+        <Route path="/tournament-registrations/:id" element={<TournamentRegistrationsPage />} />
       </Route>
       <Route path="*" element={<NotFound />} />
     </Routes>
@@ -61,8 +67,6 @@ const App = () => (
   <ErrorBoundary>
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <Toaster />
-        <Sonner position="top-center" offset="calc(var(--header-h) + var(--tg-safe-top) + 8px)" />
         <BrowserRouter>
           <Routes>
             <Route path="/demo" element={<DemoPage />} />

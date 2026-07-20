@@ -3,6 +3,7 @@ import { createRequire } from 'module'
 import https from 'https'
 import { db } from './db.js'
 import { parseScorecardPhoto } from './services/scoreParser.js'
+import { setupAdminCommands } from './bot-admin.js'
 
 const require = createRequire(import.meta.url)
 
@@ -95,20 +96,20 @@ if (!token) {
   bot.onText(/\/start/, async (msg) => {
     console.log('[bot] /start from', msg.from?.id)
     const text = [
-      `GolfMinsk Live — live scoring right in Telegram`,
+      `GolfMinsk Live — онлайн-счёт прямо в Telegram`,
       ``,
-      `⛳ Track your score in real time`,
-      `📊 Follow your stats and progress`,
-      `🏆 Join Golf Club Minsk tournaments`,
+      `⛳ Ведите счёт в режиме реального времени`,
+      `📊 Следите за своей статистикой и прогрессом`,
+      `🏆 Участвуйте в турнирах Golf Club Minsk`,
       ``,
-      `GolfMinsk Live. Your golf assistant.`,
+      `GolfMinsk Live. Ваш гольф-ассистент.`,
     ].join('\n')
     try {
       await bot.sendMessage(msg.chat.id, text, {
         parse_mode: 'HTML',
         reply_markup: {
           inline_keyboard: [
-            [{ text: '⛳ Open GolfMinsk Live', web_app: { url: webAppUrl } }],
+            [{ text: '⛳ Открыть GolfMinsk Live', web_app: { url: webAppUrl } }],
           ],
         },
       })
@@ -117,10 +118,16 @@ if (!token) {
     }
   })
 
-  // ── Photo: scorecard processing ───────────────────────────────────────────
+  // ── Photo: scorecard processing + admin photo handler ─────────────────────
   bot.on('photo', async (msg) => {
     const telegramId = msg.from?.id
     if (!telegramId) return
+
+    // Check if this is admin photo session (admin handler will check internally)
+    if (bot._adminPhotoHandler) {
+      const handled = await bot._adminPhotoHandler(msg, (fileId) => downloadTelegramPhoto(bot, fileId))
+      if (handled) return // Admin handler processed it
+    }
 
     // Resolve user by telegram_id
     let user
@@ -187,6 +194,9 @@ if (!token) {
     }
   })
 
+  // Setup admin commands
+  setupAdminCommands(bot)
+
   if (enablePolling) {
     let consecutiveErrors = 0
     bot.on('polling_error', (err) => {
@@ -211,7 +221,12 @@ if (!token) {
 }
 
 export function processUpdate(update) {
-  if (bot) bot.processUpdate(update)
+  if (!bot) {
+    console.warn('[bot] processUpdate called but bot is null')
+    return
+  }
+  console.log('[bot] Processing update:', update.message?.text || update.callback_query?.data || 'photo/other')
+  bot.processUpdate(update)
 }
 
 export { bot }

@@ -24,7 +24,7 @@ async function loadTournament(id) {
 
 async function loadRegistration(tournamentId, userId) {
   const { rows: [r] } = await db.query(
-    'SELECT * FROM tournament_registrations WHERE tournament_id = $1 AND user_id = $2',
+    'SELECT * FROM official_registrations WHERE tournament_id = $1 AND user_id = $2',
     [tournamentId, userId]
   )
   return r
@@ -41,7 +41,7 @@ router.get('/', requireAuth, async (req, res, next) => {
         : `SELECT * FROM official_tournaments WHERE status != 'draft' ORDER BY start_time DESC`
     )
     const { rows: myRegs } = await db.query(
-      `SELECT * FROM tournament_registrations WHERE user_id = $1`,
+      `SELECT * FROM official_registrations WHERE user_id = $1`,
       [req.user.userId]
     )
     const regByTournament = Object.fromEntries(myRegs.map((r) => [r.tournament_id, r]))
@@ -75,11 +75,11 @@ router.get('/:id', requireAuth, async (req, res, next) => {
 
     let group = null
     if (reg?.group_id) {
-      const { rows: [g] } = await db.query('SELECT * FROM tournament_groups WHERE id = $1', [reg.group_id])
+      const { rows: [g] } = await db.query('SELECT * FROM official_tournament_groups WHERE id = $1', [reg.group_id])
       if (g) {
         const { rows: players } = await db.query(
           `SELECT tr.id, tr.hcp, tr.guest_name, u.first_name, u.last_name, u.username
-           FROM tournament_registrations tr LEFT JOIN users u ON u.id = tr.user_id
+           FROM official_registrations tr LEFT JOIN users u ON u.id = tr.user_id
            WHERE tr.group_id = $1
            ORDER BY tr.hcp ASC, tr.id ASC`,
           [g.id]
@@ -135,11 +135,11 @@ router.post('/:id/checkin', requireAuth, async (req, res, next) => {
     if (reg.access_code !== code) return res.status(400).json({ error: 'Invalid code' })
 
     await db.query(
-      `UPDATE tournament_registrations SET checked_in = true, checked_in_at = NOW() WHERE id = $1`,
+      `UPDATE official_registrations SET checked_in = true, checked_in_at = NOW() WHERE id = $1`,
       [reg.id]
     )
 
-    const { rows: [group] } = await db.query('SELECT * FROM tournament_groups WHERE id = $1', [reg.group_id])
+    const { rows: [group] } = await db.query('SELECT * FROM official_tournament_groups WHERE id = $1', [reg.group_id])
     res.json({ groupId: reg.group_id, roundId: group?.round_id ?? null })
   } catch (err) { next(err) }
 })
@@ -153,12 +153,12 @@ router.post('/:id/groups/:groupId/scores', requireAuth, async (req, res, next) =
     if (!reg || !reg.checked_in || reg.group_id !== req.params.groupId) {
       return res.status(403).json({ error: 'Not part of this group' })
     }
-    const { rows: [group] } = await db.query('SELECT * FROM tournament_groups WHERE id = $1', [req.params.groupId])
+    const { rows: [group] } = await db.query('SELECT * FROM official_tournament_groups WHERE id = $1', [req.params.groupId])
     if (!group?.round_id) return res.status(400).json({ error: 'Group has no round' })
 
     // Only allow writing scores for players who are actually in this group
     const { rows: groupPlayers } = await db.query(
-      'SELECT id FROM tournament_registrations WHERE group_id = $1', [group.id]
+      'SELECT id FROM official_registrations WHERE group_id = $1', [group.id]
     )
     const allowedIds = new Set(groupPlayers.map((p) => p.id))
 
@@ -184,11 +184,11 @@ router.get('/:id/live', requireAuth, async (req, res, next) => {
     if (!t) return res.status(404).json({ error: 'Not found' })
 
     const { rows: groups } = await db.query(
-      'SELECT * FROM tournament_groups WHERE tournament_id = $1 ORDER BY flight_label, group_number', [t.id]
+      'SELECT * FROM official_tournament_groups WHERE tournament_id = $1 ORDER BY flight_label, group_number', [t.id]
     )
     const { rows: players } = await db.query(
       `SELECT tr.id, tr.group_id, tr.hcp, tr.flight_label, tr.guest_name, u.first_name, u.last_name, u.username
-       FROM tournament_registrations tr LEFT JOIN users u ON u.id = tr.user_id
+       FROM official_registrations tr LEFT JOIN users u ON u.id = tr.user_id
        WHERE tr.tournament_id = $1 AND tr.group_id IS NOT NULL
        ORDER BY tr.hcp ASC, tr.id ASC`,
       [t.id]
@@ -265,13 +265,13 @@ router.get('/:id/admin', requireAdmin, async (req, res, next) => {
     if (!t) return res.status(404).json({ error: 'Not found' })
     const { rows: regs } = await db.query(
       `SELECT tr.*, u.first_name, u.last_name, u.username
-       FROM tournament_registrations tr LEFT JOIN users u ON u.id = tr.user_id
+       FROM official_registrations tr LEFT JOIN users u ON u.id = tr.user_id
        WHERE tr.tournament_id = $1
        ORDER BY tr.hcp ASC`,
       [t.id]
     )
     const { rows: groups } = await db.query(
-      'SELECT * FROM tournament_groups WHERE tournament_id = $1 ORDER BY flight_label, group_number', [t.id]
+      'SELECT * FROM official_tournament_groups WHERE tournament_id = $1 ORDER BY flight_label, group_number', [t.id]
     )
     res.json({
       tournament: t,
@@ -290,7 +290,7 @@ router.post('/:id/registrations', requireAdmin, async (req, res, next) => {
   if (!userId && !guestName) return res.status(400).json({ error: 'userId or guestName required' })
   try {
     const { rows: [reg] } = await db.query(
-      `INSERT INTO tournament_registrations (tournament_id, user_id, guest_name, hcp)
+      `INSERT INTO official_registrations (tournament_id, user_id, guest_name, hcp)
        VALUES ($1,$2,$3,$4)
        ON CONFLICT (tournament_id, user_id) DO UPDATE SET hcp = EXCLUDED.hcp
        RETURNING *`,
@@ -304,7 +304,7 @@ router.put('/:id/registrations/:regId', requireAdmin, async (req, res, next) => 
   const { hcp, guestName, paid } = req.body
   try {
     const { rows: [reg] } = await db.query(
-      `UPDATE tournament_registrations SET
+      `UPDATE official_registrations SET
          hcp = COALESCE($3, hcp),
          guest_name = COALESCE($4, guest_name),
          paid = COALESCE($5, paid),
@@ -319,7 +319,7 @@ router.put('/:id/registrations/:regId', requireAdmin, async (req, res, next) => 
 
 router.delete('/:id/registrations/:regId', requireAdmin, async (req, res, next) => {
   try {
-    await db.query('DELETE FROM tournament_registrations WHERE id = $1 AND tournament_id = $2', [req.params.regId, req.params.id])
+    await db.query('DELETE FROM official_registrations WHERE id = $1 AND tournament_id = $2', [req.params.regId, req.params.id])
     res.json({ success: true })
   } catch (err) { next(err) }
 })
@@ -336,7 +336,7 @@ router.post('/:id/regroup', requireAdmin, async (req, res, next) => {
 
     const { rows: paidRegs } = await db.query(
       `SELECT tr.*, u.first_name, u.last_name, u.username
-       FROM tournament_registrations tr LEFT JOIN users u ON u.id = tr.user_id
+       FROM official_registrations tr LEFT JOIN users u ON u.id = tr.user_id
        WHERE tr.tournament_id = $1 AND tr.paid = true
        ORDER BY tr.hcp ASC`,
       [t.id]
@@ -346,16 +346,16 @@ router.post('/:id/regroup', requireAdmin, async (req, res, next) => {
     await db.query('BEGIN')
 
     // Wipe previous groups/rounds/scores for this tournament
-    const { rows: oldGroups } = await db.query('SELECT round_id FROM tournament_groups WHERE tournament_id = $1', [t.id])
+    const { rows: oldGroups } = await db.query('SELECT round_id FROM official_tournament_groups WHERE tournament_id = $1', [t.id])
     for (const g of oldGroups) {
       if (!g.round_id) continue
       await db.query('DELETE FROM hole_scores WHERE round_id = $1', [g.round_id])
       await db.query('DELETE FROM round_players WHERE round_id = $1', [g.round_id])
       await db.query('DELETE FROM rounds WHERE id = $1', [g.round_id])
     }
-    await db.query('DELETE FROM tournament_groups WHERE tournament_id = $1', [t.id])
+    await db.query('DELETE FROM official_tournament_groups WHERE tournament_id = $1', [t.id])
     await db.query(
-      `UPDATE tournament_registrations SET group_id = NULL, flight_label = NULL, access_code = NULL, checked_in = false, checked_in_at = NULL
+      `UPDATE official_registrations SET group_id = NULL, flight_label = NULL, access_code = NULL, checked_in = false, checked_in_at = NULL
        WHERE tournament_id = $1`,
       [t.id]
     )
@@ -394,7 +394,7 @@ router.post('/:id/regroup', requireAdmin, async (req, res, next) => {
         )
 
         const { rows: [group] } = await db.query(
-          `INSERT INTO tournament_groups (tournament_id, flight_label, group_number, round_id)
+          `INSERT INTO official_tournament_groups (tournament_id, flight_label, group_number, round_id)
            VALUES ($1,$2,$3,$4) RETURNING id`,
           [t.id, label, groupNumber, roundId]
         )
@@ -402,7 +402,7 @@ router.post('/:id/regroup', requireAdmin, async (req, res, next) => {
         for (const r of groupRegs) {
           const code = genCode()
           await db.query(
-            `UPDATE tournament_registrations SET group_id = $1, flight_label = $2, access_code = $3 WHERE id = $4`,
+            `UPDATE official_registrations SET group_id = $1, flight_label = $2, access_code = $3 WHERE id = $4`,
             [group.id, label, code, r.id]
           )
           await db.query(

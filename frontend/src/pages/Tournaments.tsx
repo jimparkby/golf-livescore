@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { TOURNAMENTS, TIER_LABELS, type Tier } from "@/lib/tournaments";
+import { TOURNAMENTS } from "@/lib/tournaments";
+import { getTournamentData } from "@/lib/tournament-data";
 import { Card } from "@/components/ui/card";
-import { cn } from "@/lib/utils";
-import { Plus, Trophy, Lock, CheckCircle2 } from "lucide-react";
+import { Plus, Image, Trophy, Lock, CheckCircle2 } from "lucide-react";
 import { api } from "@/lib/api";
 
 type OfficialTournament = {
@@ -22,18 +22,22 @@ const OFFICIAL_STATUS_LABEL: Record<OfficialTournament["status"], string> = {
   completed: "Завершён",
 };
 
-const tierColor: Record<Tier, string> = {
-  gold:     "bg-tier-gold",
-  platinum: "bg-tier-platinum",
-  diamond:  "bg-tier-diamond",
-  closed:   "bg-tier-closed",
-};
-
 const TournamentsPage = () => {
   const navigate = useNavigate();
+  const [tournamentsWithResults, setTournamentsWithResults] = useState<Set<string>>(new Set());
   const [official, setOfficial] = useState<OfficialTournament[]>([]);
 
   useEffect(() => {
+    // Fetch list of tournaments with results from API
+    fetch("/api/tournaments/list/with-results")
+      .then(res => res.json())
+      .then(data => {
+        if (data.tournaments) {
+          setTournamentsWithResults(new Set(data.tournaments));
+        }
+      })
+      .catch(err => console.error("Failed to fetch tournaments with results:", err));
+
     api.get<OfficialTournament[]>("/api/official-tournaments").then(setOfficial).catch(() => {});
   }, []);
 
@@ -105,6 +109,23 @@ const TournamentsPage = () => {
         </Card>
       )}
 
+      {/* Leaderboard Button */}
+      <Card
+        onClick={() => navigate('/leaderboard')}
+        className="p-5 shadow-soft cursor-pointer hover:bg-accent/30 transition-colors"
+      >
+        <div className="flex items-center gap-3">
+          <div className="h-12 w-12 rounded-full bg-action/20 grid place-items-center shrink-0">
+            <Trophy className="h-6 w-6 text-action" />
+          </div>
+          <div className="flex-1">
+            <div className="font-bold text-lg">Leaderboards</div>
+            <div className="text-sm text-muted-foreground">Рейтинг игроков и номинации 2026</div>
+          </div>
+          <div className="text-action text-2xl">›</div>
+        </div>
+      </Card>
+
       {/* Calendar */}
       {grouped.map(([month, items]) => (
         <Card key={month} className="overflow-hidden shadow-soft">
@@ -113,45 +134,31 @@ const TournamentsPage = () => {
           </div>
           <div className="divide-y divide-border">
             {items.map((t) => (
-              <div key={t.id} className="px-4 py-3 flex items-center gap-3">
+              <div
+                key={t.id}
+                onClick={() => navigate(`/tournament-info/${t.id}`)}
+                className="px-4 py-3 flex items-center gap-3 cursor-pointer hover:bg-muted/30 active:bg-muted/50 transition-colors"
+              >
                 <div className="w-16 shrink-0">
                   <div className="font-bold tabular-nums text-foreground text-lg leading-none">{t.date}</div>
                   <div className="text-[10px] uppercase tracking-wider text-muted-foreground mt-0.5">{t.day}</div>
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="text-sm font-medium leading-snug">{t.name}</div>
-                </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  <div
-                    title={TIER_LABELS[t.tier]}
-                    className={cn("h-7 w-7 rounded-full grid place-items-center text-[8px] font-bold text-primary-foreground shadow-soft", tierColor[t.tier])}
-                  >
-                    {t.tier === "gold" && "G"}
-                    {t.tier === "platinum" && "PL"}
-                    {t.tier === "diamond" && "◆"}
-                    {t.tier === "closed" && "C"}
-                  </div>
-                  {t.fee && <div className="text-xs font-semibold tabular-nums text-foreground">{t.fee}</div>}
+                  {(getTournamentData(t.id) || tournamentsWithResults.has(t.id)) && (
+                    <div className="flex items-center gap-1 mt-1">
+                      <Image className="h-3 w-3 text-action" />
+                      <span className="text-[10px] text-action font-semibold uppercase tracking-wider">
+                        Результаты
+                      </span>
+                    </div>
+                  )}
                 </div>
               </div>
             ))}
           </div>
         </Card>
       ))}
-
-      {/* Legend */}
-      <Card className="p-4 shadow-soft">
-        <div className="text-xs uppercase tracking-wider font-semibold text-muted-foreground mb-3">Tournament Status</div>
-        <div className="grid grid-cols-2 gap-3 text-sm">
-          {(Object.keys(TIER_LABELS) as Tier[]).map((tier) => (
-            <div key={tier} className="flex items-center gap-2">
-              <div className={cn("h-5 w-5 rounded-full shrink-0", tierColor[tier])} />
-              <span className="text-foreground">{TIER_LABELS[tier]}</span>
-            </div>
-          ))}
-        </div>
-        <div className="text-[11px] text-muted-foreground mt-3">*Tournament date is subject to change</div>
-      </Card>
     </div>
   );
 };

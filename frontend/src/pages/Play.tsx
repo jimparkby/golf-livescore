@@ -10,6 +10,8 @@ import { api, BASE } from "@/lib/api";
 import { ChevronLeft, ChevronRight, Plus, X, PlayCircle, Flag, Camera, Check, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { useTranslation } from "@/hooks/useTranslation";
+import { useIsMobile } from "@/hooks/use-mobile";
 import heroImg from "@/assets/golfminsk/hero.jpg";
 import photo1 from "@/assets/golfminsk/photo1.jpg";
 import photo2 from "@/assets/golfminsk/photo2.jpg";
@@ -25,17 +27,21 @@ const PlayPage = () => {
   const [step, setStep] = useState<Step>(activeRound ? "playing" : "home");
   const initialHadRound = useRef(!!activeRound);
 
-  const sendPregameInsight = () => {
+  const sendPregameInsight = (currentCourse?: { id: string; name: string }) => {
     const token = localStorage.getItem("golf_jwt");
     if (!token) return;
     const completedRounds = rounds.filter(r => r.completed);
     const trimmedRounds = completedRounds.slice(0, 10).map(r => ({
-      date: r.date, scores: r.scores, tee: r.tee, rating: r.rating, slope: r.slope, holesMode: r.holesMode,
+      date: r.date, scores: r.scores, tee: r.tee, rating: r.rating, slope: r.slope, holesMode: r.holesMode, courseId: r.courseId, courseName: r.courseName,
     }));
     fetch(`${BASE}/api/ai/pregame`, {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ rounds: trimmedRounds, profile: { hcp: profile.hcp, firstName: profile.firstName } }),
+      body: JSON.stringify({
+        rounds: trimmedRounds,
+        profile: { hcp: profile.hcp, firstName: profile.firstName },
+        currentCourse,
+      }),
     }).catch(() => {});
   };
   const [courseId, setCourseId] = useState<string>(COURSES[0].id);
@@ -96,7 +102,7 @@ const PlayPage = () => {
         setPlayers={setPlayers}
         frequent={frequent}
         onBack={() => setStep("home")}
-        onPregame={sendPregameInsight}
+        onPregame={() => sendPregameInsight({ id: course.id, name: course.name })}
         onStart={(mode) => {
           startRound(course, players, undefined, undefined, mode);
           setStep("playing");
@@ -143,9 +149,8 @@ const HomeScreen = ({ onStart, activeRound, onResume, onAbandon, extraCourses, o
   extraCourses?: Course[];
   onAddCourse?: (course: Course) => void;
 }) => {
+  const { t } = useTranslation();
   const { rounds, profile } = useGolf();
-  const completedRounds = rounds.filter(r => r.completed);
-  const last = completedRounds.find(r => r.players.some(p => p.isMe)) ?? null;
   const [showSearch, setShowSearch] = useState(false);
 
   const russianCourses = COURSES.filter(c => RUSSIA_IDS.includes(c.id));
@@ -158,13 +163,13 @@ const HomeScreen = ({ onStart, activeRound, onResume, onAbandon, extraCourses, o
       {activeRound && onResume && (
         <Card className="p-4 shadow-elevated" style={{ border: "1.5px solid rgba(34,197,94,0.4)", background: "rgba(34,197,94,0.06)" }}>
           <div className="text-xs uppercase tracking-wider font-semibold mb-2" style={{ color: "#22c55e" }}>
-            Незавершённый раунд
+            {t.unfinishedRound}
           </div>
           <div className="font-semibold text-foreground mb-1">{activeRound.courseName.split(" · ")[0]}</div>
           <div className="text-sm text-muted-foreground mb-3">
             {Object.values(activeRound.scores).flat().filter(s => s.score > 0).length > 0
-              ? `Лунок сыграно: ${Math.max(...Object.values(activeRound.scores).flat().map(s => s.hole), 0)}`
-              : "Раунд начат, счёт не введён"}
+              ? `${t.holesPlayed}: ${Math.max(...Object.values(activeRound.scores).flat().map(s => s.hole), 0)}`
+              : t.roundStartedNoScores}
           </div>
           <div className="flex gap-2">
             <button
@@ -172,14 +177,14 @@ const HomeScreen = ({ onStart, activeRound, onResume, onAbandon, extraCourses, o
               className="flex-1 h-10 rounded-xl font-bold text-sm"
               style={{ background: "#22c55e", color: "#000" }}
             >
-              Продолжить
+              {t.continue}
             </button>
             <button
               onClick={onAbandon}
               className="h-10 px-4 rounded-xl font-bold text-sm"
               style={{ background: "rgba(239,68,68,0.12)", color: "#f87171", border: "1.5px solid rgba(239,68,68,0.25)" }}
             >
-              Отмена
+              {t.cancel}
             </button>
           </div>
         </Card>
@@ -188,11 +193,11 @@ const HomeScreen = ({ onStart, activeRound, onResume, onAbandon, extraCourses, o
       {/* ── Stats ── */}
       <div className="grid grid-cols-3 gap-3">
         <StatTile label="HCP" value={String(profile.hcp)} />
-        <StatTile label="Раундов" value={String(rounds.length)} />
-        <StatTile label="Лучший" value={rounds.length === 0 ? "—" : String(Math.min(...rounds.map((r) => r.players[0] ? (r.scores[r.players[0].id] ?? []).reduce((a, s) => a + s.score, 0) : 999)))} />
+        <StatTile label={t.rounds} value={String(rounds.length)} />
+        <StatTile label={t.best} value={rounds.length === 0 ? "—" : String(Math.min(...rounds.map((r) => r.players[0] ? (r.scores[r.players[0].id] ?? []).reduce((a, s) => a + s.score, 0) : 999)))} />
       </div>
 
-      {/* ── Поиск любого поля ── */}
+      {/* ── Search any course ── */}
       <button
         onClick={() => setShowSearch(true)}
         className="w-full flex items-center gap-3 p-4 rounded-xl border-2 border-dashed border-border text-left active:scale-[0.98] transition-transform"
@@ -201,35 +206,24 @@ const HomeScreen = ({ onStart, activeRound, onResume, onAbandon, extraCourses, o
           <Search className="h-5 w-5" style={{ color: "#22c55e" }} />
         </div>
         <div>
-          <div className="font-semibold text-sm">Найти любое поле</div>
+          <div className="font-semibold text-sm">{t.findAnyCourse}</div>
           <div className="text-xs text-muted-foreground mt-0.5">Al Hamra, Wentworth, Augusta…</div>
         </div>
       </button>
 
-      {/* ── Last round ── */}
-      {last && (() => {
-        const me = last.players.find(p => p.isMe) ?? last.players[0];
-        const lastScore = me ? (last.scores[me.id] ?? []).reduce((a, s) => a + s.score, 0) : null;
-        return (
-          <Card className="p-5 shadow-soft">
-            <div className="text-xs uppercase tracking-wider text-muted-foreground font-semibold mb-3">Последний раунд</div>
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="font-semibold">{last.courseName}</div>
-                <div className="text-sm text-muted-foreground">{last.tee} · CR {last.rating} / {last.slope}</div>
-              </div>
-              <div className="text-right">
-                <div className="text-3xl font-bold text-action tabular-nums">{lastScore ?? "—"}</div>
-                <div className="text-[11px] text-muted-foreground">{new Date(last.date).toLocaleDateString("ru-RU")}</div>
-              </div>
-            </div>
-          </Card>
-        );
-      })()}
+      {/* ── Play button ── */}
+      <button
+        onClick={() => onStart("championship")}
+        className="w-full h-14 rounded-xl font-bold text-base flex items-center justify-center gap-3 shadow-glow active:scale-[0.98] transition-transform"
+        style={{ background: "#22c55e", color: "#000" }}
+      >
+        <Flag className="h-5 w-5" strokeWidth={2.5} />
+        {t.play}
+      </button>
 
       {/* ── Golf Club Minsk ── */}
       <div>
-        <div className="text-xs uppercase tracking-wider text-muted-foreground font-semibold mb-3 px-1">Golf Club Minsk</div>
+        <div className="text-xs uppercase tracking-wider text-muted-foreground font-semibold mb-3 px-1">{t.golfClubMinsk}</div>
         <div className="grid grid-cols-2 gap-3">
           <button
             onClick={() => onStart("championship")}
@@ -239,7 +233,7 @@ const HomeScreen = ({ onStart, activeRound, onResume, onAbandon, extraCourses, o
             <div className="absolute inset-0 bg-gradient-to-t from-primary/80 to-transparent" />
             <div className="absolute inset-0 flex flex-col justify-end p-3">
               <div className="text-primary-foreground text-xs font-bold uppercase tracking-wider">Championship</div>
-              <div className="text-primary-foreground/60 text-[10px] mt-0.5">18 holes · Par 72</div>
+              <div className="text-primary-foreground/60 text-[10px] mt-0.5">18 {t.holes} · Par 72</div>
             </div>
           </button>
           <button
@@ -250,23 +244,11 @@ const HomeScreen = ({ onStart, activeRound, onResume, onAbandon, extraCourses, o
             <div className="absolute inset-0 bg-gradient-to-t from-primary/80 to-transparent" />
             <div className="absolute inset-0 flex flex-col justify-end p-3">
               <div className="text-primary-foreground text-xs font-bold uppercase tracking-wider">Academy</div>
-              <div className="text-primary-foreground/60 text-[10px] mt-0.5">9 holes · Par 27</div>
+              <div className="text-primary-foreground/60 text-[10px] mt-0.5">9 {t.holes} · Par 27</div>
             </div>
           </button>
         </div>
       </div>
-
-      {/* ── Кастомные поля (сохранённые через поиск) ── */}
-      {customCourses.length > 0 && (
-        <div>
-          <div className="text-xs uppercase tracking-wider text-muted-foreground font-semibold mb-3 px-1">Сохранённые поля</div>
-          <div className="space-y-2">
-            {customCourses.map(c => (
-              <CourseRow key={c.id} course={c} onStart={() => onStart(c.id)} />
-            ))}
-          </div>
-        </div>
-      )}
 
       {/* ── Course Search Sheet ── */}
       {showSearch && (
@@ -296,6 +278,7 @@ const CourseSearchSheet = ({
   onFound: (course: Course) => void;
   onClose: () => void;
 }) => {
+  const { t } = useTranslation();
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
   const [found, setFound] = useState<Course | null>(null);
@@ -325,7 +308,7 @@ const CourseSearchSheet = ({
       if (!data.course) throw new Error("No course data");
       setFound(data.course);
     } catch {
-      setError("Не удалось загрузить поле. Проверьте название и попробуйте снова.");
+      setError(t.failedToLoadCourse);
     } finally {
       setLoading(false);
     }
@@ -336,14 +319,14 @@ const CourseSearchSheet = ({
       <button className="absolute inset-0 bg-black/70" onClick={onClose} />
       <div
         className="relative w-full rounded-t-3xl animate-in slide-in-from-bottom duration-250 flex flex-col"
-        style={{ background: "#1c1c1e", maxHeight: "90vh", paddingBottom: "max(env(safe-area-inset-bottom), 24px)" }}
+        style={{ background: "hsl(var(--popover))", maxHeight: "90vh", paddingBottom: "max(env(safe-area-inset-bottom), 24px)" }}
       >
         {/* Drag handle */}
         <div className="mx-auto w-10 h-1 rounded-full mt-3 mb-4" style={{ background: "rgba(255,255,255,0.15)" }} />
 
         {/* Header */}
         <div className="flex items-center justify-between px-5 pb-4">
-          <div className="text-white font-bold text-lg">Найти поле</div>
+          <div className="text-white font-bold text-lg">{t.findCourse}</div>
           <button
             onClick={onClose}
             className="h-8 w-8 rounded-full grid place-items-center"
@@ -361,7 +344,7 @@ const CourseSearchSheet = ({
               <input
                 type="text"
                 autoFocus
-                placeholder="Название поля или клуба…"
+                placeholder={t.searchPlaceholder}
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && search()}
@@ -375,11 +358,11 @@ const CourseSearchSheet = ({
               className="h-12 px-5 rounded-xl font-bold text-sm disabled:opacity-40 transition-opacity"
               style={{ background: "#22c55e", color: "#000" }}
             >
-              Найти
+              {t.find}
             </button>
           </div>
           <p className="text-xs mt-2 px-1" style={{ color: "rgba(255,255,255,0.3)" }}>
-            Введите название на любом языке: «Skolkovo», «Al Hamra Golf», «Augusta National»
+            Enter name in any language: «Skolkovo», «Al Hamra Golf», «Augusta National»
           </p>
         </div>
 
@@ -387,7 +370,7 @@ const CourseSearchSheet = ({
         <div className="flex-1 overflow-y-auto px-5">
           {!found && !loading && quickCourses && quickCourses.length > 0 && (
             <div className="pb-4">
-              <div className="text-xs uppercase tracking-wider mb-2 px-1" style={{ color: "rgba(255,255,255,0.4)" }}>Поля России</div>
+              <div className="text-xs uppercase tracking-wider mb-2 px-1" style={{ color: "rgba(255,255,255,0.4)" }}>{t.russianCourses}</div>
               <div className="space-y-2">
                 {quickCourses.map((c) => (
                   <button
@@ -399,7 +382,7 @@ const CourseSearchSheet = ({
                     <div className="min-w-0">
                       <div className="text-white font-semibold text-sm truncate">{c.name}</div>
                       <div className="text-xs truncate" style={{ color: "rgba(255,255,255,0.4)" }}>{c.club}</div>
-                      <div className="text-xs mt-0.5" style={{ color: "rgba(255,255,255,0.3)" }}>{c.holes.length} holes · Par {c.totalPar}</div>
+                      <div className="text-xs mt-0.5" style={{ color: "rgba(255,255,255,0.3)" }}>{c.holes.length} {t.holes} · Par {c.totalPar}</div>
                     </div>
                     <ChevronRight className="h-4 w-4 shrink-0 ml-3" style={{ color: "rgba(255,255,255,0.3)" }} />
                   </button>
@@ -416,9 +399,9 @@ const CourseSearchSheet = ({
                 <div className="absolute inset-0 flex items-center justify-center text-xl">⛳</div>
               </div>
               <div className="text-center">
-                <div className="text-white font-semibold">Загружаем поле…</div>
+                <div className="text-white font-semibold">{t.loadingCourse}</div>
                 <div className="text-xs mt-1" style={{ color: "rgba(255,255,255,0.4)" }}>
-                  AI ищет информацию о поле
+                  {t.getting} {t.course.toLowerCase()} {t.courseInfo}
                 </div>
               </div>
             </div>
@@ -427,16 +410,16 @@ const CourseSearchSheet = ({
           {error && !loading && (
             <div className="rounded-2xl p-4 text-center" style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.25)" }}>
               <div className="text-2xl mb-2">❌</div>
-              <div className="text-white font-semibold text-sm mb-1">Поле не найдено</div>
+              <div className="text-white font-semibold text-sm mb-1">{t.courseNotFound}</div>
               <div className="text-xs" style={{ color: "rgba(255,255,255,0.5)" }}>{error}</div>
             </div>
           )}
 
           {found && !loading && (
             <div className="space-y-4 pb-4">
-              <div className="rounded-2xl overflow-hidden" style={{ background: "#2a2a2a" }}>
+              <div className="rounded-2xl overflow-hidden" style={{ background: "hsl(var(--secondary))" }}>
                 <div className="px-5 py-4">
-                  <div className="text-xs uppercase tracking-wider mb-1" style={{ color: "#22c55e" }}>Поле найдено</div>
+                  <div className="text-xs uppercase tracking-wider mb-1" style={{ color: "#22c55e" }}>{t.courseFound}</div>
                   <div className="text-white font-black text-xl">{found.name}</div>
                   <div className="text-white/60 text-sm mt-0.5">{found.club}</div>
                   <div className="text-white/40 text-xs mt-1">{found.address}</div>
@@ -449,26 +432,26 @@ const CourseSearchSheet = ({
                   </div>
                   <div className="flex flex-col items-center py-3">
                     <div className="text-white font-black text-xl">{found.holes.length}</div>
-                    <div className="text-xs" style={{ color: "rgba(255,255,255,0.4)" }}>Лунок</div>
+                    <div className="text-xs" style={{ color: "rgba(255,255,255,0.4)" }}>{t.holes}</div>
                   </div>
                   <div className="flex flex-col items-center py-3">
                     <div className="text-white font-black text-xl">{found.tees.length}</div>
-                    <div className="text-xs" style={{ color: "rgba(255,255,255,0.4)" }}>Тии</div>
+                    <div className="text-xs" style={{ color: "rgba(255,255,255,0.4)" }}>{t.tees}</div>
                   </div>
                 </div>
 
                 {found.tees.length > 0 && (
                   <div className="px-5 pb-4 pt-3 border-t border-white/10">
-                    <div className="text-xs uppercase tracking-wider mb-2" style={{ color: "rgba(255,255,255,0.4)" }}>Тии</div>
+                    <div className="text-xs uppercase tracking-wider mb-2" style={{ color: "rgba(255,255,255,0.4)" }}>{t.tees}</div>
                     <div className="space-y-1.5">
-                      {found.tees.map(t => (
-                        <div key={t.color} className="flex items-center justify-between">
+                      {found.tees.map(tee => (
+                        <div key={tee.color} className="flex items-center justify-between">
                           <div className="flex items-center gap-2">
-                            <div className="w-4 h-4 rounded-sm" style={{ background: t.cssColor, border: "1px solid rgba(255,255,255,0.2)" }} />
-                            <span className="text-white text-sm font-semibold">{t.label}</span>
+                            <div className="w-4 h-4 rounded-sm" style={{ background: tee.cssColor, border: "1px solid rgba(255,255,255,0.2)" }} />
+                            <span className="text-white text-sm font-semibold">{tee.label}</span>
                           </div>
                           <span className="text-xs" style={{ color: "rgba(255,255,255,0.5)" }}>
-                            {t.totalMeters}m · CR {t.rating} / {t.slope}
+                            {tee.totalMeters}m · CR {tee.rating} / {tee.slope}
                           </span>
                         </div>
                       ))}
@@ -479,7 +462,7 @@ const CourseSearchSheet = ({
                 {found.designer && (
                   <div className="px-5 pb-4">
                     <span className="text-xs" style={{ color: "rgba(255,255,255,0.35)" }}>
-                      Дизайнер: {found.designer}
+                      {t.designer} {found.designer}
                     </span>
                   </div>
                 )}
@@ -491,7 +474,7 @@ const CourseSearchSheet = ({
                 style={{ background: "#22c55e", color: "#000" }}
               >
                 <PlayCircle className="h-5 w-5" strokeWidth={2.5} />
-                Начать раунд
+                {t.startRound}
               </button>
             </div>
           )}
@@ -520,6 +503,7 @@ const SetupScreen = ({
   onPregame: () => void;
   onStart: (mode: HolesMode) => void;
 }) => {
+  const { t } = useTranslation();
   const { addFrequent } = useGolf();
   const [showAddSheet, setShowAddSheet] = useState(false);
   const [teePickerFor, setTeePickerFor] = useState<string | null>(null);
@@ -548,7 +532,7 @@ const SetupScreen = ({
 
         {/* Selected course (chosen on the previous step) */}
         <Card className="p-4 shadow-soft">
-          <div className="text-xs uppercase tracking-wider text-muted-foreground mb-3 font-semibold">Поле</div>
+          <div className="text-xs uppercase tracking-wider text-muted-foreground mb-3 font-semibold">{t.course}</div>
           <div className="font-semibold text-sm">{course.name}</div>
           <div className="text-[11px] text-muted-foreground mt-0.5">
             {course.club} · Par {course.totalPar}
@@ -558,9 +542,9 @@ const SetupScreen = ({
         {/* Players */}
         <Card className="overflow-hidden shadow-soft">
           <div className="grid grid-cols-[1fr_auto_auto] gap-4 px-4 py-3 bg-muted/50 text-xs text-muted-foreground font-semibold">
-            <div>Players / Hcp</div>
-            <div className="w-14 text-center">Tee</div>
-            <div className="w-16 text-center">Sug.</div>
+            <div>{t.players} / HCP</div>
+            <div className="w-14 text-center">{t.tee}</div>
+            <div className="w-16 text-center">{t.suggested}</div>
           </div>
           {slots.map((_, i) => {
             const p = players[i];
@@ -569,13 +553,13 @@ const SetupScreen = ({
                 <div key={i} className="flex items-center justify-between px-4 py-4 border-t border-border">
                   <div className="flex items-center gap-3">
                     <div className="h-12 w-12 rounded-full border-2 border-dashed border-border" />
-                    <div className="text-muted-foreground">Player {i + 1}</div>
+                    <div className="text-muted-foreground">{t.player} {i + 1}</div>
                   </div>
                   <button
                     className="flex items-center gap-1 text-action font-semibold text-sm"
                     onClick={() => setShowAddSheet(true)}
                   >
-                    <Plus className="h-4 w-4" /> Add
+                    <Plus className="h-4 w-4" /> {t.add}
                   </button>
                 </div>
               );
@@ -627,7 +611,7 @@ const SetupScreen = ({
 
         {/* Round format */}
         <Card className="p-4 shadow-soft">
-          <div className="text-xs uppercase tracking-wider text-muted-foreground mb-3 font-semibold">Round</div>
+          <div className="text-xs uppercase tracking-wider text-muted-foreground mb-3 font-semibold">{t.round}</div>
           <div className="grid grid-cols-3 gap-2">
             {(["18", "front9", "back9"] as HolesMode[]).map((m) => (
               <button
@@ -640,7 +624,7 @@ const SetupScreen = ({
                     : "border-border text-muted-foreground hover:border-muted-foreground/30",
                 )}
               >
-                {m === "18" ? "18 Holes" : m === "front9" ? "Front 9" : "Back 9"}
+                {m === "18" ? `18 ${t.holes}` : m === "front9" ? t.front9 : t.back9}
               </button>
             ))}
           </div>
@@ -651,7 +635,7 @@ const SetupScreen = ({
           size="lg"
           className="h-14 bg-action hover:bg-action/90 text-action-foreground rounded-xl text-base font-semibold shadow-glow transition-spring"
         >
-          Start Round · {course?.name}
+          {t.startRound} · {course?.name}
         </Button>
       </div>
 
@@ -687,52 +671,55 @@ const TeePickerSheet = ({
   currentTee: TeeColor;
   onSelect: (tee: TeeColor) => void;
   onClose: () => void;
-}) => (
-  <div className="fixed inset-0 z-50 flex items-end animate-in fade-in duration-150">
-    <button className="absolute inset-0 bg-black/70" onClick={onClose} />
-    <div
-      className="relative w-full rounded-t-3xl animate-in slide-in-from-bottom duration-250"
-      style={{ background: "#1c1c1e", paddingBottom: "max(env(safe-area-inset-bottom), 24px)" }}
-    >
-      <div className="mx-auto w-10 h-1 rounded-full mt-3 mb-4" style={{ background: "rgba(255,255,255,0.15)" }} />
-      <div className="flex items-center justify-between px-5 pb-4">
-        <div className="text-white font-bold text-lg">Select Tee</div>
-        <button
-          onClick={onClose}
-          className="h-8 w-8 rounded-full grid place-items-center"
-          style={{ background: "rgba(255,255,255,0.1)" }}
-        >
-          <X className="h-4 w-4 text-white" />
-        </button>
-      </div>
-      <div className="px-4 pb-4 space-y-2">
-        {course.tees.map((t) => (
+}) => {
+  const { t } = useTranslation();
+  return (
+    <div className="fixed inset-0 z-50 flex items-end animate-in fade-in duration-150">
+      <button className="absolute inset-0 bg-black/70" onClick={onClose} />
+      <div
+        className="relative w-full rounded-t-3xl animate-in slide-in-from-bottom duration-250"
+        style={{ background: "hsl(var(--popover))", paddingBottom: "max(env(safe-area-inset-bottom), 24px)" }}
+      >
+        <div className="mx-auto w-10 h-1 rounded-full mt-3 mb-4" style={{ background: "rgba(255,255,255,0.15)" }} />
+        <div className="flex items-center justify-between px-5 pb-4">
+          <div className="text-white font-bold text-lg">{t.selectTee}</div>
           <button
-            key={t.color}
-            onClick={() => onSelect(t.color)}
-            className="w-full flex items-center gap-4 px-4 py-3 rounded-2xl active:scale-[0.98] transition-transform"
-            style={{
-              background: currentTee === t.color ? "rgba(255,255,255,0.1)" : "rgba(255,255,255,0.05)",
-              border: currentTee === t.color ? "2px solid rgba(255,255,255,0.25)" : "2px solid transparent",
-            }}
+            onClick={onClose}
+            className="h-8 w-8 rounded-full grid place-items-center"
+            style={{ background: "rgba(255,255,255,0.1)" }}
           >
-            <div
-              className="w-10 h-10 rounded-md shrink-0 border-2"
-              style={{ background: t.cssColor, borderColor: TEE_CONFIG[t.color].border }}
-            />
-            <div className="text-left flex-1">
-              <div className="text-white font-bold">{t.label}</div>
-              <div className="text-xs" style={{ color: "rgba(255,255,255,0.4)" }}>
-                {t.totalMeters}m · CR {t.rating} / Slope {t.slope}
-              </div>
-            </div>
-            {currentTee === t.color && <Check className="h-5 w-5" style={{ color: "#22c55e" }} strokeWidth={3} />}
+            <X className="h-4 w-4 text-white" />
           </button>
-        ))}
+        </div>
+        <div className="px-4 pb-4 space-y-2">
+          {course.tees.map((teeOption) => (
+            <button
+              key={teeOption.color}
+              onClick={() => onSelect(teeOption.color)}
+              className="w-full flex items-center gap-4 px-4 py-3 rounded-2xl active:scale-[0.98] transition-transform"
+              style={{
+                background: currentTee === teeOption.color ? "rgba(255,255,255,0.1)" : "rgba(255,255,255,0.05)",
+                border: currentTee === teeOption.color ? "2px solid rgba(255,255,255,0.25)" : "2px solid transparent",
+              }}
+            >
+              <div
+                className="w-10 h-10 rounded-md shrink-0 border-2"
+                style={{ background: teeOption.cssColor, borderColor: TEE_CONFIG[teeOption.color].border }}
+              />
+              <div className="text-left flex-1">
+                <div className="text-white font-bold">{teeOption.label}</div>
+                <div className="text-xs" style={{ color: "rgba(255,255,255,0.4)" }}>
+                  {teeOption.totalMeters}m · CR {teeOption.rating} / Slope {teeOption.slope}
+                </div>
+              </div>
+              {currentTee === teeOption.color && <Check className="h-5 w-5" style={{ color: "#22c55e" }} strokeWidth={3} />}
+            </button>
+          ))}
+        </div>
       </div>
     </div>
-  </div>
-);
+  );
+};
 
 /* ────────── ADD PLAYER SHEET ────────── */
 type UserResult = {
@@ -760,6 +747,7 @@ const AddPlayerSheet = ({
   onAdd: (p: Player) => void;
   onClose: () => void;
 }) => {
+  const { t } = useTranslation();
   const [query, setQuery] = useState("");
   const [allUsers, setAllUsers] = useState<UserResult[]>([]);
   const [loading, setLoading] = useState(true);
@@ -787,12 +775,12 @@ const AddPlayerSheet = ({
       <button className="absolute inset-0 bg-black/70" onClick={onClose} />
       <div
         className="relative w-full rounded-t-3xl animate-in slide-in-from-bottom duration-250 flex flex-col"
-        style={{ background: "#1c1c1e", maxHeight: "85vh", paddingBottom: "max(env(safe-area-inset-bottom), 24px)" }}
+        style={{ background: "hsl(var(--popover))", maxHeight: "85vh", paddingBottom: "max(env(safe-area-inset-bottom), 24px)" }}
       >
         <div className="mx-auto w-10 h-1 rounded-full mt-3 mb-4" style={{ background: "rgba(255,255,255,0.15)" }} />
 
         <div className="flex items-center justify-between px-5 pb-3">
-          <div className="text-white font-bold text-lg">Add Player</div>
+          <div className="text-white font-bold text-lg">{t.addPlayer}</div>
           <button
             onClick={onClose}
             className="h-8 w-8 rounded-full grid place-items-center"
@@ -808,7 +796,7 @@ const AddPlayerSheet = ({
             <input
               type="text"
               autoFocus
-              placeholder="Имя или @username..."
+              placeholder={t.searchPlayers}
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               className="w-full h-11 rounded-xl pl-10 pr-4 text-white text-sm outline-none placeholder:text-white/30"
@@ -824,7 +812,7 @@ const AddPlayerSheet = ({
             </div>
           ) : filtered.length === 0 ? (
             <div className="text-center py-10 text-sm" style={{ color: "rgba(255,255,255,0.3)" }}>
-              {q ? "Никого не найдено" : "Нет других игроков"}
+              {q ? t.noPlayersFound : t.noOtherPlayers}
             </div>
           ) : (
             filtered.map((u) => {
@@ -860,8 +848,8 @@ const AddPlayerSheet = ({
                     </div>
                   </div>
                   {added
-                    ? <div className="text-xs font-semibold shrink-0" style={{ color: "rgba(255,255,255,0.3)" }}>Добавлен</div>
-                    : <div className="text-sm font-semibold shrink-0" style={{ color: "#22c55e" }}>+ Add</div>
+                    ? <div className="text-xs font-semibold shrink-0" style={{ color: "rgba(255,255,255,0.3)" }}>{t.added}</div>
+                    : <div className="text-sm font-semibold shrink-0" style={{ color: "#22c55e" }}>+ {t.add}</div>
                   }
                 </button>
               );
@@ -893,7 +881,8 @@ const scoreLabelColor = (score: number, par: number) => {
 };
 
 const RoundPlayer = ({ onExit, onCancel }: { onExit: () => void; onCancel: () => void }) => {
-  const { activeRound, enterScore, finishRound, setRoundPhoto, syncRound, setCurrentHole, refreshActiveRound } = useGolf();
+  const { t } = useTranslation();
+  const { activeRound, enterScore, finishRound, setRoundPhoto, syncRound, setCurrentHole, refreshActiveRound, profile } = useGolf();
 
   // Poll partner scores every 15s when there are other registered players
   useEffect(() => {
@@ -958,6 +947,8 @@ const RoundPlayer = ({ onExit, onCancel }: { onExit: () => void; onCancel: () =>
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [showExitConfirm, setShowExitConfirm] = useState(false);
   const photoRef = useRef<HTMLInputElement>(null);
+  const [isGeneratingStory, setIsGeneratingStory] = useState(false);
+  const isMobile = useIsMobile();
 
   // Экран подтверждения после 18 лунки
   if (showConfirmation && activeRound) {
@@ -971,15 +962,15 @@ const RoundPlayer = ({ onExit, onCancel }: { onExit: () => void; onCancel: () =>
     return (
       <div
         className="fixed inset-0 z-50 flex flex-col"
-        style={{ background: "#0a0a0a" }}
+        style={{ background: "hsl(var(--background))" }}
       >
         <div className="shrink-0 flex items-center justify-center" style={{ paddingTop: "calc(var(--tg-safe-top) + 10px)", paddingBottom: 10, borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
           <span className="text-white font-bold tracking-[0.18em] text-base">GOLF</span>
         </div>
         <div className="flex-1 overflow-y-auto px-5 py-6">
           <div className="text-center mb-6">
-            <div className="text-white/60 text-sm uppercase tracking-wider mb-2">Подтверждение</div>
-            <div className="text-white font-black text-3xl">Раунд завершён</div>
+            <div className="text-white/60 text-sm uppercase tracking-wider mb-2">{t.confirmation}</div>
+            <div className="text-white font-black text-3xl">{t.completedRound}</div>
           </div>
 
           {/* Players scorecard summary */}
@@ -996,7 +987,7 @@ const RoundPlayer = ({ onExit, onCancel }: { onExit: () => void; onCancel: () =>
               const netVsParVal = vsPar - ch;
               const netVsParText = netVsParVal === 0 ? "E" : netVsParVal > 0 ? `+${netVsParVal}` : `${netVsParVal}`;
               return (
-                <div key={p.id} className="rounded-2xl overflow-hidden" style={{ background: "#1a1a1a" }}>
+                <div key={p.id} className="rounded-2xl overflow-hidden" style={{ background: "hsl(var(--card))" }}>
                   <div className="flex items-center justify-between px-5 py-4">
                     <div className="flex items-center gap-3">
                       <Avatar name={p.name} tone={p.isMe ? "orange" : "muted"} photoUrl={p.photoUrl} />
@@ -1047,14 +1038,14 @@ const RoundPlayer = ({ onExit, onCancel }: { onExit: () => void; onCancel: () =>
             style={{ background: "#22c55e", color: "#000" }}
           >
             <Check className="h-5 w-5" strokeWidth={3} />
-            ЗАВЕРШИТЬ РАУНД
+            {t.finishRound}
           </button>
           <button
             onClick={() => setShowConfirmation(false)}
             className="w-full h-12 rounded-2xl font-semibold text-sm"
             style={{ background: "rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.7)" }}
           >
-            Изменить счёт
+            {t.editScore}
           </button>
         </div>
       </div>
@@ -1079,14 +1070,32 @@ const RoundPlayer = ({ onExit, onCancel }: { onExit: () => void; onCancel: () =>
       const compressed = await compressImage(file);
       setRoundPhoto(completedRound.id, compressed);
       setCompletedRound({ ...completedRound, photoUrl: compressed });
-      toast.success("Photo added!");
+      toast.success(t.photoAdded);
       e.target.value = "";
+    };
+
+    const handleShareInstagram = async () => {
+      setIsGeneratingStory(true);
+      toast.info(t.sharingRound);
+      try {
+        console.log('[Instagram] Starting generation...', { round: completedRound.id });
+        const blob = await generateStoryImage(completedRound, profile);
+        console.log('[Instagram] Generated blob:', blob.size, 'bytes');
+        await shareToInstagram(blob);
+        toast.success(t.shareSuccess);
+      } catch (err) {
+        console.error('[Instagram] Error:', err);
+        const errorMsg = err instanceof Error ? err.message : 'Unknown error';
+        toast.error(`${t.shareFailed}: ${errorMsg}`);
+      } finally {
+        setIsGeneratingStory(false);
+      }
     };
 
     return (
       <div
         className="fixed inset-0 z-50 flex flex-col"
-        style={{ background: "#0a0a0a" }}
+        style={{ background: "hsl(var(--background))" }}
       >
         <div className="shrink-0 flex items-center justify-center" style={{ paddingTop: "calc(var(--tg-safe-top) + 10px)", paddingBottom: 10, borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
           <span className="text-white font-bold tracking-[0.18em] text-base">GOLF</span>
@@ -1102,7 +1111,7 @@ const RoundPlayer = ({ onExit, onCancel }: { onExit: () => void; onCancel: () =>
               </svg>
             </div>
             <div className="text-[10px] uppercase tracking-[0.3em] font-bold" style={{ color: "rgba(255,255,255,0.4)" }}>
-              Раунд завершён
+              {t.completedRound}
             </div>
             <div className="text-white font-black text-5xl tabular-nums leading-none mt-2">{cTotal}</div>
             <div className="text-xl font-bold mt-1" style={{ color: vpColor }}>{vpText}</div>
@@ -1121,7 +1130,7 @@ const RoundPlayer = ({ onExit, onCancel }: { onExit: () => void; onCancel: () =>
                 className="flex items-center justify-center gap-2 w-full mt-2 py-2 text-sm font-semibold"
                 style={{ color: "#22c55e" }}
               >
-                <Camera className="h-4 w-4" /> Заменить фото
+                <Camera className="h-4 w-4" /> {t.replacePhoto}
               </button>
             </div>
           ) : (
@@ -1132,20 +1141,20 @@ const RoundPlayer = ({ onExit, onCancel }: { onExit: () => void; onCancel: () =>
             >
               <Camera className="h-8 w-8" style={{ color: "#22c55e" }} />
               <div className="text-sm font-semibold" style={{ color: "rgba(255,255,255,0.6)" }}>
-                Добавить фото раунда
+                {t.addRoundPhoto}
               </div>
             </button>
           )}
           <input ref={photoRef} type="file" accept="image/*" className="hidden" onChange={handlePhoto} />
         </div>
 
-        <div className="px-5 pt-4">
+        <div className="px-5 pt-4 space-y-3" style={{ paddingBottom: "max(env(safe-area-inset-bottom), 24px)" }}>
           <button
             onClick={onExit}
             className="w-full h-14 rounded-2xl font-black text-base uppercase tracking-wider active:scale-[0.98] transition-transform"
             style={{ background: "#22c55e", color: "#000" }}
           >
-            ГОТОВО
+            {t.done}
           </button>
         </div>
       </div>
@@ -1241,7 +1250,7 @@ const RoundPlayer = ({ onExit, onCancel }: { onExit: () => void; onCancel: () =>
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col" style={{ background: "#0a0a0a" }}>
+    <div className="fixed inset-0 z-50 flex flex-col" style={{ background: "hsl(var(--background))" }}>
 
       {/* ── Header + hole navigation in one row ── */}
       <div
@@ -1293,7 +1302,7 @@ const RoundPlayer = ({ onExit, onCancel }: { onExit: () => void; onCancel: () =>
       <div className="flex-1 flex flex-col justify-center px-5 pb-4 gap-4 overflow-y-auto">
 
         {/* Widget card */}
-        <div className="rounded-3xl overflow-hidden" style={{ background: "#1a1a1a" }}>
+        <div className="rounded-3xl overflow-hidden" style={{ background: "hsl(var(--card))" }}>
 
           {/* Card header */}
           <div className="flex items-center gap-2 px-5 pt-5 pb-3">
@@ -1354,7 +1363,7 @@ const RoundPlayer = ({ onExit, onCancel }: { onExit: () => void; onCancel: () =>
               key={p.id}
               onClick={() => openSheet(p)}
               className="w-full rounded-2xl p-4 flex items-center justify-between gap-3 active:scale-[0.98] transition-transform"
-              style={{ background: "#1a1a1a" }}
+              style={{ background: "hsl(var(--card))" }}
             >
               <div className="flex items-center gap-3 min-w-0">
                 <Avatar name={p.name} tone={p.isMe ? "orange" : "muted"} photoUrl={p.photoUrl} />
@@ -1414,7 +1423,7 @@ const RoundPlayer = ({ onExit, onCancel }: { onExit: () => void; onCancel: () =>
       {/* ── Exit confirmation ── */}
       {showExitConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center px-6 animate-in fade-in duration-150" style={{ background: "rgba(0,0,0,0.7)" }}>
-          <div className="w-full rounded-3xl p-6 space-y-4" style={{ background: "#1a1a1a" }}>
+          <div className="w-full rounded-3xl p-6 space-y-4" style={{ background: "hsl(var(--card))" }}>
             <div className="text-center">
               <div className="text-white font-black text-xl mb-1">Leave round?</div>
               <div className="text-sm" style={{ color: "rgba(255,255,255,0.45)" }}>
@@ -1449,7 +1458,7 @@ const RoundPlayer = ({ onExit, onCancel }: { onExit: () => void; onCancel: () =>
           <button className="absolute inset-0 bg-black/70" onClick={() => setSheetPlayer(null)} />
           <div
             className="relative w-full rounded-t-3xl animate-in slide-in-from-bottom duration-250"
-            style={{ background: "#1a1a1a", paddingBottom: `max(env(safe-area-inset-bottom), 24px)` }}
+            style={{ background: "hsl(var(--card))", paddingBottom: `max(env(safe-area-inset-bottom), 24px)` }}
           >
             {/* drag handle */}
             <div className="mx-auto w-10 h-1 rounded-full mt-3 mb-1" style={{ background: "rgba(255,255,255,0.15)" }} />
@@ -1563,6 +1572,7 @@ const ScorecardConfirmModal = ({
   onDone: () => void;
   onCancel: () => void;
 }) => {
+  const { t } = useTranslation();
   const { profile, addRound, loadRounds } = useGolf();
   const [loading, setLoading] = useState(true);
   const [confirming, setConfirming] = useState(false);
@@ -1890,7 +1900,7 @@ const ScorecardConfirmModal = ({
           onClick={discard}
           className="flex-1 h-12 rounded-xl border-2 border-border text-sm font-semibold text-muted-foreground active:scale-[0.98] transition-transform"
         >
-          Discard
+          {t.discard}
         </button>
         <button
           onClick={confirm}
@@ -1898,7 +1908,7 @@ const ScorecardConfirmModal = ({
           className="flex-[2] h-12 rounded-xl font-bold text-sm active:scale-[0.98] transition-transform disabled:opacity-50"
           style={{ background: "#22c55e", color: "#000" }}
         >
-          {confirming ? "Saving…" : "Confirm Round"}
+          {confirming ? t.saving : t.confirmRound}
         </button>
       </div>
     </div>

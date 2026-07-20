@@ -67,20 +67,15 @@ async function buildRound(round, requesterId) {
 router.get('/active', requireAuth, async (req, res, next) => {
   try {
     const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
-    // Only return rounds from users who have played with the current user (shared round_players entry)
+    // Only return rounds the current user is actually a player in (added via
+    // "Add player" when the round was set up) — not just any round from someone
+    // they've played with in the past.
     const { rows } = await db.query(
       `SELECT DISTINCT ON (r.user_id) r.*
        FROM rounds r
+       JOIN round_players rp ON rp.round_id = r.id AND rp.user_id = $2
        WHERE r.date > $1
          AND r.user_id != $2
-         AND r.user_id IN (
-           SELECT rp2.user_id
-           FROM round_players rp1
-           JOIN round_players rp2 ON rp1.round_id = rp2.round_id
-           WHERE rp1.user_id = $2
-             AND rp2.user_id != $2
-             AND rp2.user_id IS NOT NULL
-         )
        ORDER BY r.user_id, r.date DESC`,
       [cutoff, req.user.userId]
     )
@@ -307,6 +302,8 @@ router.delete('/:id', requireAuth, async (req, res, next) => {
       await db.query('DELETE FROM hole_scores WHERE round_id = $1', [req.params.id])
       await db.query('DELETE FROM round_players WHERE round_id = $1', [req.params.id])
       await db.query('DELETE FROM rounds WHERE id = $1', [req.params.id])
+      // Clean up mirrored copies created for other participants (id format: {roundId}-{userId8})
+      await db.query('DELETE FROM rounds WHERE id LIKE $1', [`${req.params.id}-%`])
     }
     await db.query('COMMIT')
     res.json({ success: true })

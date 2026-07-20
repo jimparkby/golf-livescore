@@ -3,25 +3,39 @@ import { useNavigate } from "react-router-dom";
 import { BASE } from "@/lib/api";
 import { useGolf } from "@/store/golfStore";
 import { useAuth } from "@/hooks/useAuth";
+import { useSettings } from "@/store/settingsStore";
+import { useTranslation } from "@/hooks/useTranslation";
 import { Card } from "@/components/ui/card";
 import { Avatar } from "@/components/PlayerAvatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Pencil, Check, Trophy, Camera, LogOut, Trash2, ChevronRight, X, Calendar, Shield } from "lucide-react";
+import { Pencil, Check, Trophy, Camera, LogOut, Trash2, ChevronRight, X, Calendar, Shield, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { getDifferentials, calcHandicapIndex } from "@/lib/handicap";
-import { TEE_CONFIG, type TeeColor } from "@/lib/courses";
+import { TEE_CONFIG, COURSES, type TeeColor } from "@/lib/courses";
 import { compressImage } from "@/lib/imageUtils";
+
+// Helper to get par for a hole from course data
+const getHolePar = (courseId: string, holeNumber: number): number => {
+  const course = COURSES.find(c => c.id === courseId);
+  if (!course) return 4; // fallback
+  const hole = course.holes.find(h => h.number === holeNumber);
+  return hole?.par ?? 4;
+};
 
 const ProfilePage = () => {
   const navigate = useNavigate();
   const { profile, updateProfile, rounds } = useGolf();
   const { signOut } = useAuth();
+  const { statsMode } = useSettings();
+  const { t } = useTranslation();
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(profile);
   const [showTeePicker, setShowTeePicker] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const [syncingHDID, setSyncingHDID] = useState(false);
   const photoInputRef = useRef<HTMLInputElement>(null);
 
   const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -29,7 +43,7 @@ const ProfilePage = () => {
     if (!file) return;
     const compressed = await compressImage(file, 400);
     updateProfile({ photoUrl: compressed });
-    toast.success("Profile photo updated");
+    toast.success(t.profilePhotoUpdated);
     e.target.value = "";
   };
 
@@ -37,9 +51,10 @@ const ProfilePage = () => {
   const diffs = useMemo(() => getDifferentials(rounds, "me", profile.hcp), [rounds, profile.hcp]);
   const hcpIndex = calcHandicapIndex(diffs.map((d) => d.differential));
 
-  // Auto-apply calculated HCP to profile whenever it changes
+  // Auto-apply calculated HCP to profile whenever it changes (only when we have 3+ rounds)
   useEffect(() => {
-    const target = hcpIndex ?? 0;
+    if (hcpIndex === null) return; // Keep initial HCP (36.0) until we have 3+ rounds
+    const target = hcpIndex;
     if (Math.abs(target - profile.hcp) < 0.1) return;
     updateProfile({ hcp: target });
     const token = localStorage.getItem('golf_jwt');
@@ -85,8 +100,37 @@ const ProfilePage = () => {
   const save = () => {
     updateProfile(draft);
     setEditing(false);
-    toast.success("Profile updated");
+    toast.success(t.profileUpdated);
     syncProfile(draft);
+  };
+
+  const syncWithHDID = async () => {
+    if (!profile.firstName || !profile.lastName) {
+      toast.error("Пожалуйста, укажите имя и фамилию в профиле");
+      return;
+    }
+    setSyncingHDID(true);
+    try {
+      const token = localStorage.getItem('golf_jwt');
+      const res = await fetch(`${BASE}/api/profile/sync-hdid`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        toast.error(data.errorRu || data.error || "Ошибка синхронизации");
+        return;
+      }
+      updateProfile({ hcp: data.hcp });
+      toast.success(`HCP обновлен: ${data.hcp.toFixed(1)} (HDID: ${data.hdid_name})`);
+    } catch (err) {
+      toast.error("Ошибка подключения к серверу");
+    } finally {
+      setSyncingHDID(false);
+    }
   };
 
   const playedTotals = rounds
@@ -103,6 +147,82 @@ const ProfilePage = () => {
 
   const isEmpty = !profile.firstName && !profile.lastName;
   const hcpToShow = hcpIndex ?? profile.hcp;
+
+  // Calculate performance stats from completed rounds
+  const perfStats = useMemo(() => {
+    const completedRounds = rounds.filter(r => r.completed);
+    if (completedRounds.length === 0) return null;
+
+    // Use only last round if statsMode is 'last'
+    const roundsToAnalyze = statsMode === "last" ? [completedRounds[0]] : completedRounds;
+
+    let totalHoles = 0, girCount = 0, fairwayCount = 0, scrambleAttempts = 0, scrambleSuccess = 0;
+    let totalPutts = 0, totalPenalties = 0;
+
+    roundsToAnalyze.forEach(r => {
+      const me = r.players.find(p => p.isMe);
+      if (!me) return;
+      const myScores = r.scores[me.id] || [];
+
+      myScores.forEach(s => {
+        if (s.score > 0) {
+          totalHoles++;
+          if (s.gir) girCount++;
+          if (s.driving) fairwayCount++;
+          if (!s.gir) {
+            scrambleAttempts++;
+            // Consider it a scramble success if score <= par
+            const holePar = getHolePar(r.courseId, s.hole);
+            if (s.score <= holePar) scrambleSuccess++;
+          }
+          totalPutts += s.putts || 0;
+          totalPenalties += s.penalties || 0;
+        }
+      });
+    });
+
+    const gir = totalHoles > 0 ? Math.round((girCount / totalHoles) * 100) : 0;
+    const fairways = totalHoles > 0 ? Math.round((fairwayCount / totalHoles) * 100) : 0;
+    const scrambling = scrambleAttempts > 0 ? Math.round((scrambleSuccess / scrambleAttempts) * 100) : 0;
+    const puttsPerRound = roundsToAnalyze.length > 0 ? (totalPutts / roundsToAnalyze.length).toFixed(1) : "0";
+    const penaltiesPerRound = roundsToAnalyze.length > 0 ? (totalPenalties / roundsToAnalyze.length).toFixed(1) : "0";
+
+    return { gir, fairways, scrambling, putts: puttsPerRound, penalties: penaltiesPerRound };
+  }, [rounds, statsMode]);
+
+  // Calculate scoring breakdown
+  const scoringBreakdown = useMemo(() => {
+    let eagles = 0, birdies = 0, pars = 0, bogeys = 0, doubles = 0;
+
+    rounds.forEach(r => {
+      const me = r.players.find(p => p.isMe);
+      if (!me) return;
+      const myScores = r.scores[me.id] || [];
+
+      myScores.forEach(s => {
+        if (s.score > 0) {
+          const holePar = getHolePar(r.courseId, s.hole);
+          const diff = s.score - holePar;
+          if (diff <= -2) eagles++;
+          else if (diff === -1) birdies++;
+          else if (diff === 0) pars++;
+          else if (diff === 1) bogeys++;
+          else if (diff >= 2) doubles++;
+        }
+      });
+    });
+
+    const total = eagles + birdies + pars + bogeys + doubles;
+    return [
+      { key: "eagle", label: "Eagles", count: eagles, color: "var(--score-eagle)" },
+      { key: "birdie", label: "Birdies", count: birdies, color: "var(--score-birdie)" },
+      { key: "par", label: "Pars", count: pars, color: "var(--score-par)" },
+      { key: "bogey", label: "Bogeys", count: bogeys, color: "var(--score-bogey)" },
+      { key: "double", label: "Double+", count: doubles, color: "var(--score-double)" },
+    ].filter(s => total > 0);
+  }, [rounds]);
+
+  const scoreTotal = scoringBreakdown.reduce((a, s) => a + s.count, 0);
 
   return (
     <div className="space-y-5 animate-in fade-in duration-300">
@@ -132,7 +252,7 @@ const ProfilePage = () => {
             </div>
             <div className="flex-1 min-w-0">
               {isEmpty ? (
-                <div className="text-base opacity-80">Enter your name →</div>
+                <div className="text-base opacity-80">{t.enterYourName}</div>
               ) : (
                 <div className="text-xl font-bold">{profile.firstName} {profile.lastName}</div>
               )}
@@ -140,15 +260,23 @@ const ProfilePage = () => {
                 <Trophy className="h-3.5 w-3.5" /> Golf Club Minsk
               </div>
             </div>
-            <button
-              onClick={() => {
-                if (editing) save();
-                else { setDraft(profile); setEditing(true); }
-              }}
-              className="h-10 w-10 rounded-full bg-primary-foreground/20 hover:bg-primary-foreground/30 grid place-items-center transition-base"
-            >
-              {editing ? <Check className="h-4 w-4" /> : <Pencil className="h-4 w-4" />}
-            </button>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setShowSettings(true)}
+                className="h-10 w-10 rounded-full bg-primary-foreground/20 hover:bg-primary-foreground/30 grid place-items-center transition-base"
+              >
+                <Settings className="h-4 w-4" />
+              </button>
+              <button
+                onClick={() => {
+                  if (editing) save();
+                  else { setDraft(profile); setEditing(true); }
+                }}
+                className="h-10 w-10 rounded-full bg-primary-foreground/20 hover:bg-primary-foreground/30 grid place-items-center transition-base"
+              >
+                {editing ? <Check className="h-4 w-4" /> : <Pencil className="h-4 w-4" />}
+              </button>
+            </div>
           </div>
 
           <div className="grid grid-cols-3 gap-3 mt-5">
@@ -165,8 +293,8 @@ const ProfilePage = () => {
                 </div>
               )}
             </div>
-            <HeroStat label="Best" value={best ? String(best) : "—"} />
-            <HeroStat label="Avg" value={avg ? String(avg) : "—"} />
+            <HeroStat label={t.best} value={best ? String(best) : "—"} />
+            <HeroStat label={t.avg} value={avg ? String(avg) : "—"} />
           </div>
         </div>
       </Card>
@@ -175,13 +303,13 @@ const ProfilePage = () => {
       {editing ? (
         <Card className="p-5 shadow-soft space-y-4">
           <div className="grid grid-cols-2 gap-3">
-            <Field label="First Name">
+            <Field label={t.firstName}>
               <Input value={draft.firstName} onChange={(e) => setDraft({ ...draft, firstName: e.target.value })} autoFocus />
             </Field>
-            <Field label="Last Name">
+            <Field label={t.lastName}>
               <Input value={draft.lastName} onChange={(e) => setDraft({ ...draft, lastName: e.target.value })} />
             </Field>
-            <Field label="HCP (manual)" className="col-span-2">
+            <Field label={`HCP (${t.manual})`} className="col-span-2">
               <Input type="number" step="0.1" value={draft.hcp} onChange={(e) => setDraft({ ...draft, hcp: Number(e.target.value) })} />
             </Field>
           </div>
@@ -191,28 +319,67 @@ const ProfilePage = () => {
               className="w-full flex items-center justify-center gap-2 h-10 rounded-xl text-sm font-semibold transition-colors"
               style={{ background: "rgba(239,68,68,0.1)", border: "1.5px solid rgba(239,68,68,0.3)", color: "#ef4444" }}
             >
-              <Trash2 className="h-4 w-4" /> Delete Photo
+              <Trash2 className="h-4 w-4" /> {t.deletePhoto}
             </button>
           )}
           <Button onClick={save} className="w-full bg-action hover:bg-action/90 text-action-foreground rounded-xl h-12">
-            Save Changes
+            {t.saveChanges}
           </Button>
         </Card>
       ) : (
         <Card className="p-5 shadow-soft space-y-3 text-sm">
-          <Row icon={<Calendar className="h-4 w-4" />} label="Member since" value={profile.memberSince || "—"} />
-          <Row icon={<Trophy className="h-4 w-4" />} label="Rounds played" value={String(rounds.length)} />
+          <Row icon={<Calendar className="h-4 w-4" />} label={t.memberSince} value={profile.memberSince || "—"} />
+          <Row icon={<Trophy className="h-4 w-4" />} label={t.roundsPlayed} value={String(rounds.length)} />
+        </Card>
+      )}
+
+      {/* Performance stats */}
+      {perfStats && !editing && (
+        <div>
+          <div className="gm-eyebrow mb-3 px-1">{t.stats} · {t.last} {rounds.filter(r => r.completed).length}</div>
+          <div className="grid grid-cols-3 gap-3">
+            <PerfTile value={`${perfStats.gir}%`} label="GIR" accent />
+            <PerfTile value={`${perfStats.fairways}%`} label="FAIRWAYS" />
+            <PerfTile value={`${perfStats.scrambling}%`} label="SCRAMBLING" />
+            <PerfTile value={perfStats.putts} label="PUTTS / ROUND" />
+            <PerfTile value={perfStats.penalties} label="PENALTIES" />
+            <PerfTile value="—" label="DRIVE" />
+          </div>
+        </div>
+      )}
+
+      {/* Scoring breakdown */}
+      {scoreTotal > 0 && !editing && (
+        <Card className="p-5 shadow-soft">
+          <div className="flex items-baseline justify-between mb-4">
+            <div className="font-bold">{t.holeScoring}</div>
+            <div className="gm-nums text-xs" style={{ color: "var(--text-secondary)" }}>{scoreTotal} {t.holes}</div>
+          </div>
+          <div className="flex h-3 rounded-full overflow-hidden gap-0.5">
+            {scoringBreakdown.map((s) => (
+              <div key={s.key} title={s.label} style={{ flex: s.count, background: s.color }} />
+            ))}
+          </div>
+          <div className="grid grid-cols-2 gap-y-3 gap-x-4 mt-4">
+            {scoringBreakdown.map((s) => (
+              <div key={s.key} className="flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: s.color }} />
+                <span className="text-sm flex-1" style={{ color: "var(--text-body)" }}>{s.label}</span>
+                <span className="gm-nums text-sm font-bold">{s.count}</span>
+              </div>
+            ))}
+          </div>
         </Card>
       )}
 
       {/* Settings */}
-      <Card className="overflow-hidden shadow-soft">
+      <Card className="overflow-hidden shadow-soft divide-y">
         {/* Default tee */}
         <button
           onClick={() => setShowTeePicker(true)}
           className="w-full flex items-center justify-between px-5 py-4"
         >
-          <div className="text-sm font-medium">Default Tee</div>
+          <div className="text-sm font-medium">{t.defaultTee}</div>
           <div className="flex items-center gap-2 text-muted-foreground">
             <div
               className="w-4 h-4 rounded-sm border"
@@ -223,6 +390,22 @@ const ProfilePage = () => {
             />
             <span className="text-sm">{TEE_CONFIG[profile.defaultTee].label}</span>
             <ChevronRight className="h-4 w-4" />
+          </div>
+        </button>
+
+        {/* Sync with HDID */}
+        <button
+          onClick={syncWithHDID}
+          disabled={syncingHDID}
+          className="w-full flex items-center justify-between px-5 py-4 hover:bg-accent/50 transition-colors disabled:opacity-50"
+        >
+          <div className="text-sm font-medium">Синхронизировать HCP с HDID</div>
+          <div className="flex items-center gap-2 text-muted-foreground">
+            {syncingHDID ? (
+              <div className="h-4 w-4 rounded-full border-2 border-muted-foreground border-t-transparent animate-spin" />
+            ) : (
+              <ChevronRight className="h-4 w-4" />
+            )}
           </div>
         </button>
       </Card>
@@ -254,13 +437,13 @@ const ProfilePage = () => {
         className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-medium border border-destructive/30 text-destructive hover:bg-destructive/10 transition-colors"
       >
         <LogOut className="h-4 w-4" />
-        Sign Out
+        {t.signOut}
       </button>
 
       {/* Frequent partners */}
       {useGolf.getState().frequent.length > 0 && (
         <Card className="p-5 shadow-soft">
-          <div className="text-xs uppercase tracking-wider font-semibold text-muted-foreground mb-3">Frequent Partners</div>
+          <div className="text-xs uppercase tracking-wider font-semibold text-muted-foreground mb-3">{t.frequentPartners}</div>
           <div className="flex gap-3 overflow-x-auto pb-1">
             {useGolf.getState().frequent.map((f) => (
               <div key={f.id} className="flex flex-col items-center gap-1.5 shrink-0">
@@ -283,7 +466,7 @@ const ProfilePage = () => {
           >
             <div className="mx-auto w-10 h-1 rounded-full mt-3 mb-4" style={{ background: "rgba(255,255,255,0.15)" }} />
             <div className="flex items-center justify-between px-5 pb-4">
-              <div className="text-white font-bold text-lg">Default Tee</div>
+              <div className="text-white font-bold text-lg">{t.defaultTee}</div>
               <button
                 onClick={() => setShowTeePicker(false)}
                 className="h-8 w-8 rounded-full grid place-items-center"
@@ -296,7 +479,7 @@ const ProfilePage = () => {
               {(Object.keys(TEE_CONFIG) as TeeColor[]).map((color) => (
                 <button
                   key={color}
-                  onClick={() => { pushSetting({ defaultTee: color }); setShowTeePicker(false); toast.success(`Default Tee: ${TEE_CONFIG[color].label}`); }}
+                  onClick={() => { pushSetting({ defaultTee: color }); setShowTeePicker(false); toast.success(`${t.defaultTee}: ${TEE_CONFIG[color].label}`); }}
                   className="w-full flex items-center gap-4 px-4 py-3 rounded-2xl active:scale-[0.98] transition-transform"
                   style={{
                     background: profile.defaultTee === color ? "rgba(255,255,255,0.1)" : "rgba(255,255,255,0.05)",
@@ -317,6 +500,92 @@ const ProfilePage = () => {
           </div>
         </div>
       )}
+
+      {/* ── Settings Modal ── */}
+      {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}
+    </div>
+  );
+};
+
+const SettingsModal = ({ onClose }: { onClose: () => void }) => {
+  const { language, statsMode, setLanguage, setStatsMode } = useSettings();
+  const { t } = useTranslation();
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+      <div
+        className="w-full max-w-md bg-card rounded-t-3xl shadow-elevated p-5 animate-in slide-in-from-bottom duration-300"
+        style={{ maxHeight: "85vh", overflowY: "auto" }}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="text-xl font-bold">{t.settings}</h2>
+          <button
+            onClick={onClose}
+            className="h-8 w-8 rounded-full bg-secondary hover:bg-secondary/80 grid place-items-center transition-base"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        {/* Language */}
+        <Card className="p-4 mb-3">
+          <div className="text-xs uppercase tracking-wider text-muted-foreground font-semibold mb-3">{t.language}</div>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setLanguage("en")}
+              className={cn(
+                "flex-1 py-2.5 rounded-xl text-sm font-bold transition-all",
+                language === "en"
+                  ? "bg-action text-action-foreground"
+                  : "bg-secondary text-muted-foreground hover:bg-secondary/80"
+              )}
+            >
+              English
+            </button>
+            <button
+              onClick={() => setLanguage("ru")}
+              className={cn(
+                "flex-1 py-2.5 rounded-xl text-sm font-bold transition-all",
+                language === "ru"
+                  ? "bg-action text-action-foreground"
+                  : "bg-secondary text-muted-foreground hover:bg-secondary/80"
+              )}
+            >
+              Русский
+            </button>
+          </div>
+        </Card>
+
+        {/* Stats Mode */}
+        <Card className="p-4">
+          <div className="text-xs uppercase tracking-wider text-muted-foreground font-semibold mb-3">{t.statistics}</div>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setStatsMode("all")}
+              className={cn(
+                "flex-1 py-2.5 rounded-xl text-sm font-bold transition-all",
+                statsMode === "all"
+                  ? "bg-action text-action-foreground"
+                  : "bg-secondary text-muted-foreground hover:bg-secondary/80"
+              )}
+            >
+              {t.allRounds}
+            </button>
+            <button
+              onClick={() => setStatsMode("last")}
+              className={cn(
+                "flex-1 py-2.5 rounded-xl text-sm font-bold transition-all",
+                statsMode === "last"
+                  ? "bg-action text-action-foreground"
+                  : "bg-secondary text-muted-foreground hover:bg-secondary/80"
+              )}
+            >
+              {t.lastRound}
+            </button>
+          </div>
+        </Card>
+      </div>
     </div>
   );
 };
@@ -342,6 +611,17 @@ const Row = ({ icon, label, value }: { icon: React.ReactNode; label: string; val
       <span>{label}</span>
     </div>
     <div className="font-medium">{value}</div>
+  </div>
+);
+
+const PerfTile = ({ value, label, accent }: { value: string; label: string; accent?: boolean }) => (
+  <div className="rounded-xl p-4 text-center" style={{ background: "var(--surface-card)", border: "1px solid var(--border-hairline)" }}>
+    <div className="gm-nums text-2xl font-extrabold leading-none" style={{ color: accent ? "var(--accent)" : "var(--text-primary)", letterSpacing: "-0.02em" }}>
+      {value}
+    </div>
+    <div className="mt-1.5 text-[10px] uppercase tracking-wider font-medium" style={{ color: "var(--text-muted)" }}>
+      {label}
+    </div>
   </div>
 );
 

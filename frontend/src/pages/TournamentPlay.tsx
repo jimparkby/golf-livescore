@@ -101,7 +101,6 @@ const TournamentPlayPage = () => {
           </div>
           <div className="mt-3 flex flex-wrap gap-2">
             <span className="px-2.5 py-1 rounded-full bg-muted text-xs font-semibold">{fmt.emoji} {fmt.name}</span>
-            {tournament.fee && <span className="px-2.5 py-1 rounded-full bg-muted text-xs font-semibold">Entry {tournament.fee} BYN</span>}
           </div>
           <div className="mt-4 p-3 rounded-xl bg-muted/50">
             <div className="text-xs font-semibold text-foreground mb-1">{fmt.name} — rules</div>

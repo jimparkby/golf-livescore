@@ -16,10 +16,17 @@ export function useOthersRounds(): Round[] {
     };
 
     load();
-    const interval = setInterval(load, 60_000);
+    const interval = setInterval(load, 15_000);
+
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") load();
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+
     return () => {
       cancelled = true;
       clearInterval(interval);
+      document.removeEventListener("visibilitychange", onVisibility);
     };
   }, []);
 
