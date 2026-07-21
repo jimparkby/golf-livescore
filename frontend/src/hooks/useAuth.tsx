@@ -53,7 +53,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           homeClub: data.home_club ?? 'Golf Club Minsk',
           city: data.city ?? 'Minsk, Belarus',
           defaultTee: (data.default_tee as import('@/lib/courses').TeeColor) ?? 'yellow',
-          isAdmin: !!data.is_admin,
         })
         await loadRounds()
       }

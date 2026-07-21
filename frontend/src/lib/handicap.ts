@@ -1,6 +1,5 @@
 import { type Round, type HolesMode } from "@/store/golfStore";
 import { getAllCourses, type Hole } from "@/lib/courses";
-import { stablefordPoints } from "@/lib/formats";
 
 // Rounds played → how many best differentials to average
 const DIFF_USE_COUNT: Record<number, number> = {
@@ -144,18 +143,6 @@ export function calcCourseHcpForMode(
 ): number {
   const ch18 = courseHandicap(hi, slope, cr, par)
   return holesMode === "18" ? ch18 : Math.round(ch18 / 2)
-}
-
-/**
- * Net Stableford points for a hole, applying a handicap allowance (e.g. 80% PHCP).
- * allowanceStrokes = Math.round(courseHandicap(hcp, slope, rating, par) * pct / 100)
- */
-export function netStablefordPoints(
-  grossScore: number, hole: Hole, holes: Hole[], allowanceStrokes: number,
-): number {
-  const rank = holeRankInSet(hole, holes)
-  const strokes = holeStrokesInSet(allowanceStrokes, rank, holes.length)
-  return stablefordPoints(grossScore - strokes, hole.par)
 }
 
 /** Rank of a hole within the play set: 1 = hardest (lowest hole hcp) */

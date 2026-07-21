@@ -13,10 +13,3 @@ export function requireAuth(req, res, next) {
     res.status(401).json({ error: 'Invalid token' })
   }
 }
-
-export function requireAdmin(req, res, next) {
-  requireAuth(req, res, () => {
-    if (!req.user.isAdmin) return res.status(403).json({ error: 'Forbidden' })
-    next()
-  })
-}

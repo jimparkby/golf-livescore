@@ -3,29 +3,11 @@ import { useNavigate } from "react-router-dom";
 import { TOURNAMENTS } from "@/lib/tournaments";
 import { getTournamentData } from "@/lib/tournament-data";
 import { Card } from "@/components/ui/card";
-import { Plus, Image, Trophy, Lock, CheckCircle2 } from "lucide-react";
-import { api } from "@/lib/api";
-
-type OfficialTournament = {
-  id: string;
-  name: string;
-  date: string;
-  startTime: string;
-  status: "draft" | "open" | "live" | "completed";
-  myRegistration: { paid: boolean; checkedIn: boolean } | null;
-};
-
-const OFFICIAL_STATUS_LABEL: Record<OfficialTournament["status"], string> = {
-  draft: "Черновик",
-  open: "Регистрация",
-  live: "Идёт сейчас",
-  completed: "Завершён",
-};
+import { Plus, Image, Trophy } from "lucide-react";
 
 const TournamentsPage = () => {
   const navigate = useNavigate();
   const [tournamentsWithResults, setTournamentsWithResults] = useState<Set<string>>(new Set());
-  const [official, setOfficial] = useState<OfficialTournament[]>([]);
 
   useEffect(() => {
     // Fetch list of tournaments with results from API
@@ -37,8 +19,6 @@ const TournamentsPage = () => {
         }
       })
       .catch(err => console.error("Failed to fetch tournaments with results:", err));
-
-    api.get<OfficialTournament[]>("/api/official-tournaments").then(setOfficial).catch(() => {});
   }, []);
 
   const grouped = useMemo(() => {
@@ -68,46 +48,6 @@ const TournamentsPage = () => {
           <Plus className="h-4 w-4" strokeWidth={2.5} /> Создать
         </button>
       </div>
-
-      {/* Official tournaments */}
-      {official.length > 0 && (
-        <Card className="overflow-hidden shadow-soft">
-          <div className="px-4 py-2.5 bg-muted/50 border-b border-border">
-            <div className="text-xs uppercase tracking-[0.2em] font-bold text-action">Официальные турниры</div>
-          </div>
-          <div className="divide-y divide-border">
-            {official.map((t) => {
-              const reg = t.myRegistration;
-              return (
-                <button
-                  key={t.id}
-                  onClick={() => navigate(`/official-tournament/${t.id}`)}
-                  className="w-full px-4 py-3 flex items-center gap-3 text-left"
-                >
-                  <div className="h-9 w-9 rounded-full grid place-items-center shrink-0 bg-action/10 text-action">
-                    <Trophy className="h-4 w-4" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium leading-snug">{t.name}</div>
-                    <div className="text-xs text-muted-foreground mt-0.5">
-                      {new Date(t.date).toLocaleDateString("ru-RU", { day: "numeric", month: "short" })} · {OFFICIAL_STATUS_LABEL[t.status]}
-                    </div>
-                  </div>
-                  {reg?.checkedIn ? (
-                    <CheckCircle2 className="h-4 w-4 text-action shrink-0" />
-                  ) : reg?.paid ? (
-                    <span className="text-[10px] font-bold px-2 py-1 rounded-full shrink-0" style={{ background: "rgba(34,197,94,0.12)", color: "#22c55e" }}>
-                      Оплачено
-                    </span>
-                  ) : (
-                    <Lock className="h-4 w-4 text-muted-foreground shrink-0" />
-                  )}
-                </button>
-              );
-            })}
-          </div>
-        </Card>
-      )}
 
       {/* Leaderboard Button */}
       <Card

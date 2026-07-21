@@ -73,7 +73,7 @@ router.post('/telegram', async (req, res, next) => {
       )
 
       const token = jwt.sign(
-        { userId: user.id, isAdmin: user.is_admin },
+        { userId: user.id },
         process.env.JWT_SECRET,
         { expiresIn: '365d' }
       )
@@ -114,7 +114,7 @@ router.post('/telegram', async (req, res, next) => {
     )
 
     const token = jwt.sign(
-      { userId: user.id, isAdmin: user.is_admin },
+      { userId: user.id },
       process.env.JWT_SECRET,
       { expiresIn: '365d' }
     )

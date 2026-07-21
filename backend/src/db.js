@@ -107,55 +107,6 @@ async function runMigrations() {
       END
       WHERE slug IS NULL
     ` },
-    { name: 'is_admin', query: `ALTER TABLE users ADD COLUMN IF NOT EXISTS is_admin BOOLEAN DEFAULT false` },
-    { name: 'official_tournaments', query: `CREATE TABLE IF NOT EXISTS official_tournaments (
-      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      name TEXT NOT NULL,
-      course_id TEXT,
-      tee TEXT DEFAULT 'yellow',
-      course_name TEXT,
-      rating NUMERIC DEFAULT 72,
-      slope INTEGER DEFAULT 113,
-      date DATE NOT NULL,
-      start_time TIMESTAMP WITH TIME ZONE NOT NULL,
-      holes_mode TEXT DEFAULT '18',
-      handicap_allowance_pct INTEGER DEFAULT 80,
-      flight_count INTEGER DEFAULT 3,
-      group_size INTEGER DEFAULT 4,
-      status TEXT DEFAULT 'draft',
-      created_by UUID REFERENCES users(id),
-      created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-    )` },
-    // NOTE: named 'official_registrations' (not 'tournament_registrations') — that name is
-    // already used by the bot's calendar-tournament registration flow, with a different schema.
-    { name: 'official_registrations', query: `CREATE TABLE IF NOT EXISTS official_registrations (
-      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      tournament_id UUID NOT NULL REFERENCES official_tournaments(id) ON DELETE CASCADE,
-      user_id UUID REFERENCES users(id),
-      guest_name TEXT,
-      hcp NUMERIC NOT NULL DEFAULT 0,
-      paid BOOLEAN DEFAULT false,
-      paid_at TIMESTAMP WITH TIME ZONE,
-      access_code TEXT,
-      checked_in BOOLEAN DEFAULT false,
-      checked_in_at TIMESTAMP WITH TIME ZONE,
-      group_id UUID,
-      flight_label TEXT,
-      created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-      UNIQUE(tournament_id, user_id)
-    )` },
-    { name: 'official_tournament_groups', query: `CREATE TABLE IF NOT EXISTS official_tournament_groups (
-      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      tournament_id UUID NOT NULL REFERENCES official_tournaments(id) ON DELETE CASCADE,
-      flight_label TEXT NOT NULL,
-      group_number INTEGER NOT NULL,
-      round_id TEXT,
-      created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-    )` },
-    // One-time bootstrap: no account has is_admin yet, which hides the Admin Panel
-    // entry point entirely. Grants it to the project owner's login so official
-    // tournaments can be created and tested through the real admin UI.
-    { name: 'grant_owner_admin', query: `UPDATE users SET is_admin = true WHERE email = 'v.belous1024@gmail.com'` },
   ]
 
   for (const migration of migrations) {

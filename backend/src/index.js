@@ -10,7 +10,6 @@ import roundsRouter from './routes/rounds.js'
 import usersRouter from './routes/users.js'
 import scorecardsRouter from './routes/scorecards.js'
 import aiRouter from './routes/ai.js'
-import officialTournamentsRouter from './routes/officialTournaments.js'
 import statisticsRouter from './routes/statistics.js'
 import tournamentsRouter from './routes/tournaments.js'
 import predictionsRouter from './routes/predictions.js'
@@ -41,13 +40,12 @@ app.use('/api/rounds', roundsRouter)
 app.use('/api/users', usersRouter)
 app.use('/api/scorecards', scorecardsRouter)
 app.use('/api/ai', aiRouter)
-app.use('/api/official-tournaments', officialTournamentsRouter)
 app.use('/api/statistics', statisticsRouter)
 app.use('/api/tournaments', tournamentsRouter)
 app.use('/api/predictions', predictionsRouter)
 app.use('/api/leaderboard', leaderboardRouter)
 app.use('/api/tournament-registrations', tournamentRegistrationsRouter)
-console.log('[boot] /api/auth, /api/profile, /api/rounds, /api/users, /api/scorecards, /api/ai, /api/official-tournaments, /api/statistics, /api/tournaments, /api/predictions, /api/leaderboard, /api/tournament-registrations registered')
+console.log('[boot] /api/auth, /api/profile, /api/rounds, /api/users, /api/scorecards, /api/ai, /api/statistics, /api/tournaments, /api/predictions, /api/leaderboard, /api/tournament-registrations registered')
 
 app.get('/api/ping', (_req, res) => res.json({ ok: true }))
 
