@@ -107,6 +107,12 @@ async function runMigrations() {
       END
       WHERE slug IS NULL
     ` },
+    // Cleanup for the removed official-tournaments feature (reverted in 5d761d0) —
+    // drop children before the parent table to satisfy FK constraints.
+    { name: 'drop_official_tournament_groups', query: `DROP TABLE IF EXISTS official_tournament_groups` },
+    { name: 'drop_official_registrations', query: `DROP TABLE IF EXISTS official_registrations` },
+    { name: 'drop_official_tournaments', query: `DROP TABLE IF EXISTS official_tournaments` },
+    { name: 'drop_is_admin', query: `ALTER TABLE users DROP COLUMN IF EXISTS is_admin` },
   ]
 
   for (const migration of migrations) {
