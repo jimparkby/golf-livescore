@@ -152,6 +152,10 @@ async function runMigrations() {
       round_id TEXT,
       created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
     )` },
+    // One-time bootstrap: no account has is_admin yet, which hides the Admin Panel
+    // entry point entirely. Grants it to the project owner's login so official
+    // tournaments can be created and tested through the real admin UI.
+    { name: 'grant_owner_admin', query: `UPDATE users SET is_admin = true WHERE email = 'v.belous1024@gmail.com'` },
   ]
 
   for (const migration of migrations) {
