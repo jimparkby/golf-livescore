@@ -98,3 +98,7 @@ export const getFormat = (id: FormatId): GolfFormat =>
 
 export const stablefordPoints = (score: number, par: number): number =>
   Math.max(0, 2 + par - score);
+
+// Stableford points computed off the handicap-adjusted (net) score
+export const netStablefordPoints = (score: number, par: number, strokesReceived: number): number =>
+  stablefordPoints(score - strokesReceived, par);
