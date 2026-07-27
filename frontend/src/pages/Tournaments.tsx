@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { TOURNAMENTS } from "@/lib/tournaments";
 import { getTournamentData } from "@/lib/tournament-data";
 import { Card } from "@/components/ui/card";
-import { Plus, Image, Trophy } from "lucide-react";
+import { Plus, Image, Trophy, QrCode } from "lucide-react";
 
 const TournamentsPage = () => {
   const navigate = useNavigate();
@@ -61,6 +61,23 @@ const TournamentsPage = () => {
           <div className="flex-1">
             <div className="font-bold text-lg">Leaderboards</div>
             <div className="text-sm text-muted-foreground">Рейтинг игроков и номинации 2026</div>
+          </div>
+          <div className="text-action text-2xl">›</div>
+        </div>
+      </Card>
+
+      {/* Admin panel — QR / live scoring management for your own tournaments */}
+      <Card
+        onClick={() => navigate('/admin')}
+        className="p-5 shadow-soft cursor-pointer hover:bg-accent/30 transition-colors"
+      >
+        <div className="flex items-center gap-3">
+          <div className="h-12 w-12 rounded-full bg-action/20 grid place-items-center shrink-0">
+            <QrCode className="h-6 w-6 text-action" />
+          </div>
+          <div className="flex-1">
+            <div className="font-bold text-lg">Админ-панель</div>
+            <div className="text-sm text-muted-foreground">QR-коды и живой счёт для ваших турниров</div>
           </div>
           <div className="text-action text-2xl">›</div>
         </div>

@@ -16,6 +16,7 @@ import StatsPage from "./pages/Stats";
 import StatisticsPage from "./pages/Statistics";
 import ProfilePage from "./pages/Profile";
 import LeaderboardPage from "./pages/Leaderboard";
+import AdminPage from "./pages/Admin";
 import TournamentRegistrationsPage from "./pages/TournamentRegistrations";
 import NotFound from "./pages/NotFound";
 
@@ -51,6 +52,7 @@ function AppRoutes() {
         <Route path="/statistics" element={<StatisticsPage />} />
         <Route path="/profile" element={<ProfilePage />} />
         <Route path="/leaderboard" element={<LeaderboardPage />} />
+        <Route path="/admin" element={<AdminPage />} />
         <Route path="/tournament-registrations/:id" element={<TournamentRegistrationsPage />} />
       </Route>
       <Route path="*" element={<NotFound />} />

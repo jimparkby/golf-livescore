@@ -8,11 +8,10 @@ import { TOURNAMENTS, TIER_LABELS, type Tier } from "@/lib/tournaments";
 import { getFormat, stablefordPoints, type FormatId } from "@/lib/formats";
 import { useGolf, type Player, type Round } from "@/store/golfStore";
 import { compressImage } from "@/lib/imageUtils";
-import { ChevronLeft, ChevronRight, Plus, X, Flag, Trophy, Camera, Share2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, X, Flag, Trophy, Camera } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { TournamentLeaderboard } from "@/components/TournamentLeaderboard";
-import { ShareRoundModal } from "@/components/ShareRoundModal";
 
 const tierColor: Record<Tier, string> = {
   gold: "bg-tier-gold",
@@ -169,7 +168,6 @@ const TournamentRoundPlayer = ({
   const [sheetTeamMembers, setSheetTeamMembers] = useState<Player[]>([]);
   const [hole, setHole] = useState({ score: 4, putts: 2, madeBy: undefined as string | undefined });
   const [completedRound, setCompletedRound] = useState<Round | null>(null);
-  const [showShare, setShowShare] = useState(false);
   const photoRef = useRef<HTMLInputElement>(null);
 
   const isScramble = format === "scramble";
@@ -384,17 +382,10 @@ const TournamentRoundPlayer = ({
           <span className="text-white font-bold text-base tracking-wider">Leaderboard</span>
         )}
 
-        <div className="flex items-center gap-2">
-          <button onClick={() => setShowShare(true)} className="h-9 w-9 rounded-full grid place-items-center" style={{ background: "rgba(255,255,255,0.1)" }} title="QR для участников">
-            <Share2 className="h-4 w-4 text-white" strokeWidth={2.5} />
-          </button>
-          <button onClick={handleFinish} className="h-9 px-4 rounded-full font-bold text-xs tracking-wider" style={{ background: "rgba(255,255,255,0.1)", color: "#4ade80" }}>
-            ФИНИШ
-          </button>
-        </div>
+        <button onClick={handleFinish} className="h-9 px-4 rounded-full font-bold text-xs tracking-wider" style={{ background: "rgba(255,255,255,0.1)", color: "#4ade80" }}>
+          ФИНИШ
+        </button>
       </div>
-
-      {showShare && <ShareRoundModal roundId={activeRound.id} onClose={() => setShowShare(false)} />}
 
       {/* View toggle */}
       <div className="px-5 pb-3">
