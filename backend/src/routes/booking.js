@@ -14,19 +14,33 @@ function isValidType(type) {
   return TYPES.includes(type)
 }
 
-async function loadSlotWithBookedCount(slotId) {
-  const { rows: [slot] } = await db.query(
-    `SELECT id, type, to_char(date, 'YYYY-MM-DD') AS date, to_char(time, 'HH24:MI') AS time,
-            duration_minutes, capacity, trainer_name, notes
-     FROM booking_slots WHERE id = $1`,
-    [slotId]
+// Same shape as the GET /slots row mapping below, so callers can merge this
+// straight into frontend state without a follow-up fetch.
+async function loadSlot(slotId, requesterId) {
+  const { rows: [s] } = await db.query(
+    `SELECT s.id, s.type, to_char(s.date, 'YYYY-MM-DD') AS date, to_char(s.time, 'HH24:MI') AS time,
+            s.duration_minutes, s.capacity, s.trainer_name, s.notes,
+            COALESCE(SUM(b.players_count), 0) AS booked,
+            BOOL_OR(b.user_id = $2) AS booked_by_me
+     FROM booking_slots s
+     LEFT JOIN slot_bookings b ON b.slot_id = s.id
+     WHERE s.id = $1
+     GROUP BY s.id`,
+    [slotId, requesterId]
   )
-  if (!slot) return null
-  const { rows: [{ booked }] } = await db.query(
-    `SELECT COALESCE(SUM(players_count), 0) AS booked FROM slot_bookings WHERE slot_id = $1`,
-    [slotId]
-  )
-  return { ...slot, booked: Number(booked) }
+  if (!s) return null
+  return {
+    id: s.id,
+    type: s.type,
+    date: s.date,
+    time: s.time,
+    durationMinutes: s.duration_minutes,
+    capacity: s.capacity,
+    trainerName: s.trainer_name,
+    notes: s.notes,
+    available: Math.max(0, s.capacity - Number(s.booked)),
+    bookedByMe: s.booked_by_me,
+  }
 }
 
 // ── GET /api/booking/slots?type=&date= ──────────────────────────────────────
@@ -105,8 +119,8 @@ router.post('/slots/:id/book', async (req, res, next) => {
       return res.status(400).json({ error: 'Not enough spots available' })
     }
 
-    await db.query(
-      'INSERT INTO slot_bookings (slot_id, user_id, players_count) VALUES ($1, $2, $3)',
+    const { rows: [booking] } = await db.query(
+      'INSERT INTO slot_bookings (slot_id, user_id, players_count) VALUES ($1, $2, $3) RETURNING id',
       [slotId, req.user.userId, effectivePlayers]
     )
 
@@ -124,8 +138,8 @@ router.post('/slots/:id/book', async (req, res, next) => {
       ).catch((err) => console.error('[booking] confirmation sendMessage failed:', err.message))
     }
 
-    const updated = await loadSlotWithBookedCount(slotId)
-    res.json(updated)
+    const updated = await loadSlot(slotId, req.user.userId)
+    res.json({ ...updated, bookingId: booking.id, playersCount: effectivePlayers })
   } catch (err) {
     await db.query('ROLLBACK')
     next(err)

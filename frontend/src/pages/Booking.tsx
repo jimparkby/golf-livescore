@@ -34,6 +34,7 @@ type MyBooking = {
 };
 
 const DAYS_AHEAD = 14;
+const EXIT_MS = 200;
 
 function buildDateStrip() {
   const days: { iso: string; label: string; weekday: string }[] = [];
@@ -60,6 +61,7 @@ const BookingPage = () => {
   const [bookingSlot, setBookingSlot] = useState<Slot | null>(null);
   const [playersCount, setPlayersCount] = useState(1);
   const [submitting, setSubmitting] = useState(false);
+  const [leavingBookingIds, setLeavingBookingIds] = useState<Set<number>>(new Set());
 
   const loadSlots = () => {
     setSlots(null);
@@ -85,11 +87,32 @@ const BookingPage = () => {
     if (!bookingSlot) return;
     setSubmitting(true);
     try {
-      await api.post(`/api/booking/slots/${bookingSlot.id}/book`, { playersCount });
+      const updated = await api.post<Slot & { bookingId: number; playersCount: number }>(
+        `/api/booking/slots/${bookingSlot.id}/book`,
+        { playersCount }
+      );
       toast.success("Записаны!");
       setBookingSlot(null);
-      loadSlots();
-      loadMyBookings();
+
+      // Update the slot in place (no full-list reload/flash) and let the new
+      // booking animate into "Мои записи" instead of popping in on refetch.
+      setSlots((prev) => prev?.map((s) => (s.id === updated.id
+        ? { ...s, available: updated.available, bookedByMe: updated.bookedByMe }
+        : s)) ?? prev);
+      setMyBookings((prev) => [
+        ...prev,
+        {
+          bookingId: updated.bookingId,
+          slotId: updated.id,
+          type: updated.type,
+          date: updated.date,
+          time: updated.time,
+          durationMinutes: updated.durationMinutes,
+          trainerName: updated.trainerName,
+          notes: updated.notes,
+          playersCount: updated.playersCount,
+        },
+      ].sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time)));
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Не удалось записаться");
     } finally {
@@ -97,15 +120,28 @@ const BookingPage = () => {
     }
   };
 
-  const cancelBooking = async (bookingId: number) => {
-    try {
-      await api.delete(`/api/booking/bookings/${bookingId}`);
-      toast.success("Запись отменена");
-      loadMyBookings();
-      loadSlots();
-    } catch {
-      toast.error("Не удалось отменить запись");
-    }
+  const cancelBooking = (booking: MyBooking) => {
+    // Play the exit animation first, then actually remove/cancel once it's
+    // finished — an instant unmount would just make the row vanish.
+    setLeavingBookingIds((prev) => new Set(prev).add(booking.bookingId));
+    setTimeout(async () => {
+      try {
+        await api.delete(`/api/booking/bookings/${booking.bookingId}`);
+        setMyBookings((prev) => prev.filter((b) => b.bookingId !== booking.bookingId));
+        setSlots((prev) => prev?.map((s) => (s.id === booking.slotId
+          ? { ...s, bookedByMe: false, available: s.available + booking.playersCount }
+          : s)) ?? prev);
+        toast.success("Запись отменена");
+      } catch {
+        toast.error("Не удалось отменить запись");
+      } finally {
+        setLeavingBookingIds((prev) => {
+          const next = new Set(prev);
+          next.delete(booking.bookingId);
+          return next;
+        });
+      }
+    }, EXIT_MS);
   };
 
   return (
@@ -115,10 +151,18 @@ const BookingPage = () => {
       </button>
 
       {myBookings.length > 0 && (
-        <Card className="p-4 space-y-2">
+        <Card className="p-4 space-y-2 animate-in fade-in duration-300">
           <div className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Мои записи</div>
           {myBookings.map((b) => (
-            <div key={b.bookingId} className="flex items-center justify-between gap-2 p-2.5 rounded-lg bg-muted/50">
+            <div
+              key={b.bookingId}
+              className={cn(
+                "flex items-center justify-between gap-2 p-2.5 rounded-lg bg-muted/50",
+                leavingBookingIds.has(b.bookingId)
+                  ? "animate-out fade-out slide-out-to-right-4 duration-200 fill-mode-forwards"
+                  : "animate-in fade-in slide-in-from-top-1 duration-300"
+              )}
+            >
               <div className="min-w-0">
                 <div className="text-sm font-semibold">
                   {b.type === "tee_time" ? "Ти-тайм" : "Тренировка"} · {new Date(`${b.date}T00:00:00`).toLocaleDateString("ru-RU", { day: "numeric", month: "short" })} в {b.time}
@@ -127,7 +171,7 @@ const BookingPage = () => {
                   {b.type === "tee_time" ? `${b.playersCount} игрок(ов)` : b.trainerName}
                 </div>
               </div>
-              <button onClick={() => cancelBooking(b.bookingId)} className="text-destructive shrink-0">
+              <button onClick={() => cancelBooking(b)} className="text-destructive shrink-0">
                 <X className="h-4 w-4" />
               </button>
             </div>
@@ -181,7 +225,7 @@ const BookingPage = () => {
           {slots.map((s) => {
             const full = s.available <= 0 && !s.bookedByMe;
             return (
-              <Card key={s.id} className="p-3.5 flex items-center justify-between gap-3">
+              <Card key={s.id} className="p-3.5 flex items-center justify-between gap-3 animate-in fade-in duration-300">
                 <div className="flex items-center gap-3 min-w-0">
                   <div className="h-11 w-11 rounded-xl grid place-items-center shrink-0" style={{ background: "rgba(34,197,94,0.12)" }}>
                     <Clock className="h-5 w-5" style={{ color: "#22c55e" }} />
