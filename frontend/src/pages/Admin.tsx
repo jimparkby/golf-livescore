@@ -10,10 +10,10 @@ import { ShareRoundModal } from "@/components/ShareRoundModal";
 import { toast } from "sonner";
 import {
   ChevronLeft, QrCode, Plus, PlayCircle, Settings, Camera, X,
-  Trophy, Users, ClipboardList, Lock,
+  Trophy, Users, ClipboardList, Lock, CalendarClock, Trash2,
 } from "lucide-react";
 
-type Tab = "live" | "results" | "participants" | "registrations";
+type Tab = "live" | "schedule" | "results" | "participants" | "registrations";
 
 type TournamentOption = { id: number; name: string; date: string; slug: string | null };
 type RegistrationSummary = {
@@ -23,8 +23,22 @@ type RegistrationSummary = {
 
 type LiveEntry = { tournament: CustomTournament; round: Round | null; isActive: boolean };
 
+type ScheduleSlotType = "tee_time" | "training";
+type ScheduleSlot = {
+  id: number;
+  type: ScheduleSlotType;
+  date: string;
+  time: string;
+  durationMinutes: number;
+  capacity: number;
+  trainerName: string | null;
+  notes: string | null;
+  bookings: { playersCount: number; name: string }[];
+};
+
 const tabs: { id: Tab; label: string; icon: typeof QrCode }[] = [
   { id: "live", label: "Live", icon: QrCode },
+  { id: "schedule", label: "Расписание", icon: CalendarClock },
   { id: "results", label: "Результаты", icon: Trophy },
   { id: "participants", label: "Участники", icon: Users },
   { id: "registrations", label: "Заявки", icon: ClipboardList },
@@ -78,6 +92,7 @@ const AdminPage = () => {
       </div>
 
       {tab === "live" && <LiveToolsTab />}
+      {tab === "schedule" && <ScheduleTab />}
       {tab === "results" && (
         <PhotoImportPanel
           title="Ввести результаты турнира"
@@ -204,6 +219,216 @@ const LiveToolsTab = () => {
       {shareRoundId && (
         <ShareRoundModal roundId={shareRoundId} onClose={() => setShareRoundId(null)} />
       )}
+    </div>
+  );
+};
+
+/* ── Schedule: generate tee times, create trainings, manage slots ── */
+const todayISO = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+};
+
+const ScheduleTab = () => {
+  const [subTab, setSubTab] = useState<ScheduleSlotType>("tee_time");
+  const [date, setDate] = useState(todayISO());
+  const [slots, setSlots] = useState<ScheduleSlot[] | null>(null);
+
+  const [startTime, setStartTime] = useState("08:00");
+  const [endTime, setEndTime] = useState("18:00");
+  const [intervalMinutes, setIntervalMinutes] = useState("10");
+  const [teeCapacity, setTeeCapacity] = useState("4");
+  const [generating, setGenerating] = useState(false);
+
+  const [trainingTime, setTrainingTime] = useState("10:00");
+  const [duration, setDuration] = useState("60");
+  const [trainerName, setTrainerName] = useState("");
+  const [trainingCapacity, setTrainingCapacity] = useState("1");
+  const [notes, setNotes] = useState("");
+  const [creating, setCreating] = useState(false);
+
+  const loadSlots = () => {
+    setSlots(null);
+    api
+      .get<ScheduleSlot[]>(`/api/admin/schedule/slots?type=${subTab}&date=${date}`)
+      .then(setSlots)
+      .catch(() => setSlots([]));
+  };
+
+  useEffect(loadSlots, [subTab, date]);
+
+  const generateTeeTimes = async () => {
+    setGenerating(true);
+    try {
+      const data = await api.post<{ created: number }>("/api/admin/schedule/tee-times/generate", {
+        date, startTime, endTime, intervalMinutes: Number(intervalMinutes), capacity: Number(teeCapacity),
+      });
+      toast.success(`Создано слотов: ${data.created}`);
+      loadSlots();
+    } catch {
+      toast.error("Ошибка создания ти-таймов");
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  const createTraining = async () => {
+    if (!trainerName.trim()) { toast.error("Укажите тренера"); return; }
+    setCreating(true);
+    try {
+      await api.post("/api/admin/schedule/trainings", {
+        date, time: trainingTime, durationMinutes: Number(duration),
+        trainerName: trainerName.trim(), capacity: Number(trainingCapacity),
+        notes: notes.trim() || undefined,
+      });
+      toast.success("Тренировка создана");
+      setTrainerName("");
+      setNotes("");
+      loadSlots();
+    } catch {
+      toast.error("Ошибка создания тренировки");
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const deleteSlot = async (slot: ScheduleSlot) => {
+    if (slot.bookings.length > 0 && !window.confirm(`На это время уже записаны: ${slot.bookings.map(b => b.name).join(", ")}. Удалить и уведомить их?`)) {
+      return;
+    }
+    try {
+      await api.delete(`/api/admin/schedule/slots/${slot.id}`);
+      toast.success("Слот удалён");
+      loadSlots();
+    } catch {
+      toast.error("Ошибка удаления");
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex rounded-full p-1 gap-1 bg-muted">
+        <button
+          onClick={() => setSubTab("tee_time")}
+          className="flex-1 h-9 rounded-full text-xs font-bold tracking-wide transition-all"
+          style={subTab === "tee_time" ? { background: "#22c55e", color: "#000" } : { color: "hsl(var(--muted-foreground))" }}
+        >
+          Ти-таймы
+        </button>
+        <button
+          onClick={() => setSubTab("training")}
+          className="flex-1 h-9 rounded-full text-xs font-bold tracking-wide transition-all"
+          style={subTab === "training" ? { background: "#22c55e", color: "#000" } : { color: "hsl(var(--muted-foreground))" }}
+        >
+          Тренировки
+        </button>
+      </div>
+
+      <input
+        type="date"
+        value={date}
+        onChange={(e) => setDate(e.target.value)}
+        className="w-full h-11 rounded-xl px-3 bg-muted text-sm outline-none"
+      />
+
+      {subTab === "tee_time" ? (
+        <Card className="p-4 space-y-3">
+          <div className="font-bold text-sm">Сгенерировать ти-таймы на день</div>
+          <div className="grid grid-cols-2 gap-2">
+            <label className="text-xs text-muted-foreground">
+              Начало
+              <input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} className="w-full h-10 rounded-lg px-2 mt-1 bg-background border border-border text-sm" />
+            </label>
+            <label className="text-xs text-muted-foreground">
+              Конец
+              <input type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} className="w-full h-10 rounded-lg px-2 mt-1 bg-background border border-border text-sm" />
+            </label>
+            <label className="text-xs text-muted-foreground">
+              Интервал, мин
+              <input type="number" min={5} value={intervalMinutes} onChange={(e) => setIntervalMinutes(e.target.value)} className="w-full h-10 rounded-lg px-2 mt-1 bg-background border border-border text-sm" />
+            </label>
+            <label className="text-xs text-muted-foreground">
+              Мест на слот
+              <input type="number" min={1} value={teeCapacity} onChange={(e) => setTeeCapacity(e.target.value)} className="w-full h-10 rounded-lg px-2 mt-1 bg-background border border-border text-sm" />
+            </label>
+          </div>
+          <button
+            onClick={generateTeeTimes}
+            disabled={generating}
+            className="w-full h-11 rounded-xl font-bold text-sm disabled:opacity-40"
+            style={{ background: "#22c55e", color: "#000" }}
+          >
+            {generating ? "Создаю…" : "Сгенерировать"}
+          </button>
+        </Card>
+      ) : (
+        <Card className="p-4 space-y-3">
+          <div className="font-bold text-sm">Создать тренировку</div>
+          <div className="grid grid-cols-2 gap-2">
+            <label className="text-xs text-muted-foreground">
+              Время
+              <input type="time" value={trainingTime} onChange={(e) => setTrainingTime(e.target.value)} className="w-full h-10 rounded-lg px-2 mt-1 bg-background border border-border text-sm" />
+            </label>
+            <label className="text-xs text-muted-foreground">
+              Длительность, мин
+              <input type="number" min={10} value={duration} onChange={(e) => setDuration(e.target.value)} className="w-full h-10 rounded-lg px-2 mt-1 bg-background border border-border text-sm" />
+            </label>
+          </div>
+          <label className="text-xs text-muted-foreground block">
+            Тренер
+            <input value={trainerName} onChange={(e) => setTrainerName(e.target.value)} placeholder="Имя тренера" className="w-full h-10 rounded-lg px-2 mt-1 bg-background border border-border text-sm" />
+          </label>
+          <label className="text-xs text-muted-foreground block">
+            Мест
+            <input type="number" min={1} value={trainingCapacity} onChange={(e) => setTrainingCapacity(e.target.value)} className="w-full h-10 rounded-lg px-2 mt-1 bg-background border border-border text-sm" />
+          </label>
+          <label className="text-xs text-muted-foreground block">
+            Заметка (необязательно)
+            <input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Например: групповая тренировка" className="w-full h-10 rounded-lg px-2 mt-1 bg-background border border-border text-sm" />
+          </label>
+          <button
+            onClick={createTraining}
+            disabled={creating}
+            className="w-full h-11 rounded-xl font-bold text-sm disabled:opacity-40"
+            style={{ background: "#22c55e", color: "#000" }}
+          >
+            {creating ? "Создаю…" : "Создать"}
+          </button>
+        </Card>
+      )}
+
+      <div>
+        <div className="text-xs uppercase tracking-wider text-muted-foreground font-semibold mb-2">
+          Слоты на {new Date(`${date}T00:00:00`).toLocaleDateString("ru-RU", { day: "numeric", month: "long" })}
+        </div>
+        {slots === null ? (
+          <div className="flex justify-center py-6">
+            <div className="h-6 w-6 rounded-full border-2 border-action border-t-transparent animate-spin" />
+          </div>
+        ) : slots.length === 0 ? (
+          <Card className="p-6 text-center text-sm text-muted-foreground">Нет слотов на этот день</Card>
+        ) : (
+          <div className="space-y-2">
+            {slots.map((s) => {
+              const bookedCount = s.bookings.reduce((a, b) => a + b.playersCount, 0);
+              return (
+                <Card key={s.id} className="p-3 flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="font-bold text-sm">{s.time} {s.trainerName ? `· ${s.trainerName}` : ""}</div>
+                    <div className="text-xs text-muted-foreground truncate">
+                      {bookedCount}/{s.capacity} занято
+                      {s.bookings.length > 0 && ` — ${s.bookings.map((b) => b.name).join(", ")}`}
+                    </div>
+                  </div>
+                  <button onClick={() => deleteSlot(s)} className="text-destructive shrink-0">
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </Card>
+              );
+            })}
+          </div>
+        )}
+      </div>
     </div>
   );
 };

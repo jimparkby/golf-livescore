@@ -115,6 +115,27 @@ async function runMigrations() {
     { name: 'drop_is_admin', query: `ALTER TABLE users DROP COLUMN IF EXISTS is_admin` },
     { name: 'round_share_code', query: `ALTER TABLE rounds ADD COLUMN IF NOT EXISTS share_code TEXT` },
     { name: 'round_share_code_index', query: `CREATE UNIQUE INDEX IF NOT EXISTS rounds_share_code_idx ON rounds (share_code) WHERE share_code IS NOT NULL` },
+    { name: 'booking_slots', query: `CREATE TABLE IF NOT EXISTS booking_slots (
+      id SERIAL PRIMARY KEY,
+      type TEXT NOT NULL CHECK (type IN ('tee_time', 'training')),
+      date DATE NOT NULL,
+      time TIME NOT NULL,
+      duration_minutes INTEGER NOT NULL DEFAULT 10,
+      capacity INTEGER NOT NULL DEFAULT 4,
+      trainer_name TEXT,
+      notes TEXT,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    )` },
+    { name: 'booking_slots_index', query: `CREATE INDEX IF NOT EXISTS booking_slots_date_idx ON booking_slots (type, date, time)` },
+    { name: 'slot_bookings', query: `CREATE TABLE IF NOT EXISTS slot_bookings (
+      id SERIAL PRIMARY KEY,
+      slot_id INTEGER NOT NULL REFERENCES booking_slots(id) ON DELETE CASCADE,
+      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      players_count INTEGER NOT NULL DEFAULT 1,
+      reminded_at TIMESTAMPTZ,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      UNIQUE(slot_id, user_id)
+    )` },
   ]
 
   for (const migration of migrations) {

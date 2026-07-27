@@ -2,8 +2,10 @@ import 'dotenv/config'
 import express from 'express'
 import cors from 'cors'
 import path from 'path'
+import cron from 'node-cron'
 import { existsSync } from 'fs'
 import { fileURLToPath } from 'url'
+import { runBookingReminders } from './services/bookingReminders.js'
 import authRouter from './routes/auth.js'
 import profileRouter from './routes/profile.js'
 import roundsRouter from './routes/rounds.js'
@@ -17,6 +19,7 @@ import leaderboardRouter from './routes/leaderboard.js'
 import tournamentRegistrationsRouter from './routes/tournament-registrations.js'
 import liveRouter from './routes/live.js'
 import adminRouter from './routes/admin.js'
+import bookingRouter from './routes/booking.js'
 import { processUpdate } from './bot.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -49,7 +52,8 @@ app.use('/api/leaderboard', leaderboardRouter)
 app.use('/api/tournament-registrations', tournamentRegistrationsRouter)
 app.use('/api/live', liveRouter)
 app.use('/api/admin', adminRouter)
-console.log('[boot] /api/auth, /api/profile, /api/rounds, /api/users, /api/scorecards, /api/ai, /api/statistics, /api/tournaments, /api/predictions, /api/leaderboard, /api/tournament-registrations, /api/live, /api/admin registered')
+app.use('/api/booking', bookingRouter)
+console.log('[boot] /api/auth, /api/profile, /api/rounds, /api/users, /api/scorecards, /api/ai, /api/statistics, /api/tournaments, /api/predictions, /api/leaderboard, /api/tournament-registrations, /api/live, /api/admin, /api/booking registered')
 
 app.get('/api/ping', (_req, res) => res.json({ ok: true }))
 
@@ -79,6 +83,8 @@ if (distPath) {
 } else {
   app.get('*', (_req, res) => res.json({ status: 'api-only' }))
 }
+
+cron.schedule('*/10 * * * *', () => runBookingReminders())
 
 const PORT = process.env.PORT || 3001
 app.listen(PORT, () => console.log(`Backend running on port ${PORT}`))

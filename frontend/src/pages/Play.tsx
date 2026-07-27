@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Avatar } from "@/components/PlayerAvatar";
@@ -7,7 +8,7 @@ import { useGolf, type Player, type Round, type HolesMode } from "@/store/golfSt
 import { calcCourseHcpForMode, holeRankInSet, holeStrokesInSet } from "@/lib/handicap";
 import { compressImage } from "@/lib/imageUtils";
 import { api, BASE } from "@/lib/api";
-import { ChevronLeft, ChevronRight, Plus, X, PlayCircle, Flag, Camera, Check, Search } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, X, PlayCircle, Flag, Camera, Check, Search, CalendarClock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useTranslation } from "@/hooks/useTranslation";
@@ -152,6 +153,7 @@ const HomeScreen = ({ onStart, activeRound, onResume, onAbandon, extraCourses, o
   const { t } = useTranslation();
   const { rounds, profile } = useGolf();
   const [showSearch, setShowSearch] = useState(false);
+  const navigate = useNavigate();
 
   const russianCourses = COURSES.filter(c => RUSSIA_IDS.includes(c.id));
   const customCourses = extraCourses ?? [];
@@ -219,6 +221,21 @@ const HomeScreen = ({ onStart, activeRound, onResume, onAbandon, extraCourses, o
       >
         <Flag className="h-5 w-5" strokeWidth={2.5} />
         {t.play}
+      </button>
+
+      {/* ── Tee times & trainings ── */}
+      <button
+        onClick={() => navigate("/booking")}
+        className="w-full flex items-center gap-3 p-4 rounded-xl border-2 text-left active:scale-[0.98] transition-transform"
+        style={{ borderColor: "rgba(34,197,94,0.3)", background: "rgba(34,197,94,0.06)" }}
+      >
+        <div className="h-10 w-10 rounded-full grid place-items-center shrink-0" style={{ background: "rgba(34,197,94,0.15)" }}>
+          <CalendarClock className="h-5 w-5" style={{ color: "#22c55e" }} />
+        </div>
+        <div>
+          <div className="font-semibold text-sm">Записаться</div>
+          <div className="text-xs text-muted-foreground mt-0.5">Ти-таймы и тренировки</div>
+        </div>
       </button>
 
       {/* ── Golf Club Minsk ── */}

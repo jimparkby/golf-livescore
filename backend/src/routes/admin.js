@@ -210,4 +210,145 @@ router.get('/registrations', async (_req, res, next) => {
   } catch (err) { next(err) }
 })
 
+// ── Schedule: tee times & trainings ─────────────────────────────────────────
+
+const TYPE_LABEL = { tee_time: 'Ти-тайм', training: 'Тренировка' }
+
+router.get('/schedule/slots', async (req, res, next) => {
+  try {
+    const { type, date } = req.query
+    if (!['tee_time', 'training'].includes(type) || !/^\d{4}-\d{2}-\d{2}$/.test(date || '')) {
+      return res.status(400).json({ error: 'type and date (YYYY-MM-DD) required' })
+    }
+
+    const { rows: slots } = await db.query(
+      `SELECT id, type, to_char(date, 'YYYY-MM-DD') AS date, to_char(time, 'HH24:MI') AS time,
+              duration_minutes, capacity, trainer_name, notes
+       FROM booking_slots WHERE type = $1 AND date = $2 ORDER BY time ASC`,
+      [type, date]
+    )
+
+    const { rows: bookings } = await db.query(
+      `SELECT b.slot_id, b.players_count, u.first_name, u.last_name, u.username
+       FROM slot_bookings b
+       JOIN booking_slots s ON s.id = b.slot_id
+       JOIN users u ON u.id = b.user_id
+       WHERE s.type = $1 AND s.date = $2`,
+      [type, date]
+    )
+
+    res.json(slots.map((s) => ({
+      id: s.id,
+      type: s.type,
+      date: s.date,
+      time: s.time,
+      durationMinutes: s.duration_minutes,
+      capacity: s.capacity,
+      trainerName: s.trainer_name,
+      notes: s.notes,
+      bookings: bookings
+        .filter((b) => b.slot_id === s.id)
+        .map((b) => ({
+          playersCount: b.players_count,
+          name: [b.first_name, b.last_name].filter(Boolean).join(' ') || b.username || 'Игрок',
+        })),
+    })))
+  } catch (err) { next(err) }
+})
+
+router.post('/schedule/tee-times/generate', async (req, res, next) => {
+  try {
+    const { date, startTime, endTime, intervalMinutes, capacity } = req.body
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date || '') || !/^\d{2}:\d{2}$/.test(startTime || '') || !/^\d{2}:\d{2}$/.test(endTime || '')) {
+      return res.status(400).json({ error: 'date, startTime, endTime (HH:MM) required' })
+    }
+    const interval = Math.max(5, parseInt(intervalMinutes, 10) || 10)
+    const slotCapacity = Math.max(1, parseInt(capacity, 10) || 4)
+
+    const [startH, startM] = startTime.split(':').map(Number)
+    const [endH, endM] = endTime.split(':').map(Number)
+    const startMinutes = startH * 60 + startM
+    const endMinutes = endH * 60 + endM
+    if (endMinutes <= startMinutes) {
+      return res.status(400).json({ error: 'endTime must be after startTime' })
+    }
+
+    let created = 0
+    for (let m = startMinutes; m < endMinutes; m += interval) {
+      const hh = String(Math.floor(m / 60)).padStart(2, '0')
+      const mm = String(m % 60).padStart(2, '0')
+      try {
+        await db.query(
+          `INSERT INTO booking_slots (type, date, time, duration_minutes, capacity)
+           VALUES ('tee_time', $1, $2, $3, $4)`,
+          [date, `${hh}:${mm}`, interval, slotCapacity]
+        )
+        created++
+      } catch (err) {
+        console.error('[admin] tee-time slot insert failed:', err.message)
+      }
+    }
+
+    res.json({ created })
+  } catch (err) { next(err) }
+})
+
+router.post('/schedule/trainings', async (req, res, next) => {
+  try {
+    const { date, time, durationMinutes, trainerName, capacity, notes } = req.body
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date || '') || !/^\d{2}:\d{2}$/.test(time || '') || !String(trainerName || '').trim()) {
+      return res.status(400).json({ error: 'date, time (HH:MM) and trainerName required' })
+    }
+
+    const { rows: [slot] } = await db.query(
+      `INSERT INTO booking_slots (type, date, time, duration_minutes, capacity, trainer_name, notes)
+       VALUES ('training', $1, $2, $3, $4, $5, $6)
+       RETURNING id`,
+      [
+        date, time,
+        Math.max(10, parseInt(durationMinutes, 10) || 60),
+        Math.max(1, parseInt(capacity, 10) || 1),
+        String(trainerName).trim(),
+        notes ? String(notes).trim() : null,
+      ]
+    )
+
+    res.json({ id: slot.id })
+  } catch (err) { next(err) }
+})
+
+router.delete('/schedule/slots/:id', async (req, res, next) => {
+  try {
+    const slotId = parseInt(req.params.id, 10)
+
+    const { rows: [slot] } = await db.query(
+      `SELECT type, to_char(date, 'DD.MM') AS date, to_char(time, 'HH24:MI') AS time
+       FROM booking_slots WHERE id = $1`,
+      [slotId]
+    )
+    if (!slot) return res.status(404).json({ error: 'Not found' })
+
+    const { rows: affected } = await db.query(
+      `SELECT u.telegram_id FROM slot_bookings b JOIN users u ON u.id = b.user_id WHERE b.slot_id = $1`,
+      [slotId]
+    )
+
+    await db.query('DELETE FROM booking_slots WHERE id = $1', [slotId])
+
+    if (bot) {
+      const label = TYPE_LABEL[slot.type] ?? slot.type
+      for (const row of affected) {
+        if (!row.telegram_id) continue
+        bot.sendMessage(
+          row.telegram_id,
+          `❌ <b>${label} отменён</b>\n\n📅 ${slot.date} в ${slot.time}\n\nЗапись снята администратором.`,
+          { parse_mode: 'HTML' }
+        ).catch((err) => console.error('[admin] cancellation sendMessage failed:', err.message))
+      }
+    }
+
+    res.json({ success: true })
+  } catch (err) { next(err) }
+})
+
 export default router
