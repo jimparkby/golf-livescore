@@ -5,6 +5,7 @@ import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import AppLayout from "@/components/AppLayout";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import DemoPage from "./pages/Demo";
+import LiveScoringPage from "./pages/LiveScoring";
 import AuthPage from "./pages/Auth";
 import PlayPage from "./pages/Play";
 import TournamentsPage from "./pages/Tournaments";
@@ -64,6 +65,7 @@ const App = () => (
         <BrowserRouter>
           <Routes>
             <Route path="/demo" element={<DemoPage />} />
+            <Route path="/live/:code" element={<LiveScoringPage />} />
             <Route
               path="/*"
               element={

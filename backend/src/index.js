@@ -15,6 +15,7 @@ import tournamentsRouter from './routes/tournaments.js'
 import predictionsRouter from './routes/predictions.js'
 import leaderboardRouter from './routes/leaderboard.js'
 import tournamentRegistrationsRouter from './routes/tournament-registrations.js'
+import liveRouter from './routes/live.js'
 import { processUpdate } from './bot.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -45,7 +46,8 @@ app.use('/api/tournaments', tournamentsRouter)
 app.use('/api/predictions', predictionsRouter)
 app.use('/api/leaderboard', leaderboardRouter)
 app.use('/api/tournament-registrations', tournamentRegistrationsRouter)
-console.log('[boot] /api/auth, /api/profile, /api/rounds, /api/users, /api/scorecards, /api/ai, /api/statistics, /api/tournaments, /api/predictions, /api/leaderboard, /api/tournament-registrations registered')
+app.use('/api/live', liveRouter)
+console.log('[boot] /api/auth, /api/profile, /api/rounds, /api/users, /api/scorecards, /api/ai, /api/statistics, /api/tournaments, /api/predictions, /api/leaderboard, /api/tournament-registrations, /api/live registered')
 
 app.get('/api/ping', (_req, res) => res.json({ ok: true }))
 

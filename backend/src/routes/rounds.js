@@ -1,4 +1,5 @@
 import { Router } from 'express'
+import crypto from 'crypto'
 import { db } from '../db.js'
 import { requireAuth } from '../middleware/auth.js'
 import { bot } from '../bot.js'
@@ -12,7 +13,7 @@ const webAppUrl = process.env.FRONTEND_URL || 'https://your-app-url.com'
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
-async function buildRound(round, requesterId) {
+export async function buildRound(round, requesterId) {
   const { rows: players } = await db.query(
     `SELECT player_id, name, initials, hcp, is_me, user_id
      FROM round_players WHERE round_id = $1`,
@@ -323,6 +324,26 @@ router.put('/:id/photo', requireAuth, async (req, res, next) => {
       [photoUrl, req.params.id, req.user.userId]
     )
     res.json({ success: true })
+  } catch (err) { next(err) }
+})
+
+// ── POST /api/rounds/:id/share ────────────────────────────────────────────────
+// Generates (or returns the existing) public share code for a round, so the
+// organizer can hand out a QR/link that lets anyone enter scores without login.
+
+router.post('/:id/share', requireAuth, async (req, res, next) => {
+  try {
+    const { rows: [round] } = await db.query(
+      'SELECT id, share_code FROM rounds WHERE id = $1 AND user_id = $2',
+      [req.params.id, req.user.userId]
+    )
+    if (!round) return res.status(404).json({ error: 'Not found' })
+
+    if (round.share_code) return res.json({ shareCode: round.share_code })
+
+    const shareCode = crypto.randomBytes(5).toString('hex')
+    await db.query('UPDATE rounds SET share_code = $1 WHERE id = $2', [shareCode, req.params.id])
+    res.json({ shareCode })
   } catch (err) { next(err) }
 })
 

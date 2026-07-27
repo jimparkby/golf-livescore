@@ -113,6 +113,8 @@ async function runMigrations() {
     { name: 'drop_official_registrations', query: `DROP TABLE IF EXISTS official_registrations` },
     { name: 'drop_official_tournaments', query: `DROP TABLE IF EXISTS official_tournaments` },
     { name: 'drop_is_admin', query: `ALTER TABLE users DROP COLUMN IF EXISTS is_admin` },
+    { name: 'round_share_code', query: `ALTER TABLE rounds ADD COLUMN IF NOT EXISTS share_code TEXT` },
+    { name: 'round_share_code_index', query: `CREATE UNIQUE INDEX IF NOT EXISTS rounds_share_code_idx ON rounds (share_code) WHERE share_code IS NOT NULL` },
   ]
 
   for (const migration of migrations) {
