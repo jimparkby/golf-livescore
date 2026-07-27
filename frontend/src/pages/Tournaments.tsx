@@ -4,9 +4,11 @@ import { TOURNAMENTS } from "@/lib/tournaments";
 import { getTournamentData } from "@/lib/tournament-data";
 import { Card } from "@/components/ui/card";
 import { Plus, Image, Trophy, QrCode } from "lucide-react";
+import { useIsAdmin } from "@/hooks/useIsAdmin";
 
 const TournamentsPage = () => {
   const navigate = useNavigate();
+  const { isAdmin } = useIsAdmin();
   const [tournamentsWithResults, setTournamentsWithResults] = useState<Set<string>>(new Set());
 
   useEffect(() => {
@@ -66,22 +68,24 @@ const TournamentsPage = () => {
         </div>
       </Card>
 
-      {/* Admin panel — QR / live scoring management for your own tournaments */}
-      <Card
-        onClick={() => navigate('/admin')}
-        className="p-5 shadow-soft cursor-pointer hover:bg-accent/30 transition-colors"
-      >
-        <div className="flex items-center gap-3">
-          <div className="h-12 w-12 rounded-full bg-action/20 grid place-items-center shrink-0">
-            <QrCode className="h-6 w-6 text-action" />
+      {/* Admin panel — app management, visible only to the whitelisted admin account */}
+      {isAdmin && (
+        <Card
+          onClick={() => navigate('/admin')}
+          className="p-5 shadow-soft cursor-pointer hover:bg-accent/30 transition-colors"
+        >
+          <div className="flex items-center gap-3">
+            <div className="h-12 w-12 rounded-full bg-action/20 grid place-items-center shrink-0">
+              <QrCode className="h-6 w-6 text-action" />
+            </div>
+            <div className="flex-1">
+              <div className="font-bold text-lg">Админ-панель</div>
+              <div className="text-sm text-muted-foreground">Результаты, участники, регистрации, QR для турниров</div>
+            </div>
+            <div className="text-action text-2xl">›</div>
           </div>
-          <div className="flex-1">
-            <div className="font-bold text-lg">Админ-панель</div>
-            <div className="text-sm text-muted-foreground">QR-коды и живой счёт для ваших турниров</div>
-          </div>
-          <div className="text-action text-2xl">›</div>
-        </div>
-      </Card>
+        </Card>
+      )}
 
       {/* Calendar */}
       {grouped.map(([month, items]) => (

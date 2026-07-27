@@ -1,6 +1,6 @@
 import { Router } from 'express'
 import { db } from '../db.js'
-import { requireAuth } from '../middleware/auth.js'
+import { requireAuth, requireAdmin } from '../middleware/auth.js'
 
 const router = Router()
 
@@ -92,7 +92,7 @@ router.get('/:tournamentId', async (req, res, next) => {
  * PATCH /api/tournament-registrations/:id/status
  * Update registration status (admin only)
  */
-router.patch('/:id/status', async (req, res, next) => {
+router.patch('/:id/status', requireAuth, requireAdmin, async (req, res, next) => {
   try {
     const { id } = req.params
     const { status } = req.body
