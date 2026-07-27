@@ -3,7 +3,6 @@ import { createRequire } from 'module'
 import https from 'https'
 import { db } from './db.js'
 import { parseScorecardPhoto } from './services/scoreParser.js'
-import { setupAdminCommands } from './bot-admin.js'
 
 const require = createRequire(import.meta.url)
 
@@ -118,16 +117,10 @@ if (!token) {
     }
   })
 
-  // ── Photo: scorecard processing + admin photo handler ─────────────────────
+  // ── Photo: scorecard processing ───────────────────────────────────────────
   bot.on('photo', async (msg) => {
     const telegramId = msg.from?.id
     if (!telegramId) return
-
-    // Check if this is admin photo session (admin handler will check internally)
-    if (bot._adminPhotoHandler) {
-      const handled = await bot._adminPhotoHandler(msg, (fileId) => downloadTelegramPhoto(bot, fileId))
-      if (handled) return // Admin handler processed it
-    }
 
     // Resolve user by telegram_id
     let user
@@ -193,9 +186,6 @@ if (!token) {
       })
     }
   })
-
-  // Setup admin commands
-  setupAdminCommands(bot)
 
   if (enablePolling) {
     let consecutiveErrors = 0

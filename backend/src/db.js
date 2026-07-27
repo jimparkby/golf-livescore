@@ -1,5 +1,12 @@
 import pg from 'pg'
-const { Pool } = pg
+const { Pool, types } = pg
+
+// node-postgres returns NUMERIC (OID 1700) as a string by default, to avoid
+// silent precision loss on large values. Our NUMERIC columns are all small
+// decimals (handicaps, ratings, probabilities) where that precision doesn't
+// matter, but callers throughout the app assume real numbers (e.g. hcp.toFixed()) —
+// parse them as floats here instead of patching every call site.
+types.setTypeParser(1700, (val) => (val === null ? null : parseFloat(val)))
 
 export const db = new Pool({
   host: process.env.DB_HOST,

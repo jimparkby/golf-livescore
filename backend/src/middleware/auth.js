@@ -1,6 +1,6 @@
 import jwt from 'jsonwebtoken'
 import { db } from '../db.js'
-import { isAdmin } from '../bot-admin.js'
+import { isAdmin } from '../utils/adminAccess.js'
 
 export function requireAuth(req, res, next) {
   const header = req.headers.authorization
@@ -16,8 +16,8 @@ export function requireAuth(req, res, next) {
   }
 }
 
-// Must run after requireAuth. Gates access to whoever is already whitelisted
-// in ADMIN_TELEGRAM_IDS — the same list the Telegram bot's /admin command uses.
+// Must run after requireAuth. Gates access to whoever is whitelisted in
+// ADMIN_TELEGRAM_IDS (see utils/adminAccess.js).
 export async function requireAdmin(req, res, next) {
   try {
     const { rows: [user] } = await db.query('SELECT telegram_id FROM users WHERE id = $1', [req.user.userId])
