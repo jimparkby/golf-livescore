@@ -4,6 +4,15 @@ import { calcCourseHcpForMode, holeRankInSet, holeStrokesInSet } from "@/lib/han
 import type { Round, Player } from "@/store/golfStore";
 import { getHcpGroup, detectGender, HCP_GROUP_ORDER, type Gender } from "@/lib/hcpGroups";
 
+/** Per-hole line for a player's scorecard: score (null if not yet played) and
+ *  the HCP strokes ("фора") they receive on that hole. */
+export type HoleStat = {
+  hole: number;
+  par: number;
+  score: number | null;
+  strokes: number;
+};
+
 export type PlayerRoundStats = {
   total: number;
   vsPar: number;
@@ -12,6 +21,7 @@ export type PlayerRoundStats = {
   netPoints: number;
   holesPlayed: number;
   totalHoles: number;
+  holes: HoleStat[];
 };
 
 /** Net (HCP-adjusted) stats for one player in one round. Shared by
@@ -30,18 +40,20 @@ export function computePlayerRoundStats(player: Player, round: Round, course: Co
 
   const played = round.scores[player.id] ?? [];
   let total = 0, vsPar = 0, points = 0, netVsPar = 0, netPoints = 0;
-  played.forEach((s) => {
-    const h = course.holes.find((h) => h.number === s.hole);
-    const par = h?.par ?? 4;
-    const strokes = h ? holeStrokesInSet(courseHcp, holeRankInSet(h, playHoles), playHoles.length) : 0;
-    total += s.score;
-    vsPar += s.score - par;
-    points += stablefordPoints(s.score, par);
-    netVsPar += s.score - strokes - par;
-    netPoints += netStablefordPoints(s.score, par, strokes);
+  const holes: HoleStat[] = playHoles.map((h) => {
+    const strokes = holeStrokesInSet(courseHcp, holeRankInSet(h, playHoles), playHoles.length);
+    const s = played.find((x) => x.hole === h.number);
+    if (s) {
+      total += s.score;
+      vsPar += s.score - h.par;
+      points += stablefordPoints(s.score, h.par);
+      netVsPar += s.score - strokes - h.par;
+      netPoints += netStablefordPoints(s.score, h.par, strokes);
+    }
+    return { hole: h.number, par: h.par, score: s?.score ?? null, strokes };
   });
 
-  return { total, vsPar, points, netVsPar, netPoints, holesPlayed: played.length, totalHoles: playHoles.length };
+  return { total, vsPar, points, netVsPar, netPoints, holesPlayed: played.length, totalHoles: playHoles.length, holes };
 }
 
 type PlayerAgg = {
@@ -91,6 +103,7 @@ export type LeaderboardEntry = {
   thru: number;
   totalHoles: number;
   todayCompleted: boolean;
+  todayHoles: HoleStat[];
 };
 
 export type FlightGroup = {
@@ -143,6 +156,7 @@ export function computeTournamentLeaderboard(rounds: Round[], tournamentId: stri
       thru: todayRound?.stats.holesPlayed ?? 0,
       totalHoles: todayRound?.stats.totalHoles ?? 18,
       todayCompleted: todayRound?.round.completed ?? false,
+      todayHoles: todayRound?.stats.holes ?? [],
     };
   });
 

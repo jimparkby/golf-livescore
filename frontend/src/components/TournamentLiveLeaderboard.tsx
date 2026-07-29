@@ -1,10 +1,11 @@
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { api } from "@/lib/api";
 import type { Round } from "@/store/golfStore";
 import type { FormatId } from "@/lib/formats";
 import { computeTournamentLeaderboard } from "@/lib/tournamentLiveScoring";
 import { cn } from "@/lib/utils";
+import { ChevronDown, ChevronUp } from "lucide-react";
 
 const parSign = (v: number) => (v === 0 ? "E" : v > 0 ? `+${v}` : `${v}`);
 const placeOf = (pos: string) => parseInt(pos.replace("T", ""), 10);
@@ -17,6 +18,7 @@ export const TournamentLiveLeaderboard = ({
   format: FormatId;
 }) => {
   const [rounds, setRounds] = useState<Round[] | null>(null);
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     let cancelled = false;
@@ -75,38 +77,81 @@ export const TournamentLiveLeaderboard = ({
               <tbody className="divide-y divide-border">
                 {flight.entries.map((e) => {
                   const place = placeOf(e.pos);
+                  const rowKey = `${flight.key}:${e.key}`;
+                  const isOpen = !!expanded[rowKey];
+                  const canExpand = e.todayHoles.length > 0;
                   return (
-                    <tr key={e.key} className={cn(place <= 3 && "bg-action/5", e.isMe && "bg-action/10")}>
-                      <td className="px-3 py-2.5 font-bold text-foreground">
-                        {place <= 3 ? (
-                          <span
-                            className={cn(
-                              "inline-flex items-center justify-center h-6 min-w-6 px-1 rounded-full text-xs font-bold",
-                              place === 1 && "bg-yellow-500 text-black",
-                              place === 2 && "bg-gray-400 text-white",
-                              place === 3 && "bg-orange-600 text-white"
-                            )}
-                          >
-                            {e.pos}
+                    <Fragment key={rowKey}>
+                      <tr
+                        className={cn(place <= 3 && "bg-action/5", e.isMe && "bg-action/10", canExpand && "cursor-pointer")}
+                        onClick={() => canExpand && setExpanded((prev) => ({ ...prev, [rowKey]: !prev[rowKey] }))}
+                      >
+                        <td className="px-3 py-2.5 font-bold text-foreground">
+                          {place <= 3 ? (
+                            <span
+                              className={cn(
+                                "inline-flex items-center justify-center h-6 min-w-6 px-1 rounded-full text-xs font-bold",
+                                place === 1 && "bg-yellow-500 text-black",
+                                place === 2 && "bg-gray-400 text-white",
+                                place === 3 && "bg-orange-600 text-white"
+                              )}
+                            >
+                              {e.pos}
+                            </span>
+                          ) : (
+                            e.pos
+                          )}
+                        </td>
+                        <td className="px-3 py-2.5 text-foreground font-medium truncate max-w-[140px]">
+                          <span className="inline-flex items-center gap-1">
+                            {e.name}
+                            {e.isMe && <span className="text-action">•</span>}
+                            {canExpand && (isOpen ? (
+                              <ChevronUp className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                            ) : (
+                              <ChevronDown className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                            ))}
                           </span>
-                        ) : (
-                          e.pos
-                        )}
-                      </td>
-                      <td className="px-3 py-2.5 text-foreground font-medium truncate max-w-[140px]">
-                        {e.name}
-                        {e.isMe && <span className="text-action ml-1">•</span>}
-                      </td>
-                      <td className="px-3 py-2.5 text-right font-bold text-foreground tabular-nums">
-                        {isStableford ? e.totalPoints : parSign(e.totalNetVsPar)}
-                      </td>
-                      <td className="px-3 py-2.5 text-right text-muted-foreground tabular-nums">
-                        {e.thru > 0 ? `${e.thru}${!e.todayCompleted && e.thru < e.totalHoles ? "*" : ""}` : "—"}
-                      </td>
-                      <td className="px-3 py-2.5 text-right font-semibold text-foreground tabular-nums">
-                        {isStableford ? e.todayPoints : parSign(e.todayNetVsPar)}
-                      </td>
-                    </tr>
+                        </td>
+                        <td className="px-3 py-2.5 text-right font-bold text-foreground tabular-nums">
+                          {isStableford ? e.totalPoints : parSign(e.totalNetVsPar)}
+                        </td>
+                        <td className="px-3 py-2.5 text-right text-muted-foreground tabular-nums">
+                          {e.thru > 0 ? `${e.thru}${!e.todayCompleted && e.thru < e.totalHoles ? "*" : ""}` : "—"}
+                        </td>
+                        <td className="px-3 py-2.5 text-right font-semibold text-foreground tabular-nums">
+                          {isStableford ? e.todayPoints : parSign(e.todayNetVsPar)}
+                        </td>
+                      </tr>
+                      {isOpen && (
+                        <tr className={cn(e.isMe && "bg-action/10")}>
+                          <td colSpan={5} className="px-3 pb-3 pt-0">
+                            <div className="flex gap-2.5 overflow-x-auto pt-1">
+                              {e.todayHoles.map((h) => (
+                                <div key={h.hole} className="flex flex-col items-center shrink-0 w-7">
+                                  <div className="text-[9px] text-muted-foreground leading-none">{h.hole}</div>
+                                  <div
+                                    className={cn(
+                                      "text-xs font-bold tabular-nums leading-none mt-1",
+                                      h.score === null && "text-muted-foreground/40 font-normal"
+                                    )}
+                                  >
+                                    {h.score ?? "–"}
+                                  </div>
+                                  <div
+                                    className={cn("h-1 w-1 rounded-full mt-1", h.strokes > 0 ? "bg-action" : "bg-transparent")}
+                                    title={h.strokes > 0 ? `Фора: ${h.strokes} удар(а)` : undefined}
+                                  />
+                                </div>
+                              ))}
+                            </div>
+                            <div className="text-[10px] text-muted-foreground mt-1">
+                              • — лунка с форой (гандикап-удар)
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </Fragment>
                   );
                 })}
               </tbody>
