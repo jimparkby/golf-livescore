@@ -1,6 +1,7 @@
 import { Router } from 'express'
 import { db } from '../db.js'
 import { requireAuth, requireAdmin } from '../middleware/auth.js'
+import { bot } from '../bot.js'
 
 const router = Router()
 
@@ -34,6 +35,26 @@ router.post('/', requireAuth, async (req, res, next) => {
        RETURNING *`,
       [tournamentId, userId]
     )
+
+    if (bot) {
+      const { rows: [info] } = await db.query(
+        `SELECT t.name AS tournament_name, t.date AS tournament_date, u.telegram_id
+         FROM users u
+         LEFT JOIN tournaments t ON t.slug = $1 OR t.id::text = $1
+         WHERE u.id = $2`,
+        [tournamentId, userId]
+      )
+      if (info?.telegram_id) {
+        const dateLine = info.tournament_date
+          ? `\n📅 ${new Date(info.tournament_date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' })}`
+          : ''
+        bot.sendMessage(
+          info.telegram_id,
+          `✅ <b>Заявка на турнир отправлена</b>\n\n🏆 ${info.tournament_name || 'Турнир'}${dateLine}\n\nМы свяжемся с вами для подтверждения оплаты.`,
+          { parse_mode: 'HTML' }
+        ).catch((err) => console.error('[tournament-registrations] confirmation sendMessage failed:', err.message))
+      }
+    }
 
     res.json(result.rows[0])
   } catch (err) {
