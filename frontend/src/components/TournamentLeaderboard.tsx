@@ -2,6 +2,7 @@ import { Avatar } from "@/components/PlayerAvatar";
 import { COURSES } from "@/lib/courses";
 import { stablefordPoints, netStablefordPoints, type FormatId } from "@/lib/formats";
 import { calcCourseHcpForMode, holeRankInSet, holeStrokesInSet } from "@/lib/handicap";
+import { computePlayerRoundStats } from "@/lib/tournamentLiveScoring";
 import { useGolf, type Player } from "@/store/golfStore";
 import { cn } from "@/lib/utils";
 
@@ -214,20 +215,8 @@ export const TournamentLeaderboard = ({
 
   /* ── Individual leaderboard (Stroke Play / Stableford) — net (HCP-adjusted) ranking ── */
   const entries = activeRound.players.map((p) => {
-    const played = activeRound.scores[p.id] ?? [];
-    const ch = getCourseHcp(p);
-    let total = 0, vsPar = 0, points = 0, netVsPar = 0, netPoints = 0;
-    played.forEach((s) => {
-      const h = course.holes.find((h) => h.number === s.hole);
-      const par = h?.par ?? 4;
-      const strokes = h ? getHoleStrokes(p, h) : 0;
-      total += s.score;
-      vsPar += s.score - par;
-      points += stablefordPoints(s.score, par);
-      netVsPar += s.score - strokes - par;
-      netPoints += netStablefordPoints(s.score, par, strokes);
-    });
-    return { player: p, total, vsPar, points, netVsPar, netPoints, ch, holesPlayed: played.length };
+    const stats = computePlayerRoundStats(p, activeRound, course);
+    return { player: p, ...stats };
   });
   const sorted = [...entries].sort((a, b) =>
     isStableford ? b.netPoints - a.netPoints : a.netVsPar - b.netVsPar || a.total - b.total

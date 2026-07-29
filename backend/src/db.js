@@ -143,6 +143,7 @@ async function runMigrations() {
       created_at TIMESTAMPTZ DEFAULT NOW(),
       UNIQUE(slot_id, user_id)
     )` },
+    { name: 'user_gender', query: `ALTER TABLE users ADD COLUMN IF NOT EXISTS gender TEXT` },
   ]
 
   for (const migration of migrations) {

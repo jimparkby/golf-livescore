@@ -1,13 +1,15 @@
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Calendar, MapPin, Award, Image as ImageIcon, Trophy, Users, Brain, UserPlus, CheckCircle, Clock, CreditCard, X as XIcon } from "lucide-react";
-import { TOURNAMENTS } from "@/lib/tournaments";
+import { ArrowLeft, Calendar, MapPin, Award, Image as ImageIcon, Trophy, Users, Brain, UserPlus, CheckCircle, Clock, CreditCard, X as XIcon, Flag } from "lucide-react";
+import { TOURNAMENTS, isTournamentUpcoming, tournamentStartDate } from "@/lib/tournaments";
 import { getTournamentData } from "@/lib/tournament-data";
 import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useState, useEffect } from "react";
 import { api } from "@/lib/api";
+import { TournamentLiveLeaderboard } from "@/components/TournamentLiveLeaderboard";
 
-type Tab = "info" | "results" | "nominations" | "photos" | "flights" | "predictions";
+type Tab = "info" | "live" | "results" | "nominations" | "photos" | "flights" | "predictions";
 
 type Prediction = {
   playerName: string;
@@ -239,24 +241,9 @@ const TournamentInfoPage = () => {
   // Check if registration is closed (1 day before tournament)
   const isRegistrationClosed = () => {
     if (!tournament) return true;
-
-    // Parse tournament date (format: "26" or "26-27")
-    const dateStr = tournament.date.split('-')[0]; // Take first date if range
-    const monthMap: Record<string, number> = {
-      'Январь': 0, 'Февраль': 1, 'Март': 2, 'Апрель': 3,
-      'Май': 4, 'Июнь': 5, 'Июль': 6, 'Август': 7,
-      'Сентябрь': 8, 'Октябрь': 9, 'Ноябрь': 10, 'Декабрь': 11
-    };
-    const month = monthMap[tournament.month];
-    const day = parseInt(dateStr);
-    const year = 2026; // Hardcoded year from tournaments
-
-    const tournamentDate = new Date(year, month, day);
-    const now = new Date();
-    const oneDayBefore = new Date(tournamentDate);
+    const oneDayBefore = tournamentStartDate(tournament);
     oneDayBefore.setDate(oneDayBefore.getDate() - 1);
-
-    return now >= oneDayBefore;
+    return new Date() >= oneDayBefore;
   };
 
   if (!tournament) {
@@ -298,7 +285,7 @@ const TournamentInfoPage = () => {
       </div>
 
       {/* Tabs */}
-      {(hasData || hasApiResults || flightsPhotos.length > 0) && (
+      {(hasData || hasApiResults || flightsPhotos.length > 0 || isTournamentUpcoming(tournament)) && (
         <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
           <button
             onClick={() => setActiveTab("info")}
@@ -311,6 +298,19 @@ const TournamentInfoPage = () => {
           >
             О турнире
           </button>
+          {isTournamentUpcoming(tournament) && (
+            <button
+              onClick={() => setActiveTab("live")}
+              className={cn(
+                "px-4 py-2 rounded-lg text-sm font-semibold whitespace-nowrap transition-colors",
+                activeTab === "live"
+                  ? "bg-action text-primary-foreground"
+                  : "bg-muted/50 text-muted-foreground hover:bg-muted"
+              )}
+            >
+              Live
+            </button>
+          )}
           {(hasData || hasApiResults) && (
             <>
               <button
@@ -476,6 +476,20 @@ const TournamentInfoPage = () => {
               </div>
             </div>
           </Card>
+        </div>
+      )}
+
+      {/* Live Tab — flighted leaderboard, aggregated across every registered
+          player's round tagged with this tournament */}
+      {activeTab === "live" && (
+        <div className="space-y-4">
+          <Button
+            onClick={() => navigate(`/tournament/${tournament.id}`)}
+            className="w-full h-12 rounded-xl font-bold text-sm bg-action hover:bg-action/90 text-action-foreground"
+          >
+            <Flag className="h-4 w-4 mr-2" strokeWidth={2.5} /> Начать live-scoring
+          </Button>
+          <TournamentLiveLeaderboard tournamentId={tournament.id} format={tournament.format} />
         </div>
       )}
 

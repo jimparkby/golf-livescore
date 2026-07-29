@@ -1,6 +1,7 @@
 import express from 'express'
 import https from 'https'
 import { db } from '../db.js'
+import { buildRound } from './rounds.js'
 
 const router = express.Router()
 
@@ -107,6 +108,29 @@ router.get('/:id/results', async (req, res) => {
   } catch (error) {
     console.error('Error getting tournament results:', error)
     res.status(500).json({ error: 'Failed to get tournament results' })
+  }
+})
+
+/**
+ * GET /api/tournaments/:id/rounds
+ * Public, no-auth: every round (playing group) tagged with this tournament id
+ * (the static tournament slug, e.g. "pets-day"), for the live flighted
+ * leaderboard. Mirrors the /api/live/:code public-read pattern.
+ */
+router.get('/:id/rounds', async (req, res, next) => {
+  try {
+    const { id } = req.params
+
+    const { rows } = await db.query(
+      'SELECT * FROM rounds WHERE tournament_id = $1 ORDER BY date ASC',
+      [id]
+    )
+
+    const roundsWithData = await Promise.all(rows.map((r) => buildRound(r, null)))
+    res.json(roundsWithData)
+  } catch (error) {
+    console.error('Error getting tournament rounds:', error)
+    res.status(500).json({ error: 'Failed to get tournament rounds' })
   }
 })
 

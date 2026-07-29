@@ -16,7 +16,7 @@ router.get('/', requireAuth, async (req, res, next) => {
 })
 
 router.put('/', requireAuth, async (req, res, next) => {
-  const { first_name, last_name, username, hcp, home_club, city, default_tee } = req.body
+  const { first_name, last_name, username, hcp, home_club, city, default_tee, gender } = req.body
   try {
     const { rows: [user] } = await db.query(
       `UPDATE users SET
@@ -27,6 +27,7 @@ router.put('/', requireAuth, async (req, res, next) => {
          home_club   = COALESCE($6, home_club),
          city        = COALESCE($7, city),
          default_tee = COALESCE($8, default_tee),
+         gender      = COALESCE($9, gender),
          updated_at  = NOW()
        WHERE id = $1 RETURNING *`,
       [
@@ -38,6 +39,7 @@ router.put('/', requireAuth, async (req, res, next) => {
         home_club?.trim() || null,
         city?.trim() || null,
         default_tee?.trim() || null,
+        (gender === 'man' || gender === 'woman') ? gender : null,
       ]
     )
     res.json(user)

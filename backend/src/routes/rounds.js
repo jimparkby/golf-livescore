@@ -15,8 +15,10 @@ const webAppUrl = process.env.FRONTEND_URL || 'https://your-app-url.com'
 
 export async function buildRound(round, requesterId) {
   const { rows: players } = await db.query(
-    `SELECT player_id, name, initials, hcp, is_me, user_id
-     FROM round_players WHERE round_id = $1`,
+    `SELECT rp.player_id, rp.name, rp.initials, rp.hcp, rp.is_me, rp.user_id, u.gender
+     FROM round_players rp
+     LEFT JOIN users u ON u.id = rp.user_id
+     WHERE rp.round_id = $1`,
     [round.id]
   )
 
@@ -58,6 +60,8 @@ export async function buildRound(round, requesterId) {
       initials: p.initials,
       hcp: parseFloat(p.hcp),
       isMe: (p.is_me && round.user_id === requesterId) || (p.user_id === requesterId),
+      userId: p.user_id ?? null,
+      gender: p.gender ?? null,
     })),
     scores: scoresByPlayer,
   }

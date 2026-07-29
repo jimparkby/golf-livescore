@@ -12,6 +12,8 @@ export type Player = {
   tee?: TeeColor;
   isMe?: boolean;
   photoUrl?: string;
+  userId?: string;
+  gender?: "man" | "woman";
 };
 
 export type HoleScore = {
@@ -61,6 +63,7 @@ export type Profile = {
   memberSince: string;
   photoUrl?: string;
   defaultTee: TeeColor;
+  gender?: "man" | "woman";
 };
 
 export type CustomTournament = {

@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Avatar } from "@/components/PlayerAvatar";
+import { PlayerPickerSheet } from "@/components/PlayerPickerSheet";
 import { COURSES } from "@/lib/courses";
 import { TOURNAMENTS, TIER_LABELS, type Tier } from "@/lib/tournaments";
 import { getFormat, stablefordPoints, type FormatId } from "@/lib/formats";
@@ -27,28 +28,31 @@ type AnyTournament = {
   day: string;
   month: string;
   format: FormatId;
+  courseId?: string;
   tier?: Tier;
   fee?: string;
   notes?: string;
 };
 
-type Step = "info" | "playing";
+type Step = "info" | "join" | "playing";
 
 const TournamentPlayPage = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { profile, activeRound, cancelActiveRound, customTournaments } = useGolf();
+  const { profile, activeRound, cancelActiveRound, customTournaments, startRound } = useGolf();
 
   const staticT = TOURNAMENTS.find((t) => t.id === id);
   const customT = customTournaments.find((t) => t.id === id);
-  const tournament: AnyTournament | undefined = staticT
-    ? { ...staticT, format: "stroke_play" }
-    : customT ?? undefined;
+  const tournament: AnyTournament | undefined = staticT ?? customT ?? undefined;
 
-  // If activeRound matches this tournament, go straight to playing
+  // If activeRound matches THIS tournament, go straight to playing — an
+  // unrelated active round (a different tournament, or a solo round) must
+  // not hijack this page.
   const [step, setStep] = useState<Step>(
-    activeRound ? "playing" : "info"
+    activeRound?.tournamentId === id ? "playing" : "info"
   );
+  const [joinPlayers, setJoinPlayers] = useState<Player[]>([]);
+  const [showPicker, setShowPicker] = useState(false);
 
   if (!tournament) {
     return (
@@ -61,7 +65,7 @@ const TournamentPlayPage = () => {
     );
   }
 
-  if (activeRound || step === "playing") {
+  if ((activeRound && activeRound.tournamentId === tournament.id) || step === "playing") {
     return (
       <TournamentRoundPlayer
         tournamentName={tournament.name}
@@ -71,8 +75,92 @@ const TournamentPlayPage = () => {
     );
   }
 
-  // Info screen for static tournaments
   const fmt = getFormat(tournament.format);
+
+  // Join screen — pick playing partners (up to 3) before starting a shared
+  // round tagged with this tournament's id, so it shows up in the tournament's
+  // aggregated live leaderboard.
+  if (step === "join") {
+    const course = COURSES.find((c) => c.id === (tournament.courseId ?? "championship")) ?? COURSES[0];
+
+    const handleStart = () => {
+      const me: Player = {
+        id: "me",
+        name: `${profile.firstName} ${profile.lastName}`.trim() || "Me",
+        initials: profile.initials || "ME",
+        hcp: profile.hcp,
+        tee: profile.defaultTee,
+        isMe: true,
+        photoUrl: profile.photoUrl,
+      };
+      startRound(course, [me, ...joinPlayers], tournament.id, tournament.format, "18", undefined);
+      setStep("playing");
+    };
+
+    return (
+      <div className="space-y-5 animate-in slide-in-from-right duration-300">
+        <button onClick={() => setStep("info")} className="flex items-center gap-1 text-action font-bold text-lg">
+          <ChevronLeft className="h-5 w-5" strokeWidth={2.5} /> {tournament.name}
+        </button>
+
+        <Card className="p-5 shadow-soft space-y-4">
+          <div>
+            <div className="text-xs uppercase tracking-wider text-muted-foreground font-semibold mb-2">
+              Тройник (необязательно)
+            </div>
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-muted/50">
+                <Avatar name={profile.firstName || "Me"} tone="orange" photoUrl={profile.photoUrl} size="sm" />
+                <div className="text-sm font-medium truncate">
+                  {`${profile.firstName} ${profile.lastName}`.trim() || "Я"}
+                </div>
+                <div className="ml-auto text-xs text-muted-foreground">HCP {profile.hcp}</div>
+              </div>
+              {joinPlayers.map((p) => (
+                <div key={p.id} className="flex items-center gap-2 px-3 py-2 rounded-xl bg-muted/50">
+                  <Avatar name={p.name} tone="muted" photoUrl={p.photoUrl} size="sm" />
+                  <div className="text-sm font-medium truncate">{p.name}</div>
+                  <div className="ml-auto text-xs text-muted-foreground">HCP {p.hcp}</div>
+                  <button
+                    onClick={() => setJoinPlayers((prev) => prev.filter((x) => x.id !== p.id))}
+                    className="text-muted-foreground hover:text-destructive"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
+            {joinPlayers.length < 3 && (
+              <button
+                onClick={() => setShowPicker(true)}
+                className="mt-3 flex items-center gap-1 text-action font-semibold text-sm"
+              >
+                <Plus className="h-4 w-4" /> Добавить партнёра
+              </button>
+            )}
+          </div>
+
+          <Button
+            onClick={handleStart}
+            size="lg"
+            className="w-full h-14 text-base font-semibold bg-action hover:bg-action/90 text-action-foreground rounded-xl shadow-glow"
+          >
+            <Flag className="h-5 w-5 mr-2" strokeWidth={2.5} /> Начать · {course.name}
+          </Button>
+        </Card>
+
+        {showPicker && (
+          <PlayerPickerSheet
+            players={joinPlayers}
+            onAdd={(p) => { setJoinPlayers((prev) => [...prev, p]); setShowPicker(false); }}
+            onClose={() => setShowPicker(false)}
+          />
+        )}
+      </div>
+    );
+  }
+
+  // Info screen for static tournaments
   return (
     <div className="space-y-5 animate-in fade-in duration-300">
       <button onClick={() => navigate("/tournaments")} className="flex items-center gap-1 text-action font-bold text-lg">
@@ -111,7 +199,7 @@ const TournamentPlayPage = () => {
         </div>
         <div className="px-5 pb-5">
           <Button
-            onClick={() => setStep("playing")}
+            onClick={() => setStep("join")}
             size="lg"
             className="w-full h-14 text-base font-semibold bg-action hover:bg-action/90 text-action-foreground rounded-xl shadow-glow"
           >

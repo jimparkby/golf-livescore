@@ -72,7 +72,7 @@ const ProfilePage = () => {
     fetch(`${BASE}/api/profile`, {
       method: "PUT",
       headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-      body: JSON.stringify({ default_tee: patch.defaultTee }),
+      body: JSON.stringify({ default_tee: patch.defaultTee, gender: patch.gender }),
     }).catch(console.error);
   };
 
@@ -91,6 +91,7 @@ const ProfilePage = () => {
         hcp: data.hcp,
         home_club: data.homeClub,
         city: data.city,
+        gender: data.gender,
       }),
     }).catch(console.error);
   };
@@ -390,6 +391,31 @@ const ProfilePage = () => {
             <ChevronRight className="h-4 w-4" />
           </div>
         </button>
+
+        {/* Gender — used to bucket into HCP flights for tournament live scoring */}
+        <div className="w-full flex items-center justify-between px-5 py-4">
+          <div className="text-sm font-medium">Пол</div>
+          <div className="flex gap-2">
+            <button
+              onClick={() => pushSetting({ gender: "man" })}
+              className={cn(
+                "px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors",
+                profile.gender !== "woman" ? "bg-action text-primary-foreground" : "bg-muted text-muted-foreground"
+              )}
+            >
+              Мужской
+            </button>
+            <button
+              onClick={() => pushSetting({ gender: "woman" })}
+              className={cn(
+                "px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors",
+                profile.gender === "woman" ? "bg-action text-primary-foreground" : "bg-muted text-muted-foreground"
+              )}
+            >
+              Женский
+            </button>
+          </div>
+        </div>
 
         {/* Sync with HDID */}
         <button
